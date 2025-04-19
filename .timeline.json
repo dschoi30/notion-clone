@@ -1,9 +1,73 @@
 {
-  "timeline_index": 1,
-  "planner": {},
+  "timeline_index": 33,
+  "planner": {
+    "Team Leader": {
+      "1": {
+        "task_id": "1",
+        "dependent_task_ids": [],
+        "instruction": "Create a detailed PRD document for the Notion clone project, including user stories, requirements analysis, and phased development plan",
+        "task_type": "general",
+        "code": "",
+        "result": "",
+        "is_success": false,
+        "is_finished": true,
+        "assignee": "Emma",
+        "start_at": 1745032623.4914074,
+        "end_at": 1745032713.6403263
+      },
+      "current_task_id": "2",
+      "2": {
+        "task_id": "2",
+        "dependent_task_ids": [
+          "1"
+        ],
+        "instruction": "Design the system architecture for the Notion clone project considering the tech stack (Vite, React, PostgreSQL, Spring Framework, shadcn) and features for each phase",
+        "task_type": "general",
+        "code": "",
+        "result": "",
+        "is_success": false,
+        "is_finished": true,
+        "assignee": "Bob",
+        "start_at": 1745032713.6403563,
+        "end_at": 1745033732.2077048
+      }
+    }
+  },
   "gallery_last_file": {},
   "timeline_status": {
-    "1": 1
+    "1": 1,
+    "2": 1,
+    "3": 1,
+    "4": 1,
+    "5": 1,
+    "6": 1,
+    "7": 1,
+    "8": 1,
+    "9": 1,
+    "10": 1,
+    "11": 1,
+    "12": 1,
+    "13": 1,
+    "14": 1,
+    "15": 1,
+    "16": 1,
+    "17": 1,
+    "18": 1,
+    "19": 1,
+    "20": 1,
+    "21": 1,
+    "22": 1,
+    "23": 0,
+    "24": 1,
+    "25": 1,
+    "26": 1,
+    "27": 1,
+    "28": 1,
+    "29": 1,
+    "30": 1,
+    "31": 1,
+    "32": 1,
+    "33": 1
   },
   "preview_servers": {},
   "deploy": {}
