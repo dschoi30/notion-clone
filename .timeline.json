@@ -1,5 +1,5 @@
 {
-  "timeline_index": 33,
+  "timeline_index": 50,
   "planner": {
     "Team Leader": {
       "1": {
@@ -15,7 +15,7 @@
         "start_at": 1745032623.4914074,
         "end_at": 1745032713.6403263
       },
-      "current_task_id": "2",
+      "current_task_id": "3",
       "2": {
         "task_id": "2",
         "dependent_task_ids": [
@@ -29,7 +29,21 @@
         "is_finished": true,
         "assignee": "Bob",
         "start_at": 1745032713.6403563,
-        "end_at": 1745033732.2077048
+        "end_at": 1745033925.9667952
+      },
+      "3": {
+        "task_id": "3",
+        "dependent_task_ids": [
+          "2"
+        ],
+        "instruction": "Implement Phase 1 (MVP) of the Notion clone project based on the PRD and architecture design.\n\nRequired features:\n1. Basic authentication (email/password, Google OAuth)\n2. Basic document management (CRUD)\n3. Simple text editor\n4. Basic folder/document structure\n\nTech Stack:\n- Frontend: Vite, React, shadcn/ui\n- Backend: Spring Framework, Spring Security, PostgreSQL\n\nReference documents:\n- PRD: /data/chats/od897/workspace/docs/notion_clone_prd.md\n- Architecture: /data/chats/od897/workspace/docs/notion_clone_architecture.md\n\nPlease implement the MVP features and create a working prototype.",
+        "task_type": "general",
+        "code": "",
+        "result": "",
+        "is_success": false,
+        "is_finished": false,
+        "assignee": "Alex",
+        "start_at": 1745033925.9668002
       }
     }
   },
@@ -67,7 +81,22 @@
     "30": 1,
     "31": 1,
     "32": 1,
-    "33": 1
+    "33": 1,
+    "34": 1,
+    "35": 1,
+    "37": 1,
+    "38": 1,
+    "39": 1,
+    "40": 1,
+    "41": 1,
+    "42": 1,
+    "43": 1,
+    "44": 1,
+    "46": 1,
+    "47": 1,
+    "48": 1,
+    "49": 1,
+    "50": 1
   },
   "preview_servers": {},
   "deploy": {}
