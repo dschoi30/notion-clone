@@ -1,6 +1,6 @@
 package com.example.notionclone.domain.user.service;
 
-import com.example.notionclone.domain.user.User;
+import com.example.notionclone.domain.user.entity.User;
 import com.example.notionclone.domain.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;

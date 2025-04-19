@@ -1,6 +1,6 @@
 package com.example.notionclone.domain.user.controller;
 
-import com.example.notionclone.domain.user.User;
+import com.example.notionclone.domain.user.entity.User;
 import com.example.notionclone.domain.user.dto.AuthResponse;
 import com.example.notionclone.domain.user.dto.GoogleLoginRequest;
 import com.example.notionclone.domain.user.dto.LoginRequest;

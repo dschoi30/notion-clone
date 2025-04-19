@@ -18,7 +18,6 @@ export const register = async (data) => {
 
 export const loginWithGoogle = async (credential) => {
   const response = await api.post('/auth/google', { credential });
-  console.log(response.data);
   if (response.data.accessToken) {
     localStorage.setItem('token', response.data.accessToken);
   }

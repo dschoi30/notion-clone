@@ -1,0 +1,42 @@
+.editor-menu-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: white;
+}
+
+.editor-menu-bar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  border: none;
+  background: transparent;
+  border-radius: 0.375rem;
+  color: #4b5563;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.editor-menu-bar button:hover {
+  background-color: #f3f4f6;
+}
+
+.editor-menu-bar button.is-active {
+  color: #2563eb;
+  background-color: #eff6ff;
+}
+
+.editor-menu-bar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.editor-menu-bar .divider {
+  width: 1px;
+  height: 24px;
+  background-color: #e5e7eb;
+  margin: 0 0.5rem;
+} 

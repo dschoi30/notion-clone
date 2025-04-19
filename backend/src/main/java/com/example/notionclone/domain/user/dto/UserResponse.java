@@ -1,6 +1,6 @@
 package com.example.notionclone.domain.user.dto;
 
-import com.example.notionclone.domain.user.User;
+import com.example.notionclone.domain.user.entity.User;
 
 import lombok.Getter;
 import lombok.Setter;
