@@ -1,10 +1,11 @@
 package com.example.notionclone.domain.document.dto;
 
-import com.example.notionclone.domain.document.entity.Document;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+
+import com.example.notionclone.domain.document.entity.Document;
 
 @Getter
 @NoArgsConstructor
