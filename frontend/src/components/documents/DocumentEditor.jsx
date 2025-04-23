@@ -1,73 +1,82 @@
 // src/components/documents/DocumentEditor.jsx
-import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { useDocument } from '../../contexts/DocumentContext';
+import React, { useState, useEffect } from 'react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { useDocument } from '@/contexts/DocumentContext';
+import { SaveIcon } from 'lucide-react';
 
-function DocumentEditor() {
-  const { documentId } = useParams();
-  const { getDocument, updateDocument } = useDocument();
-  const [content, setContent] = useState('');
+export default function DocumentEditor() {
+  const { currentDocument, updateDocument, loading, error } = useDocument();
   const [title, setTitle] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [content, setContent] = useState('');
+  const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
 
   useEffect(() => {
-    const loadDocument = async () => {
-      if (documentId) {
-        const doc = await getDocument(documentId);
-        setTitle(doc.title);
-        setContent(doc.content);
-      }
-    };
-    loadDocument();
-  }, [documentId, getDocument]);
+    if (currentDocument) {
+      setTitle(currentDocument.title);
+      setContent(currentDocument.content);
+      setSaveStatus('saved');
+    }
+  }, [currentDocument]);
 
-  const handleTitleChange = (e) => {
-    setTitle(e.target.value);
-    saveChanges(e.target.value, content);
-  };
+  const handleSave = async () => {
+    if (!currentDocument) return;
 
-  const handleContentChange = (e) => {
-    setContent(e.target.value);
-    saveChanges(title, e.target.value);
-  };
-
-  const saveChanges = async (newTitle, newContent) => {
-    if (saving) return;
-    setSaving(true);
     try {
-      await updateDocument(documentId, {
-        title: newTitle,
-        content: newContent,
+      setSaveStatus('saving');
+      await updateDocument(currentDocument.id, {
+        title,
+        content
       });
-    } catch (error) {
-      console.error('Failed to save document:', error);
-    } finally {
-      setSaving(false);
+      setSaveStatus('saved');
+    } catch (err) {
+      console.error('문서 저장 실패:', err);
+      setSaveStatus('error');
     }
   };
 
+  if (loading) {
+    return <div className="p-4">로딩 중...</div>;
+  }
+
+  if (error) {
+    return <div className="p-4 text-red-500">에러: {error}</div>;
+  }
+
+  if (!currentDocument) {
+    return (
+      <div className="p-4 text-center text-gray-500">
+        편집할 문서를 선택해주세요.
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-full p-4">
-      <input
-        type="text"
-        value={title}
-        onChange={handleTitleChange}
-        placeholder="Untitled"
-        className="w-full p-2 mb-4 text-2xl font-bold rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
-      />
+    <div className="p-4 space-y-4">
+      <div className="flex items-center gap-4">
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="문서 제목"
+          className="text-xl font-bold"
+        />
+        <Button
+          onClick={handleSave}
+          disabled={saveStatus === 'saving'}
+          variant={saveStatus === 'error' ? 'destructive' : 'default'}
+        >
+          <SaveIcon className="w-4 h-4 mr-1" />
+          {saveStatus === 'saving' ? '저장 중...' : 
+           saveStatus === 'error' ? '저장 실패' : '저장'}
+        </Button>
+      </div>
+
       <textarea
         value={content}
-        onChange={handleContentChange}
-        placeholder="Start writing..."
-        className="flex-1 w-full p-4 rounded resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        onChange={(e) => setContent(e.target.value)}
+        placeholder="내용을 입력하세요..."
+        className="w-full h-[calc(100vh-200px)] p-4 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
-      {saving && (
-        <div className="fixed px-4 py-2 text-white bg-gray-800 rounded bottom-4 right-4">
-          Saving...
-        </div>
-      )}
     </div>
   );
 }
-
-export default DocumentEditor;

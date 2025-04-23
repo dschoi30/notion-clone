@@ -1,71 +1,31 @@
 // src/services/documentApi.js
-const API_BASE_URL = 'http://localhost:8080/api';
+import api from './api';
 
-class DocumentApiService {
-  async request(endpoint, options = {}) {
-    const token = localStorage.getItem('token');
-    const headers = {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
-    };
-
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers,
-    });
-
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`);
-    }
-
-    return response.json();
-  }
-
-  async getDocuments() {
-    return this.request('/documents');
-  }
-
-  async getDocument(id) {
-    return this.request(`/documents/${id}`);
-  }
-
-  async createDocument(data) {
-    return this.request('/documents', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateDocument(id, data) {
-    return this.request(`/documents/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteDocument(id) {
-    return this.request(`/documents/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async getFolders() {
-    return this.request('/folders');
-  }
-
-  async createFolder(data) {
-    return this.request('/folders', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteFolder(id) {
-    return this.request(`/folders/${id}`, {
-      method: 'DELETE',
-    });
-  }
+// 문서 목록 조회
+export async function getDocuments(workspaceId) {
+  const response = await api.get(`/workspaces/${workspaceId}/documents`);
+  return response.data;
 }
 
-export const documentApi = new DocumentApiService();
+// 단일 문서 조회
+export async function getDocument(workspaceId, documentId) {
+  const response = await api.get(`/workspaces/${workspaceId}/documents/${documentId}`);
+  return response.data;
+}
+
+// 새 문서 생성
+export async function createDocument(workspaceId, data) {
+  const response = await api.post(`/workspaces/${workspaceId}/documents`, data);
+  return response.data;
+}
+
+// 문서 수정
+export async function updateDocument(workspaceId, documentId, data) {
+  const response = await api.put(`/workspaces/${workspaceId}/documents/${documentId}`, data);
+  return response.data;
+}
+
+// 문서 삭제
+export async function deleteDocument(workspaceId, documentId) {
+  await api.delete(`/workspaces/${workspaceId}/documents/${documentId}`);
+}

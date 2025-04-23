@@ -1,45 +1,69 @@
 import api from './api';
 
-export const login = async (data) => {
-  const response = await api.post('/auth/login', data);
-  if (response.data.accessToken) {
-    localStorage.setItem('token', response.data.accessToken);
+export const login = async (email, password) => {
+  try {
+    const response = await api.post('/auth/login', { email, password });
+    console.log('로그인 응답:', response.data);
+    if (response.data.accessToken) {
+      localStorage.setItem('accessToken', response.data.accessToken);
+    }
+    return response.data;
+  } catch (error) {
+    console.error('로그인 실패:', error);
+    throw error;
   }
-  return response.data;
 };
 
-export const register = async (data) => {
-  const response = await api.post('/auth/register', data);
-  if (response.data.accessToken) {
-    localStorage.setItem('token', response.data.accessToken);
+export const register = async (email, password, name) => {
+  try {
+    const response = await api.post('/auth/register', { email, password, name });
+    console.log('회원가입 응답:', response.data);
+    if (response.data.accessToken) {
+      localStorage.setItem('accessToken', response.data.accessToken);
+    }
+    return response.data;
+  } catch (error) {
+    console.error('회원가입 실패:', error);
+    throw error;
   }
-  return response.data;
 };
 
 export const loginWithGoogle = async (credential) => {
-  const response = await api.post('/auth/google', { credential });
-  if (response.data.accessToken) {
-    localStorage.setItem('token', response.data.accessToken);
+  try {
+    const response = await api.post('/auth/google', { credential });
+    console.log('구글 로그인 응답:', response.data);
+    
+    if (response.data.accessToken) {
+      localStorage.setItem('accessToken', response.data.accessToken);
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error('Google 로그인 실패:', error);
+    throw error;
   }
-  return response.data;
 };
 
 export const logout = () => {
-  localStorage.removeItem('token');
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('user');
+  localStorage.removeItem('userId');
   window.location.href = '/login';
 };
 
 export const getCurrentUser = async () => {
   try {
     const response = await api.get('/auth/me');
+    console.log('현재 사용자 정보:', response.data);
     return response.data;
   } catch (error) {
-    localStorage.removeItem('token');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('userId');
     throw error;
   }
 };
 
 export const isAuthenticated = () => {
-  const token = localStorage.getItem('token');
-  return !!token;
+  return !!localStorage.getItem('accessToken');
 }; 

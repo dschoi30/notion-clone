@@ -1,19 +1,18 @@
 package com.example.notionclone.domain.document.entity;
 
+import com.example.notionclone.domain.BaseTimeEntity;
 import com.example.notionclone.domain.user.entity.User;
+import com.example.notionclone.domain.workspace.entity.Workspace;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import java.time.LocalDateTime;
+import lombok.*;
 
 @Entity
 @Table(name = "documents")
 @Getter
-@Setter
-public class Document {
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Builder
+public class Document extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -25,25 +24,29 @@ public class Document {
     private String content;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_id")
-    private Document parent;
+    @JoinColumn(name = "workspace_id")
+    private Workspace workspace;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private User owner;
+    private User user;
 
-    @Column(name = "is_folder")
-    private boolean isFolder = false;
+    public Document(String title, String content) {
+        this(title, content, null);
+    }
 
-    @CreationTimestamp
-    private LocalDateTime createdAt;
+    public Document(String title, String content, Workspace workspace) {
+        this.title = title;
+        this.content = content;
+        this.workspace = workspace;
+    }
 
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
+    public void update(String title, String content) {
+        this.title = title;
+        this.content = content;
+    }
 
-    @Column(name = "icon")
-    private String icon;
-
-    @Column(name = "position")
-    private Integer position;
+    public void setWorkspace(Workspace workspace) {
+        this.workspace = workspace;
+    }
 } 

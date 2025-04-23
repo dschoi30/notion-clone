@@ -2,42 +2,75 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { DocumentProvider } from './contexts/DocumentContext';
 import LoginForm from './components/auth/LoginForm';
 import RegisterForm from './components/auth/RegisterForm';
-import MainLayout from './components/layout/MainLayout';
+import { WorkspaceProvider } from './contexts/WorkspaceContext';
+import { DocumentProvider } from './contexts/DocumentContext';
+import { WorkspaceTree } from './components/workspace/WorkspaceTree';
+import DocumentList from './components/documents/DocumentList';
+import DocumentEditor from './components/documents/DocumentEditor';
 
-const PrivateRoute = ({ children }) => {
-  const { user, isLoading } = useAuth();
+const AppLayout = () => {
+  const { user } = useAuth();
 
-  if (isLoading) {
-    return <div>Loading...</div>;
+  if (!user) {
+    return <Navigate to="/login" />;
   }
 
-  return user ? children : <Navigate to="/login" />;
+  return (
+    <WorkspaceProvider>
+      <DocumentProvider>
+        <div className="flex h-screen">
+          <aside className="w-64 border-r bg-gray-50">
+            <div className="p-4">
+              <h1 className="mb-4 text-xl font-bold">Notion Clone</h1>
+            </div>
+            <WorkspaceTree />
+          </aside>
+          <div className="flex flex-1">
+            <aside className="w-64 border-r">
+              <DocumentList />
+            </aside>
+            <main className="flex-1 overflow-auto">
+              <DocumentEditor />
+            </main>
+          </div>
+        </div>
+      </DocumentProvider>
+    </WorkspaceProvider>
+  );
+};
+
+const PublicLayout = () => {
+  return (
+    <div className="flex flex-col justify-center min-h-screen bg-gray-50">
+      <div className="w-full max-w-md mx-auto">
+        <Routes>
+          <Route path="/login" element={<LoginForm />} />
+          <Route path="/register" element={<RegisterForm />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </div>
+    </div>
+  );
 };
 
 const App = () => {
+  const { user } = useAuth();
+
   return (
     <Router>
-      <AuthProvider>
-        <DocumentProvider>
-          <Routes>
-            <Route path="/login" element={<LoginForm />} />
-            <Route path="/register" element={<RegisterForm />} />
-            <Route
-              path="/*"
-              element={
-                <PrivateRoute>
-                  <MainLayout />
-                </PrivateRoute>
-              }
-            />
-          </Routes>
-        </DocumentProvider>
-      </AuthProvider>
+      {user ? <AppLayout /> : <PublicLayout />}
     </Router>
   );
 };
 
-export default App;
+const Root = () => {
+  return (
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  );
+};
+
+export default Root;

@@ -1,102 +1,79 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { register } from '../../services/auth';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
 
-const RegisterForm = () => {
+export default function RegisterForm() {
+  const navigate = useNavigate();
+  const { register, loading, error } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [error, setError] = useState('');
-  const navigate = useNavigate();
-  const { setUser } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-
     try {
-      const response = await register({ email, password, name });
-      setUser(response.user);
+      await register(email, password, name);
       navigate('/');
     } catch (err) {
-      setError('회원가입에 실패했습니다. 입력 정보를 확인해주세요.');
+      console.error('회원가입 실패:', err);
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow">
+    <Card className="p-6">
+      <h1 className="mb-6 text-2xl font-bold text-center">회원가입</h1>
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <h2 className="mt-6 text-3xl font-extrabold text-center text-gray-900">
-            회원가입
-          </h2>
+          <Input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="이름"
+            required
+          />
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="-space-y-px rounded-md shadow-sm">
-            <div>
-              <label htmlFor="name" className="sr-only">
-                이름
-              </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                required
-                className="relative block w-full px-3 py-2 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-none appearance-none rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="이름"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="email" className="sr-only">
-                이메일
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                className="relative block w-full px-3 py-2 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-none appearance-none focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="이메일"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                비밀번호
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="relative block w-full px-3 py-2 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-none appearance-none rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="비밀번호"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
+        <div>
+          <Input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="이메일"
+            required
+          />
+        </div>
+        <div>
+          <Input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="비밀번호"
+            required
+          />
+        </div>
+        {error && (
+          <div className="text-sm text-red-500">
+            {error}
           </div>
-
-          {error && (
-            <div className="text-sm text-center text-red-500">{error}</div>
-          )}
-
-          <div>
-            <button
-              type="submit"
-              className="relative flex justify-center w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md group hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              회원가입
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        )}
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={loading}
+        >
+          {loading ? '가입 중...' : '회원가입'}
+        </Button>
+        <div className="text-center">
+          <Button
+            variant="link"
+            onClick={() => navigate('/login')}
+          >
+            이미 계정이 있으신가요? 로그인
+          </Button>
+        </div>
+      </form>
+    </Card>
   );
-};
-
-export default RegisterForm; 
+} 

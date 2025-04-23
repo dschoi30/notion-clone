@@ -1,79 +1,119 @@
 // src/contexts/DocumentContext.jsx
-import { createContext, useContext, useState, useCallback } from 'react';
-import { documentApi } from '../services/documentApi';
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import * as documentApi from '@/services/documentApi';
+import { useWorkspace } from './WorkspaceContext';
 
-const DocumentContext = createContext(null);
+const DocumentContext = createContext();
 
-export const useDocument = () => {
+export function useDocument() {
   const context = useContext(DocumentContext);
   if (!context) {
     throw new Error('useDocument must be used within a DocumentProvider');
   }
   return context;
-};
+}
 
-export const DocumentProvider = ({ children }) => {
+export function DocumentProvider({ children }) {
   const [documents, setDocuments] = useState([]);
-  const [folders, setFolders] = useState([]);
+  const [currentDocument, setCurrentDocument] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const { currentWorkspace } = useWorkspace();
 
-  const loadDocuments = useCallback(async () => {
-    const docs = await documentApi.getDocuments();
-    setDocuments(docs);
-  }, []);
+  const fetchDocuments = useCallback(async () => {
+    if (!currentWorkspace) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await documentApi.getDocuments(currentWorkspace.id);
+      setDocuments(data);
+      if (data.length > 0 && !currentDocument) {
+        setCurrentDocument(data[0]);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentWorkspace, currentDocument]);
 
-  const loadFolders = useCallback(async () => {
-    const folderList = await documentApi.getFolders();
-    setFolders(folderList);
-  }, []);
+  const createDocument = useCallback(async (documentData) => {
+    if (!currentWorkspace) return;
 
-  const getDocument = useCallback(async (id) => {
-    return await documentApi.getDocument(id);
-  }, []);
+    try {
+      setLoading(true);
+      setError(null);
+      const newDocument = await documentApi.createDocument(currentWorkspace.id, documentData);
+      setDocuments(prev => [...prev, newDocument]);
+      return newDocument;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [currentWorkspace]);
 
-  const createDocument = useCallback(async (data) => {
-    const newDoc = await documentApi.createDocument(data);
-    setDocuments((prev) => [...prev, newDoc]);
-    return newDoc;
-  }, []);
+  const updateDocument = useCallback(async (id, documentData) => {
+    if (!currentWorkspace) return;
 
-  const updateDocument = useCallback(async (id, data) => {
-    const updatedDoc = await documentApi.updateDocument(id, data);
-    setDocuments((prev) =>
-      prev.map((doc) => (doc.id === id ? updatedDoc : doc))
-    );
-    return updatedDoc;
-  }, []);
+    try {
+      setLoading(true);
+      setError(null);
+      const updatedDocument = await documentApi.updateDocument(currentWorkspace.id, id, documentData);
+      setDocuments(prev => prev.map(doc => 
+        doc.id === id ? updatedDocument : doc
+      ));
+      if (currentDocument?.id === id) {
+        setCurrentDocument(updatedDocument);
+      }
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [currentWorkspace, currentDocument]);
 
   const deleteDocument = useCallback(async (id) => {
-    await documentApi.deleteDocument(id);
-    setDocuments((prev) => prev.filter((doc) => doc.id !== id));
-  }, []);
+    if (!currentWorkspace) return;
 
-  const createFolder = useCallback(async (data) => {
-    const newFolder = await documentApi.createFolder(data);
-    setFolders((prev) => [...prev, newFolder]);
-    return newFolder;
-  }, []);
+    try {
+      setLoading(true);
+      setError(null);
+      await documentApi.deleteDocument(currentWorkspace.id, id);
+      setDocuments(prev => prev.filter(doc => doc.id !== id));
+      if (currentDocument?.id === id) {
+        setCurrentDocument(documents.find(d => d.id !== id) || null);
+      }
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [currentWorkspace, currentDocument, documents]);
 
-  const deleteFolder = useCallback(async (id) => {
-    await documentApi.deleteFolder(id);
-    setFolders((prev) => prev.filter((folder) => folder.id !== id));
+  const selectDocument = useCallback((document) => {
+    setCurrentDocument(document);
   }, []);
 
   const value = {
     documents,
-    folders,
-    loadDocuments,
-    loadFolders,
-    getDocument,
+    currentDocument,
+    loading,
+    error,
+    fetchDocuments,
     createDocument,
     updateDocument,
     deleteDocument,
-    createFolder,
-    deleteFolder,
+    selectDocument
   };
 
   return (
-    <DocumentContext.Provider value={value}>{children}</DocumentContext.Provider>
+    <DocumentContext.Provider value={value}>
+      {children}
+    </DocumentContext.Provider>
   );
-};
+}

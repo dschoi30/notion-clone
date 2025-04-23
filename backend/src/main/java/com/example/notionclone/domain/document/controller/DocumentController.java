@@ -1,58 +1,99 @@
 package com.example.notionclone.domain.document.controller;
 
 import com.example.notionclone.domain.document.dto.CreateDocumentRequest;
+import com.example.notionclone.domain.document.dto.DocumentResponse;
 import com.example.notionclone.domain.document.dto.UpdateDocumentRequest;
-import com.example.notionclone.domain.document.dto.DocumentDto;
 import com.example.notionclone.domain.document.service.DocumentService;
+import com.example.notionclone.domain.user.entity.User;
+import com.example.notionclone.domain.user.repository.UserRepository;
+import com.example.notionclone.exception.ResourceNotFoundException;
+import com.example.notionclone.security.CurrentUser;
 import com.example.notionclone.security.UserPrincipal;
+
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @RestController
-@RequestMapping("/documents")
+@RequestMapping("/workspaces/{workspaceId}/documents")
 @RequiredArgsConstructor
 public class DocumentController {
     private final DocumentService documentService;
+    private final UserRepository userRepository;
 
     @GetMapping
-    public ResponseEntity<List<DocumentDto>> getRootDocuments(@AuthenticationPrincipal UserPrincipal userPrincipal) {
-        return ResponseEntity.ok(documentService.getRootDocuments(userPrincipal.getId()));
+    public ResponseEntity<List<DocumentResponse>> getDocumentsByWorkspace(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId) {
+        log.debug("Get documents request for workspace: {} by user: {}", workspaceId, userPrincipal.getId());
+        return ResponseEntity.ok(documentService.getDocumentsByWorkspace(workspaceId));
     }
 
-    @GetMapping("/{documentId}/children")
-    public ResponseEntity<List<DocumentDto>> getChildDocuments(
-            @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @PathVariable Long documentId) {
-        return ResponseEntity.ok(documentService.getChildDocuments(userPrincipal.getId(), documentId));
+    @GetMapping("/{id}")
+    public ResponseEntity<DocumentResponse> getDocument(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId,
+            @PathVariable Long id) {
+        log.debug("Get document request for id: {} in workspace: {} by user: {}", id, workspaceId, userPrincipal.getId());
+        return ResponseEntity.ok(documentService.getDocument(id));
     }
 
-    @GetMapping("/{documentId}")
-    public ResponseEntity<DocumentDto> getDocument(
-            @PathVariable Long documentId) {
-        return ResponseEntity.ok(documentService.getDocument(documentId));
+    @GetMapping("/no-workspace")
+    public ResponseEntity<List<DocumentResponse>> getDocumentsWithNoWorkspace() {
+        return ResponseEntity.ok(documentService.getDocumentsWithNoWorkspace());
     }
 
     @PostMapping
-    public ResponseEntity<DocumentDto> createDocument(
-            @AuthenticationPrincipal UserPrincipal userPrincipal,
+    public ResponseEntity<DocumentResponse> createDocument(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId,
             @RequestBody CreateDocumentRequest request) {
-        return ResponseEntity.ok(documentService.createDocument(userPrincipal.getId(), request));
+        log.debug("Create document request in workspace: {} by user: {}", workspaceId, userPrincipal.getId());
+        
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
+        
+        request.setWorkspaceId(workspaceId);
+        return ResponseEntity.ok(documentService.createDocument(
+                request.getTitle(),
+                request.getContent(),
+                workspaceId,
+                user
+        ));
     }
 
-    @PutMapping("/{documentId}")
-    public ResponseEntity<DocumentDto> updateDocument(
-            @PathVariable Long documentId,
+    @PutMapping("/{id}")
+    public ResponseEntity<DocumentResponse> updateDocument(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId,
+            @PathVariable Long id,
             @RequestBody UpdateDocumentRequest request) {
-        return ResponseEntity.ok(documentService.updateDocument(documentId, request));
+        log.debug("Update document request for id: {} in workspace: {} by user: {}", id, workspaceId, userPrincipal.getId());
+        return ResponseEntity.ok(documentService.updateDocument(
+                id,
+                request.getTitle(),
+                request.getContent()
+        ));
     }
 
-    @DeleteMapping("/{documentId}")
-    public ResponseEntity<Void> deleteDocument(@PathVariable Long documentId) {
-        documentService.deleteDocument(documentId);
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteDocument(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId,
+            @PathVariable Long id) {
+        log.debug("Delete document request for id: {} in workspace: {} by user: {}", id, workspaceId, userPrincipal.getId());
+        documentService.deleteDocument(id);
         return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/{id}/move")
+    public ResponseEntity<DocumentResponse> moveDocument(
+            @PathVariable Long id,
+            @RequestParam(required = false) Long workspaceId) {
+        return ResponseEntity.ok(documentService.moveDocument(id, workspaceId));
     }
 } 

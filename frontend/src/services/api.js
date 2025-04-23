@@ -8,19 +8,39 @@ const api = axios.create({
   },
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+// Request interceptor
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('accessToken');
+    console.log('Request URL:', config.url);
+    console.log('Request Method:', config.method);
+    console.log('Current token:', token);
+    
+    if (token) {
+      config.headers = {
+        ...config.headers,
+        Authorization: `Bearer ${token}`
+      };
+      console.log('Request headers:', config.headers);
+    }
+    return config;
+  },
+  (error) => {
+    console.error('Request interceptor error:', error);
+    return Promise.reject(error);
   }
-  return config;
-});
+);
 
+// Response interceptor
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('Response:', response);
+    return response;
+  },
   async (error) => {
+    console.error('Response error:', error.response);
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
+      localStorage.removeItem('accessToken');
       window.location.href = '/login';
     }
     return Promise.reject(error);

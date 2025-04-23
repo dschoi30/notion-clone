@@ -37,25 +37,25 @@ function MainLayout() {
   };
 
   return (
-    <div className="h-screen flex overflow-hidden">
+    <div className="flex h-screen overflow-hidden">
       {/* Sidebar */}
       <div className={`bg-gray-800 ${isSidebarOpen ? 'w-64' : 'w-20'} flex flex-col`}>
-        <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
+        <div className="flex flex-col flex-1 pt-5 pb-4 overflow-y-auto">
           <div className="flex items-center flex-shrink-0 px-4">
-            <span className="text-white text-lg font-semibold">Notion Clone</span>
+            <span className="text-lg font-semibold text-white">Notion Clone</span>
           </div>
-          <nav className="mt-5 flex-1 px-2 space-y-1">
+          <nav className="flex-1 px-2 mt-5 space-y-1">
             {/* Add navigation items here */}
           </nav>
         </div>
-        <div className="flex-shrink-0 flex border-t border-gray-700 p-4">
+        <div className="flex flex-shrink-0 p-4 border-t border-gray-700">
           <div className="flex items-center">
-            <div className="text-gray-300 text-sm">
+            <div className="text-sm text-gray-300">
               {user?.email}
             </div>
             <button
               onClick={handleLogout}
-              className="ml-3 text-gray-300 hover:text-white text-sm"
+              className="ml-3 text-sm text-gray-300 hover:text-white"
             >
               로그아웃
             </button>
@@ -64,9 +64,9 @@ function MainLayout() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 overflow-auto focus:outline-none bg-white">
-        <main className="flex-1 relative">
-          <div className="max-w-4xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+      <div className="flex-1 overflow-auto bg-white focus:outline-none">
+        <main className="relative flex-1">
+          <div className="max-w-4xl px-4 py-6 mx-auto sm:px-6 lg:px-8">
             <Editor 
               content={currentDocument.content}
               onUpdate={handleDocumentChange}
