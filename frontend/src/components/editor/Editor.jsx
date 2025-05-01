@@ -7,11 +7,58 @@ import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { common, createLowlight } from 'lowlight';
 import Highlight from '@tiptap/extension-highlight';
 import Link from '@tiptap/extension-link';
+import TextStyle from '@tiptap/extension-text-style';
+import Color from '@tiptap/extension-color';
+import { Extension } from '@tiptap/core';
 import { useCallback, useEffect } from 'react';
 import EditorMenuBar from './EditorMenuBar';
 import './Editor.css';
 
 const lowlight = createLowlight(common);
+
+// 배경색을 지원하기 위한 확장 기능
+const BackgroundColor = Extension.create({
+  name: 'backgroundColor',
+
+  addAttributes() {
+    return {
+      backgroundColor: {
+        default: null,
+        parseHTML: element => element.style.backgroundColor,
+        renderHTML: attributes => {
+          if (!attributes.backgroundColor) {
+            return {};
+          }
+          return {
+            style: `background-color: ${attributes.backgroundColor}`,
+          };
+        },
+      },
+    };
+  },
+
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['textStyle'],
+        attributes: {
+          backgroundColor: {
+            default: null,
+            parseHTML: element => element.style.backgroundColor,
+            renderHTML: attributes => {
+              if (!attributes.backgroundColor) {
+                return {};
+              }
+              return {
+                style: `background-color: ${attributes.backgroundColor}`,
+              };
+            },
+          },
+        },
+      },
+    ];
+  },
+});
 
 const Editor = ({ content, onUpdate }) => {
   const editor = useEditor({
@@ -33,6 +80,9 @@ const Editor = ({ content, onUpdate }) => {
       Link.configure({
         openOnClick: false,
       }),
+      TextStyle,
+      Color,
+      BackgroundColor,
     ],
     content: '',
     onUpdate: ({ editor }) => {
