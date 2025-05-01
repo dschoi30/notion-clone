@@ -1,5 +1,5 @@
 // src/contexts/DocumentContext.jsx
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import * as documentApi from '@/services/documentApi';
 import { useWorkspace } from './WorkspaceContext';
 
@@ -20,6 +20,15 @@ export function DocumentProvider({ children }) {
   const [error, setError] = useState(null);
   const { currentWorkspace } = useWorkspace();
 
+  // 워크스페이스가 변경될 때마다 문서 상태 초기화
+  useEffect(() => {
+    setDocuments([]);
+    setCurrentDocument(null);
+    if (currentWorkspace) {
+      fetchDocuments();
+    }
+  }, [currentWorkspace]);
+
   const fetchDocuments = useCallback(async () => {
     if (!currentWorkspace) return;
     
@@ -28,7 +37,7 @@ export function DocumentProvider({ children }) {
       setError(null);
       const data = await documentApi.getDocuments(currentWorkspace.id);
       setDocuments(data);
-      if (data.length > 0 && !currentDocument) {
+      if (data.length > 0) {
         setCurrentDocument(data[0]);
       }
     } catch (err) {
@@ -36,7 +45,7 @@ export function DocumentProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, [currentWorkspace, currentDocument]);
+  }, [currentWorkspace]);
 
   const createDocument = useCallback(async (documentData) => {
     if (!currentWorkspace) return;
@@ -95,9 +104,21 @@ export function DocumentProvider({ children }) {
     }
   }, [currentWorkspace, currentDocument, documents]);
 
-  const selectDocument = useCallback((document) => {
-    setCurrentDocument(document);
-  }, []);
+  const selectDocument = useCallback(async (document) => {
+    if (!currentWorkspace || !document) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+      const fullDocument = await documentApi.getDocument(currentWorkspace.id, document.id);
+      setCurrentDocument(fullDocument);
+    } catch (err) {
+      setError(err.message);
+      console.error('Failed to fetch document:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentWorkspace]);
 
   const value = {
     documents,

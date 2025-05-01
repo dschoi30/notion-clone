@@ -1,93 +1,149 @@
-import React, { useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
+import React, { useEffect, useState } from 'react';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { Button } from '../ui/button';
+import { Loader2, ChevronRight, ChevronDown, Plus, Settings, LogOut } from 'lucide-react';
+import WorkspaceSettingsModal from './WorkspaceSettingsModal';
 
 export default function WorkspaceList() {
-  const {
-    workspaces,
-    currentWorkspace,
-    loading,
-    error,
+  const [isOpen, setIsOpen] = useState(true);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const { 
+    workspaces, 
+    currentWorkspace, 
+    selectWorkspace,
     fetchWorkspaces,
-    createWorkspace,
-    deleteWorkspace,
-    selectWorkspace
+    loading,
+    error 
   } = useWorkspace();
+  const { logout } = useAuth();
 
   useEffect(() => {
     fetchWorkspaces();
   }, [fetchWorkspaces]);
 
-  const handleCreateWorkspace = async () => {
-    try {
-      const newWorkspace = await createWorkspace({
-        name: '새 워크스페이스',
-      });
-      selectWorkspace(newWorkspace);
-    } catch (err) {
-      console.error('워크스페이스 생성 실패:', err);
-    }
+  const toggleDropdown = () => {
+    setIsOpen(!isOpen);
   };
 
-  const handleDeleteWorkspace = async (id) => {
-    try {
-      await deleteWorkspace(id);
-    } catch (err) {
-      console.error('워크스페이스 삭제 실패:', err);
-    }
+  const handleCreateWorkspace = (e) => {
+    e.stopPropagation();
+    setIsCreateModalOpen(true);
+  };
+
+  const handleOpenSettings = (e) => {
+    e.stopPropagation();
+    setIsSettingsOpen(true);
+  };
+
+  const handleLogout = (e) => {
+    e.stopPropagation();
+    logout();
   };
 
   if (loading) {
-    return <div>로딩 중...</div>;
+    return (
+      <div className="p-4 border-b border-gray-200">
+        <div className="flex items-center space-x-2">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span className="text-sm text-gray-500">로딩 중...</span>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div>에러 발생: {error}</div>;
+    return (
+      <div className="p-4 border-b border-gray-200">
+        <div className="text-sm text-red-500">에러: {error}</div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">워크스페이스</h2>
-        <Button onClick={handleCreateWorkspace} size="sm">
-          <PlusIcon className="w-4 h-4 mr-1" />
-          새 워크스페이스
-        </Button>
+    <div className="relative border-b border-gray-200">
+      <div 
+        className="flex items-center justify-between p-4 bg-white cursor-pointer hover:bg-gray-50"
+        onClick={toggleDropdown}
+      >
+        <div className="flex items-center flex-1 min-w-0 space-x-2">
+          <div className="transition-transform duration-200 ease-in-out transform">
+            {isOpen ? (
+              <ChevronDown className="flex-shrink-0 w-4 h-4 text-gray-500" />
+            ) : (
+              <ChevronRight className="flex-shrink-0 w-4 h-4 text-gray-500" />
+            )}
+          </div>
+          <h3 className="text-sm font-semibold text-gray-900 truncate">
+            {currentWorkspace?.name || '워크스페이스'}
+          </h3>
+        </div>
+        {currentWorkspace && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex-shrink-0"
+            onClick={handleOpenSettings}
+          >
+            <Settings className="w-4 h-4" />
+          </Button>
+        )}
       </div>
-      
-      {workspaces.length === 0 ? (
-        <div className="text-center text-gray-500">
-          워크스페이스가 없습니다.
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {workspaces.map((workspace) => (
-            <Card
-              key={workspace.id}
-              className={`p-4 cursor-pointer hover:bg-gray-50 ${
-                currentWorkspace?.id === workspace.id ? 'bg-gray-100' : ''
-              }`}
-              onClick={() => selectWorkspace(workspace)}
-            >
-              <div className="flex items-center justify-between">
-                <span>{workspace.name}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteWorkspace(workspace.id);
-                  }}
-                >
-                  <TrashIcon className="w-4 h-4 text-red-500" />
-                </Button>
+
+      <div 
+        className={`absolute w-full bg-white shadow-lg z-10 overflow-hidden transition-all duration-200 ease-in-out ${
+          isOpen ? 'max-h-[500px] opacity-100 border border-gray-200' : 'max-h-0 opacity-0'
+        }`}
+      >
+        <div className="bg-gray-50">
+          <div className="border-t border-gray-200">
+            {workspaces.map((workspace) => (
+              <div
+                key={workspace.id}
+                className={`p-3 pl-8 cursor-pointer hover:bg-gray-100 transition-colors ${
+                  currentWorkspace?.id === workspace.id ? 'bg-gray-100' : ''
+                }`}
+                onClick={() => {
+                  selectWorkspace(workspace);
+                }}
+              >
+                <span className="text-sm text-gray-700">{workspace.name}</span>
               </div>
-            </Card>
-          ))}
+            ))}
+          </div>
+          
+          <div 
+            className="flex items-center p-3 pl-8 space-x-2 text-blue-600 transition-colors border-t border-gray-200 cursor-pointer hover:bg-gray-100"
+            onClick={handleCreateWorkspace}
+          >
+            <Plus className="w-4 h-4" />
+            <span className="text-sm font-medium">워크스페이스 추가</span>
+          </div>
+
+          <div 
+            className="flex items-center p-3 pl-8 space-x-2 text-red-600 transition-colors border-t border-gray-200 cursor-pointer hover:bg-gray-100"
+            onClick={handleLogout}
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="text-sm font-medium">로그아웃</span>
+          </div>
         </div>
+      </div>
+
+      {currentWorkspace && (
+        <WorkspaceSettingsModal
+          workspace={currentWorkspace}
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+        />
       )}
+
+      <WorkspaceSettingsModal
+        workspace={null}
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      />
     </div>
   );
 } 

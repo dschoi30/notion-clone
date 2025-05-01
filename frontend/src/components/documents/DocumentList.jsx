@@ -63,46 +63,48 @@ export default function DocumentList() {
   }
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">문서</h2>
-        <Button onClick={handleCreateDocument} size="sm">
-          <PlusIcon className="w-4 h-4 mr-1" />
-          새 문서
-        </Button>
+    <div className="flex-1 overflow-y-auto">
+      <div className="p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">문서</h2>
+          <Button onClick={handleCreateDocument} size="sm">
+            <PlusIcon className="w-4 h-4 mr-1" />
+            새 문서
+          </Button>
+        </div>
+        
+        {documents.length === 0 ? (
+          <div className="text-center text-gray-500">
+            문서가 없습니다.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {documents.map((document) => (
+              <Card
+                key={document.id}
+                className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
+                  currentDocument?.id === document.id ? 'bg-gray-100' : ''
+                }`}
+                onClick={() => selectDocument(document)}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="truncate">{document.title}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteDocument(document.id);
+                    }}
+                  >
+                    <TrashIcon className="w-4 h-4 text-red-500" />
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
-      
-      {documents.length === 0 ? (
-        <div className="text-center text-gray-500">
-          문서가 없습니다.
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {documents.map((document) => (
-            <Card
-              key={document.id}
-              className={`p-4 cursor-pointer hover:bg-gray-50 ${
-                currentDocument?.id === document.id ? 'bg-gray-100' : ''
-              }`}
-              onClick={() => selectDocument(document)}
-            >
-              <div className="flex items-center justify-between">
-                <span>{document.title}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteDocument(document.id);
-                  }}
-                >
-                  <TrashIcon className="w-4 h-4 text-red-500" />
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

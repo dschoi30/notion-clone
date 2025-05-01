@@ -24,43 +24,43 @@ const EditorMenuBar = ({ editor, setLink }) => {
   const menuItems = [
     {
       icon: <Bold className="w-4 h-4" />,
-      title: 'Bold',
+      title: '굵게',
       action: () => editor.chain().focus().toggleBold().run(),
       isActive: () => editor.isActive('bold'),
     },
     {
       icon: <Italic className="w-4 h-4" />,
-      title: 'Italic',
+      title: '기울임',
       action: () => editor.chain().focus().toggleItalic().run(),
       isActive: () => editor.isActive('italic'),
     },
     {
       icon: <Strikethrough className="w-4 h-4" />,
-      title: 'Strike',
+      title: '취소선',
       action: () => editor.chain().focus().toggleStrike().run(),
       isActive: () => editor.isActive('strike'),
     },
     {
       icon: <Code className="w-4 h-4" />,
-      title: 'Code',
+      title: '코드',
       action: () => editor.chain().focus().toggleCode().run(),
       isActive: () => editor.isActive('code'),
     },
     {
       icon: <Heading1 className="w-4 h-4" />,
-      title: 'Heading 1',
+      title: '제목 1',
       action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(),
       isActive: () => editor.isActive('heading', { level: 1 }),
     },
     {
       icon: <Heading2 className="w-4 h-4" />,
-      title: 'Heading 2',
+      title: '제목 2',
       action: () => editor.chain().focus().toggleHeading({ level: 2 }).run(),
       isActive: () => editor.isActive('heading', { level: 2 }),
     },
     {
       icon: <Heading3 className="w-4 h-4" />,
-      title: 'Heading 3',
+      title: '제목 3',
       action: () => editor.chain().focus().toggleHeading({ level: 3 }).run(),
       isActive: () => editor.isActive('heading', { level: 3 }),
     },
@@ -104,7 +104,7 @@ const EditorMenuBar = ({ editor, setLink }) => {
           size="sm"
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().chain().focus().undo().run()}
-          title="Undo"
+          title="실행 취소"
         >
           <Undo className="w-4 h-4" />
         </Button>
@@ -113,7 +113,7 @@ const EditorMenuBar = ({ editor, setLink }) => {
           size="sm"
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!editor.can().chain().focus().redo().run()}
-          title="Redo"
+          title="다시 실행"
         >
           <Redo className="w-4 h-4" />
         </Button>

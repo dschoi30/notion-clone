@@ -14,18 +14,19 @@ export async function getDocument(workspaceId, documentId) {
 }
 
 // 새 문서 생성
-export async function createDocument(workspaceId, data) {
-  const response = await api.post(`/workspaces/${workspaceId}/documents`, data);
+export async function createDocument(workspaceId, documentData) {
+  const response = await api.post(`/workspaces/${workspaceId}/documents`, documentData);
   return response.data;
 }
 
 // 문서 수정
-export async function updateDocument(workspaceId, documentId, data) {
-  const response = await api.put(`/workspaces/${workspaceId}/documents/${documentId}`, data);
+export async function updateDocument(workspaceId, documentId, documentData) {
+  const response = await api.put(`/workspaces/${workspaceId}/documents/${documentId}`, documentData);
   return response.data;
 }
 
 // 문서 삭제
 export async function deleteDocument(workspaceId, documentId) {
-  await api.delete(`/workspaces/${workspaceId}/documents/${documentId}`);
+  const response = await api.delete(`/workspaces/${workspaceId}/documents/${documentId}`);
+  return response.data;
 }

@@ -6,8 +6,7 @@ import LoginForm from './components/auth/LoginForm';
 import RegisterForm from './components/auth/RegisterForm';
 import { WorkspaceProvider } from './contexts/WorkspaceContext';
 import { DocumentProvider } from './contexts/DocumentContext';
-import { WorkspaceTree } from './components/workspace/WorkspaceTree';
-import DocumentList from './components/documents/DocumentList';
+import Sidebar from './components/layout/Sidebar';
 import DocumentEditor from './components/documents/DocumentEditor';
 
 const AppLayout = () => {
@@ -21,20 +20,8 @@ const AppLayout = () => {
     <WorkspaceProvider>
       <DocumentProvider>
         <div className="flex h-screen">
-          <aside className="w-64 border-r bg-gray-50">
-            <div className="p-4">
-              <h1 className="mb-4 text-xl font-bold">Notion Clone</h1>
-            </div>
-            <WorkspaceTree />
-          </aside>
-          <div className="flex flex-1">
-            <aside className="w-64 border-r">
-              <DocumentList />
-            </aside>
-            <main className="flex-1 overflow-auto">
-              <DocumentEditor />
-            </main>
-          </div>
+          <Sidebar />
+          <DocumentEditor />
         </div>
       </DocumentProvider>
     </WorkspaceProvider>

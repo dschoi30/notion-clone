@@ -7,7 +7,7 @@ import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { common, createLowlight } from 'lowlight';
 import Highlight from '@tiptap/extension-highlight';
 import Link from '@tiptap/extension-link';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import EditorMenuBar from './EditorMenuBar';
 import './Editor.css';
 
@@ -20,7 +20,7 @@ const Editor = ({ content, onUpdate }) => {
         codeBlock: false,
       }),
       Placeholder.configure({
-        placeholder: 'Write something...',
+        placeholder: '내용을 입력하세요...',
       }),
       TaskList,
       TaskItem.configure({
@@ -34,15 +34,21 @@ const Editor = ({ content, onUpdate }) => {
         openOnClick: false,
       }),
     ],
-    content,
+    content: '',
     onUpdate: ({ editor }) => {
       onUpdate(editor.getHTML());
     },
   });
 
+  useEffect(() => {
+    if (editor && content !== editor.getHTML()) {
+      editor.commands.setContent(content);
+    }
+  }, [content, editor]);
+
   const setLink = useCallback(() => {
     const previousUrl = editor.getAttributes('link').href ?? '';
-    const url = window.prompt('URL', previousUrl);
+    const url = window.prompt('URL 입력', previousUrl);
 
     if (url === null) {
       return;

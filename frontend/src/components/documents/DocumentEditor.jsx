@@ -1,12 +1,11 @@
 // src/components/documents/DocumentEditor.jsx
 import React, { useState, useEffect } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { useDocument } from '@/contexts/DocumentContext';
-import { SaveIcon } from 'lucide-react';
+import { useDocument } from '../../contexts/DocumentContext';
+import { Button } from '../ui/button';
+import Editor from '../editor/Editor';
 
-export default function DocumentEditor() {
-  const { currentDocument, updateDocument, loading, error } = useDocument();
+const DocumentEditor = () => {
+  const { currentDocument, updateDocument } = useDocument();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
@@ -14,10 +13,19 @@ export default function DocumentEditor() {
   useEffect(() => {
     if (currentDocument) {
       setTitle(currentDocument.title);
-      setContent(currentDocument.content);
-      setSaveStatus('saved');
+      setContent(currentDocument.content || '');
     }
   }, [currentDocument]);
+
+  const handleTitleChange = (e) => {
+    setTitle(e.target.value);
+    setSaveStatus('unsaved');
+  };
+
+  const handleContentChange = (newContent) => {
+    setContent(newContent);
+    setSaveStatus('unsaved');
+  };
 
   const handleSave = async () => {
     if (!currentDocument) return;
@@ -26,57 +34,47 @@ export default function DocumentEditor() {
       setSaveStatus('saving');
       await updateDocument(currentDocument.id, {
         title,
-        content
+        content,
       });
       setSaveStatus('saved');
-    } catch (err) {
-      console.error('문서 저장 실패:', err);
+    } catch (error) {
+      console.error('문서 저장 실패:', error);
       setSaveStatus('error');
     }
   };
 
-  if (loading) {
-    return <div className="p-4">로딩 중...</div>;
-  }
-
-  if (error) {
-    return <div className="p-4 text-red-500">에러: {error}</div>;
-  }
-
   if (!currentDocument) {
-    return (
-      <div className="p-4 text-center text-gray-500">
-        편집할 문서를 선택해주세요.
-      </div>
-    );
+    return <div className="p-4">선택된 문서가 없습니다.</div>;
   }
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex items-center gap-4">
-        <Input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="문서 제목"
-          className="text-xl font-bold"
+    <main className="flex-1 overflow-auto">
+      <div className="p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <input
+            type="text"
+            value={title}
+            onChange={handleTitleChange}
+            placeholder="제목 없음"
+            className="w-full text-2xl font-bold bg-transparent border-none outline-none"
+          />
+          <Button
+            onClick={handleSave}
+            disabled={saveStatus === 'saving'}
+            variant={saveStatus === 'error' ? 'destructive' : 'default'}
+          >
+            {saveStatus === 'saving' ? '저장 중...' : 
+            saveStatus === 'error' ? '저장 실패' : 
+            saveStatus === 'unsaved' ? '저장' : '저장됨'}
+          </Button>
+        </div>
+        <Editor 
+          content={content} 
+          onUpdate={handleContentChange}
         />
-        <Button
-          onClick={handleSave}
-          disabled={saveStatus === 'saving'}
-          variant={saveStatus === 'error' ? 'destructive' : 'default'}
-        >
-          <SaveIcon className="w-4 h-4 mr-1" />
-          {saveStatus === 'saving' ? '저장 중...' : 
-           saveStatus === 'error' ? '저장 실패' : '저장'}
-        </Button>
       </div>
-
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder="내용을 입력하세요..."
-        className="w-full h-[calc(100vh-200px)] p-4 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
-    </div>
+    </main>
   );
-}
+};
+
+export default DocumentEditor;
