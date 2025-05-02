@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/button';
@@ -9,6 +9,7 @@ export default function WorkspaceList() {
   const [isOpen, setIsOpen] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const dropdownRef = useRef(null);
   const { 
     workspaces, 
     currentWorkspace, 
@@ -23,7 +24,21 @@ export default function WorkspaceList() {
     fetchWorkspaces();
   }, [fetchWorkspaces]);
 
-  const toggleDropdown = () => {
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const toggleDropdown = (e) => {
+    e.stopPropagation();
     setIsOpen(!isOpen);
   };
 
@@ -62,7 +77,7 @@ export default function WorkspaceList() {
   }
 
   return (
-    <div className="relative border-b border-gray-200">
+    <div className="relative border-b border-gray-200" ref={dropdownRef}>
       <div 
         className="flex items-center justify-between p-4 bg-white cursor-pointer hover:bg-gray-50"
         onClick={toggleDropdown}
@@ -92,9 +107,14 @@ export default function WorkspaceList() {
       </div>
 
       <div 
-        className={`absolute w-full bg-white shadow-lg z-10 overflow-hidden transition-all duration-200 ease-in-out ${
-          isOpen ? 'max-h-[500px] opacity-100 border border-gray-200' : 'max-h-0 opacity-0'
+        className={`fixed left-0 w-64 bg-white shadow-lg z-50 transform transition-all duration-200 ease-in-out ${
+          isOpen 
+            ? 'translate-y-0 opacity-100 pointer-events-auto' 
+            : '-translate-y-2 opacity-0 pointer-events-none'
         }`}
+        style={{
+          top: dropdownRef.current?.getBoundingClientRect().bottom + 'px',
+        }}
       >
         <div className="bg-gray-50">
           <div className="border-t border-gray-200">
@@ -104,8 +124,10 @@ export default function WorkspaceList() {
                 className={`p-3 pl-8 cursor-pointer hover:bg-gray-100 transition-colors ${
                   currentWorkspace?.id === workspace.id ? 'bg-gray-100' : ''
                 }`}
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   selectWorkspace(workspace);
+                  setIsOpen(false);
                 }}
               >
                 <span className="text-sm text-gray-700">{workspace.name}</span>
@@ -131,7 +153,7 @@ export default function WorkspaceList() {
         </div>
       </div>
 
-      {currentWorkspace && (
+      {isSettingsOpen && (
         <WorkspaceSettingsModal
           workspace={currentWorkspace}
           isOpen={isSettingsOpen}
@@ -139,11 +161,13 @@ export default function WorkspaceList() {
         />
       )}
 
-      <WorkspaceSettingsModal
-        workspace={null}
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-      />
+      {isCreateModalOpen && (
+        <WorkspaceSettingsModal
+          workspace={null}
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+        />
+      )}
     </div>
   );
 } 
