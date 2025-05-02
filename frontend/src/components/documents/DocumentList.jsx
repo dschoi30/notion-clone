@@ -1,10 +1,73 @@
 // src/components/documents/DocumentList.jsx
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { PlusIcon, TrashIcon } from 'lucide-react';
 import { useDocument } from '@/contexts/DocumentContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import {
+  DndContext,
+  closestCenter,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  KeyboardSensor,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+function SortableDocumentItem({ document, currentDocument, onSelect, onDelete, id }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : 'auto',
+    boxShadow: isDragging ? '0 4px 16px rgba(0,0,0,0.12)' : undefined,
+    opacity: isDragging ? 0.8 : 1,
+    background: isDragging ? '#f3f4f6' : undefined,
+  };
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
+        currentDocument?.id === document.id ? 'bg-gray-100' : ''
+      }`}
+      onClick={() => onSelect(document)}
+      {...attributes}
+      {...listeners}
+    >
+      <div className="flex items-center justify-between">
+        <span className="truncate">{document.title}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={e => {
+            e.stopPropagation();
+            onDelete(document.id);
+          }}
+        >
+          <TrashIcon className="w-4 h-4 text-red-500" />
+        </Button>
+      </div>
+    </Card>
+  );
+}
 
 export default function DocumentList() {
   const {
@@ -15,16 +78,22 @@ export default function DocumentList() {
     fetchDocuments,
     createDocument,
     deleteDocument,
-    selectDocument
+    selectDocument,
+    updateDocumentOrder,
   } = useDocument();
 
   const { currentWorkspace } = useWorkspace();
+  const [items, setItems] = useState([]);
 
   useEffect(() => {
     if (currentWorkspace) {
       fetchDocuments();
     }
   }, [currentWorkspace, fetchDocuments]);
+
+  useEffect(() => {
+    setItems(documents.map(doc => doc.id));
+  }, [documents]);
 
   const handleCreateDocument = async () => {
     try {
@@ -43,6 +112,31 @@ export default function DocumentList() {
       await deleteDocument(id);
     } catch (err) {
       console.error('문서 삭제 실패:', err);
+    }
+  };
+
+  // DnD 센서 설정
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // 드래그 종료 시 순서 변경
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      const oldIndex = items.indexOf(active.id);
+      const newIndex = items.indexOf(over.id);
+      const newItems = arrayMove(items, oldIndex, newIndex);
+      setItems(newItems);
+      try {
+        await updateDocumentOrder(newItems);
+        // (선택) 성공 시 fetchDocuments()로 동기화
+      } catch (e) {
+        alert('순서 저장에 실패했습니다.');
+      }
     }
   };
 
@@ -72,37 +166,35 @@ export default function DocumentList() {
             새 문서
           </Button>
         </div>
-        
         {documents.length === 0 ? (
           <div className="text-center text-gray-500">
             문서가 없습니다.
           </div>
         ) : (
-          <div className="space-y-2">
-            {documents.map((document) => (
-              <Card
-                key={document.id}
-                className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
-                  currentDocument?.id === document.id ? 'bg-gray-100' : ''
-                }`}
-                onClick={() => selectDocument(document)}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="truncate">{document.title}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteDocument(document.id);
-                    }}
-                  >
-                    <TrashIcon className="w-4 h-4 text-red-500" />
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={items} strategy={verticalListSortingStrategy}>
+              <div className="space-y-2">
+                {items.map(id => {
+                  const document = documents.find(doc => doc.id === id);
+                  if (!document) return null;
+                  return (
+                    <SortableDocumentItem
+                      key={document.id}
+                      id={document.id}
+                      document={document}
+                      currentDocument={currentDocument}
+                      onSelect={selectDocument}
+                      onDelete={handleDeleteDocument}
+                    />
+                  );
+                })}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
     </div>

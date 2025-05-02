@@ -120,6 +120,12 @@ export function DocumentProvider({ children }) {
     }
   }, [currentWorkspace]);
 
+  const updateDocumentOrder = useCallback(async (documentIds) => {
+    if (!currentWorkspace) return;
+    await documentApi.updateDocumentOrder(currentWorkspace.id, documentIds);
+    // 서버 반영 후 fetchDocuments()로 최신화 가능
+  }, [currentWorkspace]);
+
   const value = {
     documents,
     currentDocument,
@@ -129,7 +135,8 @@ export function DocumentProvider({ children }) {
     createDocument,
     updateDocument,
     deleteDocument,
-    selectDocument
+    selectDocument,
+    updateDocumentOrder,
   };
 
   return (

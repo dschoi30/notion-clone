@@ -1,6 +1,7 @@
 package com.example.notionclone.domain.document.controller;
 
 import com.example.notionclone.domain.document.dto.CreateDocumentRequest;
+import com.example.notionclone.domain.document.dto.DocumentOrderRequest;
 import com.example.notionclone.domain.document.dto.DocumentResponse;
 import com.example.notionclone.domain.document.dto.UpdateDocumentRequest;
 import com.example.notionclone.domain.document.service.DocumentService;
@@ -90,10 +91,13 @@ public class DocumentController {
         return ResponseEntity.ok().build();
     }
 
-    @PutMapping("/{id}/move")
-    public ResponseEntity<DocumentResponse> moveDocument(
-            @PathVariable Long id,
-            @RequestParam(required = false) Long workspaceId) {
-        return ResponseEntity.ok(documentService.moveDocument(id, workspaceId));
+    @PatchMapping("/order")
+    public ResponseEntity<Void> updateOrder(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId,
+            @RequestBody DocumentOrderRequest request
+    ) {
+        documentService.updateDocumentOrder(workspaceId, request.getDocumentIds());
+        return ResponseEntity.ok().build();
     }
 } 

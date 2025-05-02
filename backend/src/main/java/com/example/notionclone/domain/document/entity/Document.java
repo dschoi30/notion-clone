@@ -31,6 +31,9 @@ public class Document extends BaseTimeEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @Column(name = "sort_order")
+    private Integer sortOrder;
+
     public Document(String title, String content) {
         this(title, content, null);
     }

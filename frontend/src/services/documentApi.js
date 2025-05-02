@@ -30,3 +30,8 @@ export async function deleteDocument(workspaceId, documentId) {
   const response = await api.delete(`/workspaces/${workspaceId}/documents/${documentId}`);
   return response.data;
 }
+
+// 문서 정렬 순서 저장
+export async function updateDocumentOrder(workspaceId, documentIds) {
+  return api.patch(`/workspaces/${workspaceId}/documents/order`, { documentIds });
+}
