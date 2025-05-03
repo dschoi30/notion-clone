@@ -12,7 +12,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 export default function WorkspaceSettingsModal({ workspace, isOpen, onClose }) {
   const [name, setName] = useState('');
-  const { updateWorkspace, deleteWorkspace, createWorkspace } = useWorkspace();
+  const { updateWorkspace, deleteWorkspace, createWorkspace, selectWorkspace } = useWorkspace();
 
   useEffect(() => {
     if (workspace) {
@@ -28,6 +28,7 @@ export default function WorkspaceSettingsModal({ workspace, isOpen, onClose }) {
         await updateWorkspace(workspace.id, { name });
       } else {
         const newWorkspace = await createWorkspace({ name });
+        selectWorkspace(newWorkspace);
       }
       onClose();
     } catch (err) {

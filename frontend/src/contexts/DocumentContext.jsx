@@ -22,11 +22,22 @@ export function DocumentProvider({ children }) {
 
   // 워크스페이스가 변경될 때마다 문서 상태 초기화
   useEffect(() => {
-    setDocuments([]);
-    setCurrentDocument(null);
-    if (currentWorkspace) {
-      fetchDocuments();
+    if (!currentWorkspace || documents.length === 0) return;
+    // 이미 문서가 선택되어 있으면 자동 선택하지 않음
+    if (currentDocument) return;
+
+    const lastId = localStorage.getItem(`lastDocumentId:${currentWorkspace.id}`);
+    const found = documents.find(doc => String(doc.id) === String(lastId));
+    if (found) {
+      selectDocument(found);
+    } else {
+      selectDocument(documents[0]);
     }
+  }, [documents, currentWorkspace]);
+
+  useEffect(() => {
+    // 워크스페이스가 바뀌면 currentDocument를 즉시 초기화
+    setCurrentDocument(null);
   }, [currentWorkspace]);
 
   const fetchDocuments = useCallback(async () => {
@@ -109,6 +120,7 @@ export function DocumentProvider({ children }) {
       setError(null);
       const fullDocument = await documentApi.getDocument(currentWorkspace.id, document.id);
       setCurrentDocument(fullDocument);
+      localStorage.setItem(`lastDocumentId:${currentWorkspace.id}`, document.id);
     } catch (err) {
       setError(err.message);
       console.error('Failed to fetch document:', err);
