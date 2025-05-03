@@ -128,14 +128,14 @@ export default function DocumentList() {
     updateDocumentOrder,
   } = useDocument();
 
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspace, workspaces } = useWorkspace();
   const [items, setItems] = useState([]);
 
   useEffect(() => {
-    if (currentWorkspace) {
-      fetchDocuments();
-    }
-  }, [currentWorkspace]);
+    // workspaces가 준비되지 않았거나 currentWorkspace가 null이면 fetchDocuments 호출하지 않음
+    if (workspaces.length === 0 || !currentWorkspace) return;
+    fetchDocuments();
+  }, [currentWorkspace, workspaces]);
 
   useEffect(() => {
     setItems(documents.map(doc => doc.id));

@@ -37,9 +37,6 @@ export function DocumentProvider({ children }) {
       setError(null);
       const data = await documentApi.getDocuments(currentWorkspace.id);
       setDocuments(data);
-      if (data.length > 0) {
-        setCurrentDocument(data[0]);
-      }
     } catch (err) {
       setError(err.message);
     } finally {

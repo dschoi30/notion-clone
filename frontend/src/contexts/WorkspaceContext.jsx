@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import * as workspaceApi from '@/services/workspaceApi';
+import { useEffect } from 'react';
 
 const WorkspaceContext = createContext();
 
@@ -86,7 +87,24 @@ export function WorkspaceProvider({ children }) {
 
   const selectWorkspace = useCallback((workspace) => {
     setCurrentWorkspace(workspace);
+    localStorage.setItem('selectedWorkspace', workspace.id);
   }, []);
+
+  useEffect(() => {
+    const savedId = localStorage.getItem('selectedWorkspace');
+    if (workspaces.length > 0) {
+      if (savedId) {
+        const found = workspaces.find(ws =>  String(ws.id) === String(savedId));
+        if (found && (!currentWorkspace || currentWorkspace.id !== found.id)) {
+          setCurrentWorkspace(found);
+        } else if (!found && (!currentWorkspace || currentWorkspace.id !== workspaces[0].id)) {
+          setCurrentWorkspace(workspaces[0]);
+        }
+      } else if (!currentWorkspace || currentWorkspace.id !== workspaces[0].id) {
+        setCurrentWorkspace(workspaces[0]);
+      }
+    }
+  }, [workspaces]);
 
   const value = {
     workspaces,
