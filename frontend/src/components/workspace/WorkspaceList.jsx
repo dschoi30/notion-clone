@@ -6,7 +6,7 @@ import { Loader2, ChevronRight, ChevronDown, Plus, Settings, LogOut } from 'luci
 import WorkspaceSettingsModal from './WorkspaceSettingsModal';
 
 export default function WorkspaceList() {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const dropdownRef = useRef(null);
