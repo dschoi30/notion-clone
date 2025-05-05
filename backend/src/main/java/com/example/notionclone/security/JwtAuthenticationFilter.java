@@ -29,7 +29,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final List<String> excludedPaths = Arrays.asList(
         "/auth/register",
         "/auth/login",
-        "/auth/google"
+        "/auth/google",
+        "/image-proxy"
     );
 
     @Override

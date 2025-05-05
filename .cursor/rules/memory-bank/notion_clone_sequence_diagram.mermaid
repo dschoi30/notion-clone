@@ -1,0 +1,30 @@
+sequenceDiagram
+    participant C as Client
+    participant A as Auth
+    participant D as Doc
+    participant Co as Collab
+    participant DB as Database
+    participant Ca as Cache
+
+    C->>A: Login
+    A->>DB: Check Credentials
+    DB-->>A: User Data
+    A->>A: Generate JWT
+    A-->>C: JWT Token
+
+    C->>D: Create Document
+    D->>A: Validate Token
+    A-->>D: Token Valid
+    D->>DB: Save Document
+    DB-->>D: Document Created
+    D-->>C: Document Data
+
+    C->>Co: Join Session
+    Co->>A: Validate Token
+    Co->>Ca: Create Session
+    Co-->>C: Session Joined
+
+    C->>Co: Send Changes
+    Co->>Co: Transform
+    Co->>Ca: Store Changes
+    Co-->>C: Acknowledged

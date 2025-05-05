@@ -1,0 +1,71 @@
+classDiagram
+    class User {
+        -Long id
+        -String email
+        -String password
+        -String name
+        -UserRole role
+        +register()
+        +login()
+        +updateProfile()
+    }
+
+    class Workspace {
+        -Long id
+        -String name
+        -User owner
+        -List~User~ members
+        +createWorkspace()
+        +addMember()
+        +removeMember()
+    }
+
+    class Document {
+        -Long id
+        -String title
+        -String content
+        -DocumentType type
+        -User creator
+        -DateTime createdAt
+        -DateTime updatedAt
+        +createDocument()
+        +updateDocument()
+        +deleteDocument()
+    }
+
+    class Board {
+        -Long id
+        -String name
+        -List~Column~ columns
+        +createBoard()
+        +addColumn()
+        +moveCard()
+    }
+
+    class Card {
+        -Long id
+        -String title
+        -String description
+        -User assignee
+        -CardStatus status
+        +createCard()
+        +updateCard()
+        +moveCard()
+    }
+
+    class Permission {
+        -Long id
+        -PermissionType type
+        -User user
+        -Resource resource
+        +grantPermission()
+        +revokePermission()
+        +checkPermission()
+    }
+
+    User "1" -- "*" Workspace : owns
+    Workspace "1" -- "*" Document : contains
+    Document "1" -- "1" Board : contains
+    Board "1" -- "*" Card : contains
+    User "1" -- "*" Permission : has
+    Document "1" -- "*" Permission : controls

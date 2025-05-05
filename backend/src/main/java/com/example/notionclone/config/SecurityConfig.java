@@ -37,9 +37,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(
-                    "/auth/register",
-                    "/auth/login",
-                    "/auth/google"
+                    "/auth/**",
+                    "/image-proxy"
                 ).permitAll()
                 .anyRequest().authenticated()
             )
