@@ -76,20 +76,17 @@ export function DocumentProvider({ children }) {
     if (!currentWorkspace) return;
 
     try {
-      setLoading(true);
       setError(null);
-      const updatedDocument = await documentApi.updateDocument(currentWorkspace.id, id, documentData);
-      setDocuments(prev => prev.map(doc => 
-        doc.id === id ? updatedDocument : doc
+      await documentApi.updateDocument(currentWorkspace.id, id, documentData);
+      setDocuments(prev => prev.map(doc =>
+        doc.id === id ? { ...doc, ...documentData } : doc
       ));
       if (currentDocument?.id === id) {
-        setCurrentDocument(updatedDocument);
+        setCurrentDocument(prev => prev ? { ...prev, ...documentData } : prev);
       }
     } catch (err) {
       setError(err.message);
       throw err;
-    } finally {
-      setLoading(false);
     }
   }, [currentWorkspace, currentDocument]);
 

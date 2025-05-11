@@ -1,5 +1,5 @@
 // src/components/documents/DocumentEditor.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useDocument } from '../../contexts/DocumentContext';
 import { Button } from '../ui/button';
 import Editor from '../editor/Editor';
@@ -9,6 +9,10 @@ const DocumentEditor = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
+  const debounceTimer = useRef(null);
+  const prevDocumentRef = useRef();
+  const titleRef = useRef(title);
+  const contentRef = useRef(content);
 
   useEffect(() => {
     if (currentDocument) {
@@ -17,24 +21,36 @@ const DocumentEditor = () => {
     }
   }, [currentDocument]);
 
+  useEffect(() => { titleRef.current = title; }, [title]);
+  useEffect(() => { contentRef.current = content; }, [content]);
+
+  // 자동 저장 트리거 함수
+  const triggerAutoSave = () => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      handleSave();
+    }, 500);
+  };
+
   const handleTitleChange = (e) => {
     setTitle(e.target.value);
     setSaveStatus('unsaved');
+    triggerAutoSave();
   };
 
   const handleContentChange = (newContent) => {
     setContent(newContent);
     setSaveStatus('unsaved');
+    triggerAutoSave();
   };
 
   const handleSave = async () => {
     if (!currentDocument) return;
-
     try {
       setSaveStatus('saving');
       await updateDocument(currentDocument.id, {
-        title,
-        content,
+        title: titleRef.current,
+        content: contentRef.current,
       });
       setSaveStatus('saved');
     } catch (error) {
@@ -42,6 +58,27 @@ const DocumentEditor = () => {
       setSaveStatus('error');
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      handleSave();
+    };
+    // eslint-disable-next-line
+  }, []);
+
+  // currentDocument가 변경될 때 마지막 변경 내용 저장
+  useEffect(() => {
+    if (
+      prevDocumentRef.current &&
+      saveStatus === 'unsaved' &&
+      prevDocumentRef.current.id !== currentDocument?.id
+    ) {
+      updateDocument(prevDocumentRef.current.id, { title, content });
+    }
+    prevDocumentRef.current = currentDocument;
+    // eslint-disable-next-line
+  }, [currentDocument]);
 
   if (!currentDocument) {
     return <div className="p-4">선택된 문서가 없습니다.</div>;
@@ -58,15 +95,18 @@ const DocumentEditor = () => {
             placeholder="제목 없음"
             className="w-full text-2xl font-bold bg-transparent border-none outline-none"
           />
-          <Button
-            onClick={handleSave}
-            disabled={saveStatus === 'saving'}
-            variant={saveStatus === 'error' ? 'destructive' : 'default'}
+          <span
+            style={{ whiteSpace: 'nowrap' }}
+            className={
+              (saveStatus === 'saving' ? 'text-blue-500' :
+              saveStatus === 'error' ? 'text-red-500' :
+              'text-gray-400') + ' ml-2'
+            }
           >
-            {saveStatus === 'saving' ? '저장 중...' : 
-            saveStatus === 'error' ? '저장 실패' : 
-            saveStatus === 'unsaved' ? '저장' : '저장됨'}
-          </Button>
+            {saveStatus === 'saving' ? '저장 중...' :
+            saveStatus === 'error' ? '저장 실패' :
+            saveStatus === 'unsaved' ? '저장 대기' : '저장됨'}
+          </span>
         </div>
         <Editor 
           content={content} 
