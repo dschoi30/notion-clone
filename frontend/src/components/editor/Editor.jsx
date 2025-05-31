@@ -10,7 +10,7 @@ import Link from '@tiptap/extension-link';
 import TextStyle from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import { Extension } from '@tiptap/core';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import EditorMenuBar from './EditorMenuBar';
 import './Editor.css';
 import CustomImage from './CustomImage';
@@ -82,6 +82,9 @@ async function uploadImageToCloudinary(file) {
 }
 
 const Editor = ({ content, onUpdate }) => {
+  const [isComposing, setIsComposing] = useState(false);
+  const latestHTML = useRef('');
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -108,7 +111,10 @@ const Editor = ({ content, onUpdate }) => {
     ],
     content: '',
     onUpdate: ({ editor }) => {
-      onUpdate(editor.getHTML());
+      latestHTML.current = editor.getHTML();
+      if (!isComposing) {
+        onUpdate(latestHTML.current);
+      }
     },
     editorProps: {
       // handlePaste를 async 함수로 변경
@@ -272,6 +278,19 @@ const Editor = ({ content, onUpdate }) => {
     },
   });
 
+  // compositionend에서만 onUpdate를 강제 호출
+  const handleCompositionStart = () => setIsComposing(true);
+  const handleCompositionEnd = () => {
+    setIsComposing(false);
+    if (editor) {
+      const html = editor.getHTML();
+      if (html !== latestHTML.current) {
+        latestHTML.current = html;
+        onUpdate(html);
+      }
+    }
+  };
+
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
       editor.commands.setContent(content);
@@ -301,7 +320,11 @@ const Editor = ({ content, onUpdate }) => {
   return (
     <div className="editor">
       <EditorMenuBar editor={editor} setLink={setLink} />
-      <EditorContent editor={editor} />
+      <EditorContent 
+        editor={editor}
+        onCompositionStart={handleCompositionStart}
+        onCompositionEnd={handleCompositionEnd}
+      />
     </div>
   );
 };
