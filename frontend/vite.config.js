@@ -18,10 +18,19 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': {
+      // '/api': {
+      //   target: 'http://localhost:8080',
+      //   changeOrigin: true,
+      // },
+      // WebSocket 프록시: /ws 경로는 백엔드로 프록시됨
+      '/ws': {
         target: 'http://localhost:8080',
+        ws: true,
         changeOrigin: true,
       }
     }
+  },
+  define: {
+    global: 'window',
   },
 });

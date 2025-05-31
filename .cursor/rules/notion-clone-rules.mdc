@@ -1,0 +1,9 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Always read .cursor/rules/memory-bank/wiki.md before writing any code. 
+Always read .cursor/rules/memory-bank/notion_clone_prd.md before writing any code.
+
+Update .cursor/rules/memory-back/progress.md after writing code.

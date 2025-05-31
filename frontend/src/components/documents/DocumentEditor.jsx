@@ -1,8 +1,8 @@
 // src/components/documents/DocumentEditor.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useDocument } from '../../contexts/DocumentContext';
-import { Button } from '../ui/button';
 import Editor from '../editor/Editor';
+import useDocumentSocket from '../../hooks/useDocumentSocket';
 
 const DocumentEditor = () => {
   const { currentDocument, updateDocument } = useDocument();
@@ -42,7 +42,14 @@ const DocumentEditor = () => {
     setContent(newContent);
     setSaveStatus('unsaved');
     triggerAutoSave();
+    console.log('sendEdit 호출', newContent);
+    sendEdit({ content: newContent, userId: currentDocument.userId });
   };
+
+  const handleRemoteEdit = (msg) => {
+    if (msg.content !== content) setContent(msg.content);
+  };
+  const { sendEdit } = useDocumentSocket(currentDocument?.id, handleRemoteEdit);
 
   const handleSave = async () => {
     if (!currentDocument) return;

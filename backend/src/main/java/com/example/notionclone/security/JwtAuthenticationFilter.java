@@ -30,6 +30,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         "/auth/register",
         "/auth/login",
         "/auth/google",
+        "/login",
         "/image-proxy"
     );
 
@@ -43,6 +44,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         log.debug("Request URI: {}", requestUri);
         log.debug("Extracted Path: {}", path);
         
+        // WebSocket handshake 경로는 JWT 인증 필터 제외
+        if (path.startsWith("/ws/document")) {
+            log.debug("WebSocket handshake path, filter will be skipped.");
+            return true;
+        }
+
         boolean shouldExclude = excludedPaths.stream().anyMatch(path::equals);
         log.debug("Should exclude path: {}", shouldExclude);
         

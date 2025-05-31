@@ -5,7 +5,7 @@
 Frontend:
 - React with Vite
 - shadcn/ui components
-- react-beautiful-dnd
+- dnd-kit
 
 Backend:
 - Spring Framework

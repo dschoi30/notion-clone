@@ -37,7 +37,7 @@ export async function updateDocumentOrder(workspaceId, documentIds) {
 }
 
 export async function fetchImageViaProxy(imageUrl) {
-  const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(imageUrl)}`;
+  const proxyUrl = `/image-proxy?url=${encodeURIComponent(imageUrl)}`;
   const response = await fetch(proxyUrl); // GET 요청
   if (!response.ok) {
     let errorMsg = '이미지 처리 중 알 수 없는 서버 오류 발생';
