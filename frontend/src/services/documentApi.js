@@ -3,41 +3,41 @@ import api from './api';
 
 // 문서 목록 조회
 export async function getDocuments(workspaceId) {
-  const response = await api.get(`/workspaces/${workspaceId}/documents`);
+  const response = await api.get(`/api/workspaces/${workspaceId}/documents`);
   return response.data;
 }
 
 // 단일 문서 조회
 export async function getDocument(workspaceId, documentId) {
-  const response = await api.get(`/workspaces/${workspaceId}/documents/${documentId}`);
+  const response = await api.get(`/api/workspaces/${workspaceId}/documents/${documentId}`);
   return response.data;
 }
 
 // 새 문서 생성
 export async function createDocument(workspaceId, documentData) {
-  const response = await api.post(`/workspaces/${workspaceId}/documents`, documentData);
+  const response = await api.post(`/api/workspaces/${workspaceId}/documents`, documentData);
   return response.data;
 }
 
 // 문서 수정
 export async function updateDocument(workspaceId, documentId, documentData) {
-  const response = await api.put(`/workspaces/${workspaceId}/documents/${documentId}`, documentData);
+  const response = await api.put(`/api/workspaces/${workspaceId}/documents/${documentId}`, documentData);
   return response.data; 
 }
 
 // 문서 삭제
 export async function deleteDocument(workspaceId, documentId) {
-  const response = await api.delete(`/workspaces/${workspaceId}/documents/${documentId}`);
+  const response = await api.delete(`/api/workspaces/${workspaceId}/documents/${documentId}`);
   return response.data;
 }
 
 // 문서 정렬 순서 저장
 export async function updateDocumentOrder(workspaceId, documentIds) {
-  return api.patch(`/workspaces/${workspaceId}/documents/order`, { documentIds });
+  return api.patch(`/api/workspaces/${workspaceId}/documents/order`, { documentIds });
 }
 
 export async function fetchImageViaProxy(imageUrl) {
-  const proxyUrl = `/image-proxy?url=${encodeURIComponent(imageUrl)}`;
+  const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(imageUrl)}`;
   const response = await fetch(proxyUrl); // GET 요청
   if (!response.ok) {
     let errorMsg = '이미지 처리 중 알 수 없는 서버 오류 발생';

@@ -13,6 +13,8 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
     
     List<Document> findByWorkspaceId(Long workspaceId);
     
+    List<Document> findByWorkspaceIdAndIsTrashedTrue(Long workspaceId);
+    
     @Query("SELECT d FROM Document d WHERE d.workspace IS NULL")
     List<Document> findDocumentsWithNoWorkspace();
     
@@ -22,4 +24,8 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
     @Modifying
     @Query("UPDATE Document d SET d.sortOrder = :sortOrder WHERE d.workspace.id = :workspaceId AND d.id = :docId")
     void updateSortOrder(@Param("workspaceId") Long workspaceId, @Param("docId") Long docId, @Param("sortOrder") int sortOrder);
+
+    @Modifying
+    @Query("DELETE FROM Document d WHERE d.workspace.id = :workspaceId AND d.isTrashed = true")
+    void deleteAllTrashedByWorkspaceId(@Param("workspaceId") Long workspaceId);
 } 

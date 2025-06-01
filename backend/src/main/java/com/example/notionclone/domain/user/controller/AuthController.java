@@ -28,7 +28,7 @@ import org.springframework.beans.factory.annotation.Value;
 
 @Slf4j
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
@@ -40,6 +40,7 @@ public class AuthController {
     @Value("${google.client.id}")
     private String googleClientId;
 
+    
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
         Authentication authentication = authenticationManager.authenticate(

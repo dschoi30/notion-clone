@@ -2,7 +2,8 @@ import api from './api';
 
 export const login = async (email, password) => {
   try {
-    const response = await api.post('/auth/login', { email, password });
+    debugger;
+    const response = await api.post('/api/auth/login', { email, password });
     if (response.data.accessToken) {
       localStorage.setItem('accessToken', response.data.accessToken);
     }
@@ -15,7 +16,7 @@ export const login = async (email, password) => {
 
 export const register = async (email, password, name) => {
   try {
-    const response = await api.post('/auth/register', { email, password, name });
+    const response = await api.post('/api/auth/register', { email, password, name });
     if (response.data.accessToken) {
       localStorage.setItem('accessToken', response.data.accessToken);
     }
@@ -28,7 +29,7 @@ export const register = async (email, password, name) => {
 
 export const loginWithGoogle = async (credential) => {
   try {
-    const response = await api.post('/auth/google', { credential });
+    const response = await api.post('/api/auth/google', { credential });
     
     if (response.data.accessToken) {
       localStorage.setItem('accessToken', response.data.accessToken);
@@ -50,7 +51,7 @@ export const logout = () => {
 
 export const getCurrentUser = async () => {
   try {
-    const response = await api.get('/auth/me');
+    const response = await api.get('/api/auth/me');
     return response.data;
   } catch (error) {
     localStorage.removeItem('accessToken');

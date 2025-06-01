@@ -34,6 +34,10 @@ public class Document extends BaseTimeEntity {
     @Column(name = "sort_order")
     private Integer sortOrder;
 
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean isTrashed = false;
+
     public Document(String title, String content) {
         this(title, content, null);
     }
@@ -51,5 +55,13 @@ public class Document extends BaseTimeEntity {
 
     public void setWorkspace(Workspace workspace) {
         this.workspace = workspace;
+    }
+
+    public boolean isTrashed() {
+        return isTrashed;
+    }
+
+    public void setTrashed(boolean trashed) {
+        this.isTrashed = trashed;
     }
 } 

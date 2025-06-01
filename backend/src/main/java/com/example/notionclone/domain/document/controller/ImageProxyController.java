@@ -28,7 +28,7 @@ public class ImageProxyController {
         this.cloudinaryUploadPreset = cloudinaryUploadPreset;
     }
 
-    @GetMapping("/image-proxy")
+    @GetMapping("/api/image-proxy")
     public ResponseEntity<?> proxyAndUploadImage(@RequestParam("url") String externalUrl) {
         try {
             HttpHeaders requestHeaders = new HttpHeaders();

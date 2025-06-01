@@ -56,8 +56,8 @@ public class SecurityConfig {
         .authorizeHttpRequests(auth -> auth
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
             .requestMatchers(
-                "/auth/**",
-                "/image-proxy",
+                "/api/auth/**",
+                "/api/image-proxy",
                 "/ws/**",
                 "/ws/document/**",
                 "/ws/document/info/**",
@@ -70,7 +70,8 @@ public class SecurityConfig {
                 "/favicon.ico",
                 "/manifest.json",
                 "/logo192.png",
-                "/logo512.png"
+                "/logo512.png",
+                "/actuator/health"
             )
             .permitAll()
             .anyRequest().authenticated())

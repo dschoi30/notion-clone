@@ -12,16 +12,17 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      // 이제 __dirname 사용 가능
+      // 이제 __dirname 사용 가능 
       '@': path.resolve(__dirname, './src'),
     },
   },
   server: {
     proxy: {
-      // '/api': {
-      //   target: 'http://localhost:8080',
-      //   changeOrigin: true,
-      // },
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/api/, ''),
+      },
       // WebSocket 프록시: /ws 경로는 백엔드로 프록시됨
       '/ws': {
         target: 'http://localhost:8080',

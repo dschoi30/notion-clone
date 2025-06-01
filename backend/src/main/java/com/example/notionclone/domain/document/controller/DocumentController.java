@@ -20,7 +20,7 @@ import java.util.List;
 
 @Slf4j
 @RestController
-@RequestMapping("/workspaces/{workspaceId}/documents")
+@RequestMapping("/api/workspaces/{workspaceId}/documents")
 @RequiredArgsConstructor
 public class DocumentController {
     private final DocumentService documentService;
@@ -98,6 +98,40 @@ public class DocumentController {
             @RequestBody DocumentOrderRequest request
     ) {
         documentService.updateDocumentOrder(workspaceId, request.getDocumentIds());
+        return ResponseEntity.ok().build();
+    }
+
+    // --- Trash (휴지통) API ---
+    @GetMapping("/trash")
+    public ResponseEntity<List<DocumentResponse>> getTrashedDocuments(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId) {
+        return ResponseEntity.ok(documentService.getTrashedDocuments(workspaceId));
+    }
+
+    @PatchMapping("/trash/{docId}/restore")
+    public ResponseEntity<Void> restoreDocument(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId,
+            @PathVariable Long docId) {
+        documentService.restoreDocument(workspaceId, docId);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/trash/{docId}/permanent")
+    public ResponseEntity<Void> deleteDocumentPermanently(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId,
+            @PathVariable Long docId) {
+        documentService.deleteDocumentPermanently(workspaceId, docId);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/trash")
+    public ResponseEntity<Void> emptyTrash(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId) {
+        documentService.emptyTrash(workspaceId);
         return ResponseEntity.ok().build();
     }
 } 

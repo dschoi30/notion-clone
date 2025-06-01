@@ -24,7 +24,33 @@
   display: none;
 }
 
+@keyframes trash-dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.8) translate(-20px, 20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translate(0, 0);
+  }
+}
+@keyframes trash-dialog-out {
+  from {
+    opacity: 1;
+    transform: scale(1) translate(0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8) translate(-20px, 20px);
+  }
+}
 
+.animate-trash-dialog-in {
+  animation: trash-dialog-in 0.18s cubic-bezier(0.4,0,0.2,1);
+}
+.animate-trash-dialog-out {
+  animation: trash-dialog-out 0.15s cubic-bezier(0.4,0,0.2,1);
+}
 
 @layer base {
   :root {
@@ -81,8 +107,6 @@
     --chart-5: 340 75% 55%;
   }
 }
-
-
 
 @layer base {
   * {

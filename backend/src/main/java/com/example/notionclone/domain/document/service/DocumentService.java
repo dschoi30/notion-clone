@@ -78,11 +78,11 @@ public class DocumentService {
 
   @Transactional
   public void deleteDocument(Long id) {
-    log.debug("Deleting document: {}", id);
+    log.debug("Soft deleting document: {}", id);
     Document document = documentRepository.findById(id)
         .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + id));
-
-    documentRepository.delete(document);
+    document.setTrashed(true);
+    documentRepository.save(document);
   }
 
   @Transactional
@@ -91,5 +91,39 @@ public class DocumentService {
       Long docId = documentIds.get(i);
       documentRepository.updateSortOrder(workspaceId, docId, i);
     }
+  }
+
+  @Transactional(readOnly = true)
+  public List<DocumentResponse> getTrashedDocuments(Long workspaceId) {
+    return documentRepository.findByWorkspaceIdAndIsTrashedTrue(workspaceId)
+        .stream()
+        .map(DocumentResponse::from)
+        .collect(Collectors.toList());
+  }
+
+  @Transactional
+  public void restoreDocument(Long workspaceId, Long docId) {
+    Document doc = documentRepository.findById(docId)
+        .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + docId));
+    if (doc.getWorkspace() == null || !doc.getWorkspace().getId().equals(workspaceId)) {
+      throw new ResourceNotFoundException("Document not found in workspace: " + workspaceId);
+    }
+    doc.setTrashed(false);
+    documentRepository.save(doc);
+  }
+
+  @Transactional
+  public void deleteDocumentPermanently(Long workspaceId, Long docId) {
+    Document doc = documentRepository.findById(docId)
+        .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + docId));
+    if (doc.getWorkspace() == null || !doc.getWorkspace().getId().equals(workspaceId)) {
+      throw new ResourceNotFoundException("Document not found in workspace: " + workspaceId);
+    }
+    documentRepository.delete(doc);
+  }
+
+  @Transactional
+  public void emptyTrash(Long workspaceId) {
+    documentRepository.deleteAllTrashedByWorkspaceId(workspaceId);
   }
 }

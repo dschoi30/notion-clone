@@ -16,6 +16,7 @@ public class DocumentResponse {
     private Long workspaceId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private boolean isTrashed;
 
     public static DocumentResponse from(Document document) {
         DocumentResponse response = new DocumentResponse();
@@ -25,6 +26,7 @@ public class DocumentResponse {
         response.workspaceId = document.getWorkspace() != null ? document.getWorkspace().getId() : null;
         response.createdAt = document.getCreatedAt();
         response.updatedAt = document.getUpdatedAt();
+        response.isTrashed = document.isTrashed();
         return response;
     }
 } 

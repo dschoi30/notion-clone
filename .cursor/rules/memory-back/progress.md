@@ -1,4 +1,0 @@
-- 2024-06-09: DocumentEditor.jsx에 실시간 자동 저장(debounce 500ms) 기능 구현. 저장 버튼 제거, 저장 상태 UI만 표시. title/content 변경 시 자동 저장 트리거. 
-- 2024-06-29: useDocumentSocket.js에서 Stomp 클라이언트 생성 방식을 공식 권장 방식(Client + webSocketFactory)으로 변경하여 자동 재연결 지원 및 경고 해결. 
-- vite.config.js의 WebSocket 프록시 설정을 확인하고 주석을 추가하여 명확히 함. 
-- 2024-06-29: WebSocket 연결 시 JWT 인증을 위해 프론트엔드에서 토큰을 쿼리 파라미터로 전달하고, 백엔드에서 JwtHandshakeInterceptor로 검증하는 기능 추가. 
