@@ -50,6 +50,7 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
         <DialogContent
           ref={dialogRef}
           overlay={false}
+          noDefaultStyle={true}
           style={{
             position: 'absolute',
             top: dialogPosition.top,
