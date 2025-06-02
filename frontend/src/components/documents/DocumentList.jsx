@@ -230,7 +230,7 @@ export default function DocumentList() {
                   return (
                     <SortableDocumentItem
                       key={document.id}
-                      id={document.id}
+                      id={document.id} 
                       document={document}
                       currentDocument={currentDocument}
                       onSelect={selectDocument}
