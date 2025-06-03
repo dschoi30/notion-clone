@@ -65,3 +65,7 @@ export async function fetchImageViaProxy(imageUrl) {
   }
   return data.imageUrl; // 최종 Cloudinary URL 반환
 }
+
+export async function inviteToDocument(workspaceId, documentId, email) {
+  return api.post(`/api/workspaces/${workspaceId}/documents/${documentId}/invite`, { email });
+}

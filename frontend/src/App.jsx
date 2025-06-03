@@ -8,6 +8,7 @@ import { WorkspaceProvider } from './contexts/WorkspaceContext';
 import { DocumentProvider } from './contexts/DocumentContext';
 import Sidebar from './components/layout/Sidebar';
 import DocumentEditor from './components/documents/DocumentEditor';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 const AppLayout = () => {
   const { user } = useAuth();
@@ -17,14 +18,16 @@ const AppLayout = () => {
   }
 
   return (
-    <WorkspaceProvider>
-      <DocumentProvider>
-        <div className="flex h-screen">
-          <Sidebar />
-          <DocumentEditor />
-        </div>
-      </DocumentProvider>
-    </WorkspaceProvider>
+    <NotificationProvider>
+      <WorkspaceProvider>
+        <DocumentProvider>
+          <div className="flex h-screen">
+            <Sidebar />
+            <DocumentEditor />
+          </div>
+        </DocumentProvider>
+      </WorkspaceProvider>
+    </NotificationProvider>
   );
 };
 

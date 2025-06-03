@@ -3,8 +3,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useDocument } from '../../contexts/DocumentContext';
 import Editor from '../editor/Editor';
 import useDocumentSocket from '../../hooks/useDocumentSocket';
+import DocumentShareModal from './DocumentShareModal';
+import { Button } from '../ui/button';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 const DocumentEditor = () => {
+  const { currentWorkspace } = useWorkspace();
   const { currentDocument, updateDocument } = useDocument();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -13,6 +17,10 @@ const DocumentEditor = () => {
   const prevDocumentRef = useRef();
   const titleRef = useRef(title);
   const contentRef = useRef(content);
+
+  // 공유 모달 상태
+  const [showShareModal, setShowShareModal] = useState(false);
+  const shareButtonRef = useRef(null);
 
   useEffect(() => {
     if (currentDocument) {
@@ -94,7 +102,7 @@ const DocumentEditor = () => {
   return (
     <main className="flex-1 overflow-auto">
       <div className="p-4 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="relative flex items-center justify-between">
           <input
             type="text"
             value={title}
@@ -102,18 +110,39 @@ const DocumentEditor = () => {
             placeholder="제목 없음"
             className="w-full text-2xl font-bold bg-transparent border-none outline-none"
           />
-          <span
-            style={{ whiteSpace: 'nowrap' }}
-            className={
-              (saveStatus === 'saving' ? 'text-blue-500' :
-              saveStatus === 'error' ? 'text-red-500' :
-              'text-gray-400') + ' ml-2'
-            }
-          >
-            {saveStatus === 'saving' ? '저장 중...' :
-            saveStatus === 'error' ? '저장 실패' :
-            saveStatus === 'unsaved' ? '저장 대기' : '저장됨'}
-          </span>
+          <div className="flex items-center ml-2 space-x-2">
+            <span
+              style={{ whiteSpace: 'nowrap' }}
+              className={
+                (saveStatus === 'saving' ? 'text-blue-500' :
+                saveStatus === 'error' ? 'text-red-500' :
+                'text-gray-400') + ' ml-2'
+              }
+            >
+              {saveStatus === 'saving' ? '저장 중...' :
+              saveStatus === 'error' ? '저장 실패' :
+              saveStatus === 'unsaved' ? '저장 대기' : '저장됨'}
+            </span>
+            <Button
+              ref={shareButtonRef}
+              size="sm"
+              variant="outline"
+              className="ml-2"
+              onClick={() => setShowShareModal((v) => !v)}
+            >
+              공유
+            </Button>
+          </div>
+          {/* 공유 모달 */}
+          {showShareModal && (
+            <DocumentShareModal
+              open={showShareModal}
+              onClose={() => setShowShareModal(false)}
+              workspaceId={currentWorkspace.id}
+              documentId={currentDocument.id}
+              anchorRef={shareButtonRef}
+            />
+          )}
         </div>
         <Editor 
           content={content} 

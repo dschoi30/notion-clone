@@ -4,6 +4,7 @@ import com.example.notionclone.domain.document.dto.CreateDocumentRequest;
 import com.example.notionclone.domain.document.dto.DocumentOrderRequest;
 import com.example.notionclone.domain.document.dto.DocumentResponse;
 import com.example.notionclone.domain.document.dto.UpdateDocumentRequest;
+import com.example.notionclone.domain.document.dto.InviteRequest;
 import com.example.notionclone.domain.document.service.DocumentService;
 import com.example.notionclone.domain.user.entity.User;
 import com.example.notionclone.domain.user.repository.UserRepository;
@@ -132,6 +133,18 @@ public class DocumentController {
             @CurrentUser UserPrincipal userPrincipal,
             @PathVariable Long workspaceId) {
         documentService.emptyTrash(workspaceId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{documentId}/invite")
+    public ResponseEntity<Void> inviteToDocument(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId,
+            @PathVariable Long documentId,
+            @RequestBody InviteRequest request) {
+        User inviter = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
+        documentService.inviteToDocument(documentId, request.getEmail(), inviter);
         return ResponseEntity.ok().build();
     }
 } 
