@@ -4,6 +4,11 @@ import com.example.notionclone.domain.user.entity.User;
 import com.example.notionclone.domain.workspace.dto.WorkspaceDto;
 import com.example.notionclone.domain.workspace.entity.Workspace;
 import com.example.notionclone.domain.workspace.repository.WorkspaceRepository;
+import com.example.notionclone.domain.notification.repository.NotificationRepository;
+import com.example.notionclone.domain.notification.entity.NotificationType;
+import com.example.notionclone.domain.notification.entity.NotificationStatus;
+import com.example.notionclone.domain.document.repository.DocumentRepository;
+import com.example.notionclone.domain.document.entity.Document;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -11,6 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Objects;
 
 @Slf4j
 @Service
@@ -18,28 +26,20 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class WorkspaceService {
     private final WorkspaceRepository workspaceRepository;
+    private final NotificationRepository notificationRepository;
+    private final DocumentRepository documentRepository;
 
     public List<WorkspaceDto> getWorkspaces(User user) {
         log.debug("Fetching workspaces for user: {}", user.getId());
-        List<Workspace> workspaces = workspaceRepository.findByUserAndParentIsNull(user);
-        return workspaces.stream()
-                .map(WorkspaceDto::from)
-                .collect(Collectors.toList());
-    }
-
-    public List<WorkspaceDto> getSubWorkspaces(User user, Long parentId) {
-        log.debug("Fetching sub-workspaces for user: {} and parent: {}", user.getId(), parentId);
-        Workspace parent = workspaceRepository.findById(parentId)
-                .orElseThrow(() -> new RuntimeException("Workspace not found"));
-        List<Workspace> workspaces = workspaceRepository.findByUserAndParent(user, parent);
+        List<Workspace> workspaces = workspaceRepository.findByUser(user);
         return workspaces.stream()
                 .map(WorkspaceDto::from)
                 .collect(Collectors.toList());
     }
 
     @Transactional
-    public WorkspaceDto createWorkspace(User user, String name, Long parentId) {
-        log.debug("Creating workspace. User: {}, Name: {}, ParentId: {}", user.getId(), name, parentId);
+    public WorkspaceDto createWorkspace(User user, String name) {
+        log.debug("Creating workspace. User: {}, Name: {}", user.getId(), name);
         
         Workspace workspace = Workspace.builder()
                 .name(name)
@@ -49,13 +49,6 @@ public class WorkspaceService {
         log.debug("Built workspace: {}", workspace);
         log.debug("Workspace user: {}", workspace.getUser());
 
-        if (parentId != null) {
-            Workspace parent = workspaceRepository.findById(parentId)
-                    .orElseThrow(() -> new RuntimeException("Parent workspace not found"));
-            parent.addSubWorkspace(workspace);
-            log.debug("Added to parent workspace: {}", parent.getId());
-        }
-
         workspace = workspaceRepository.save(workspace);
         log.debug("Saved workspace with ID: {}", workspace.getId());
         
@@ -63,9 +56,9 @@ public class WorkspaceService {
     }
 
     @Transactional
-    public WorkspaceDto updateWorkspace(User user, Long workspaceId, String name, Long parentId) {
-        log.debug("Updating workspace. User: {}, WorkspaceId: {}, Name: {}, ParentId: {}", 
-                user.getId(), workspaceId, name, parentId);
+    public WorkspaceDto updateWorkspace(User user, Long workspaceId, String name) {
+        log.debug("Updating workspace. User: {}, WorkspaceId: {}, Name: {}", 
+                user.getId(), workspaceId, name);
         
         Workspace workspace = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new RuntimeException("Workspace not found"));
@@ -75,19 +68,6 @@ public class WorkspaceService {
         }
 
         workspace.update(name);
-
-        if (parentId != null) {
-            Workspace parent = workspaceRepository.findById(parentId)
-                    .orElseThrow(() -> new RuntimeException("Parent workspace not found"));
-            if (workspace.getParent() != null) {
-                workspace.getParent().removeSubWorkspace(workspace);
-            }
-            parent.addSubWorkspace(workspace);
-            log.debug("Updated parent workspace to: {}", parent.getId());
-        } else if (workspace.getParent() != null) {
-            workspace.getParent().removeSubWorkspace(workspace);
-            log.debug("Removed from parent workspace");
-        }
 
         return WorkspaceDto.from(workspace);
     }
@@ -110,5 +90,36 @@ public class WorkspaceService {
 
         workspaceRepository.delete(workspace);
         log.debug("Workspace deleted");
+    }
+
+    public List<WorkspaceDto> getAccessibleWorkspaces(User user) {
+        // 내가 owner인 워크스페이스
+        List<Workspace> myWorkspaces = workspaceRepository.findByUser(user);
+        // 초대 수락한 공유 문서가 속한 워크스페이스
+        List<Long> sharedDocIds = notificationRepository
+            .findByReceiverAndTypeAndStatus(user, NotificationType.INVITE, NotificationStatus.ACCEPTED)
+            .stream()
+            .map(n -> {
+                try {
+                    String payload = n.getPayload();
+                    int idx = payload.indexOf(":");
+                    int end = payload.indexOf("}");
+                    return Long.parseLong(payload.substring(idx + 1, end));
+                } catch (Exception e) {
+                    return null;
+                }
+            })
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList());
+        List<Workspace> sharedWorkspaces = sharedDocIds.isEmpty() ? List.of() :
+            documentRepository.findAllById(sharedDocIds)
+                .stream()
+                .map(Document::getWorkspace)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        Set<Workspace> all = new HashSet<>(myWorkspaces);
+        all.addAll(sharedWorkspaces);
+        return all.stream().map(WorkspaceDto::from).collect(Collectors.toList());
     }
 } 

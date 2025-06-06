@@ -22,7 +22,7 @@ export function WorkspaceProvider({ children }) {
     try {
       setLoading(true);
       setError(null);
-      const data = await workspaceApi.getWorkspaces();
+      const data = await workspaceApi.getAccessibleWorkspaces();
       setWorkspaces(data);
       if (data.length > 0 && !currentWorkspace) {
         setCurrentWorkspace(data[0]);

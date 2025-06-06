@@ -32,9 +32,9 @@ public class NotificationService {
         return notificationRepository.save(notification);
     }
 
-    public Notification sendNotification(User receiver, NotificationType type, String message, String payload) {
+    public Notification sendInviteNotification(User invitee, NotificationType type, String message, String payload) {
         Notification notification = Notification.builder()
-            .receiver(receiver)
+            .receiver(invitee)
             .type(type)
             .message(message)
             .payload(payload)

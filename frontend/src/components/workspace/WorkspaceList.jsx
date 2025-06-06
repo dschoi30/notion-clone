@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/button';
-import { Loader2, ChevronRight, ChevronDown, Plus, Settings, LogOut } from 'lucide-react';
+import { Loader2, ChevronRight, ChevronDown, Plus, Settings, LogOut, User } from 'lucide-react';
 import WorkspaceSettingsModal from './WorkspaceSettingsModal';
 
 export default function WorkspaceList() {
@@ -18,7 +18,7 @@ export default function WorkspaceList() {
     loading,
     error 
   } = useWorkspace();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     fetchWorkspaces();
@@ -130,7 +130,15 @@ export default function WorkspaceList() {
                   setIsOpen(false);
                 }}
               >
-                <span className="text-sm text-gray-700">{workspace.name}</span>
+                <span className="flex items-center text-sm text-gray-700">
+                  {workspace.name}
+                  {workspace.ownerId !== user.id && (
+                    <User className="w-4 h-4 ml-2 text-blue-500" />
+                  )}
+                  {workspace.ownerId !== user.id && (
+                    <span className="ml-1 text-xs text-blue-500">(게스트)</span>
+                  )}
+                </span>
               </div>
             ))}
           </div>

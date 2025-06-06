@@ -28,4 +28,6 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
     @Modifying
     @Query("DELETE FROM Document d WHERE d.workspace.id = :workspaceId AND d.isTrashed = true")
     void deleteAllTrashedByWorkspaceId(@Param("workspaceId") Long workspaceId);
+
+    List<Document> findByWorkspaceIdAndUserId(Long workspaceId, Long userId);
 } 

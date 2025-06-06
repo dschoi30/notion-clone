@@ -11,13 +11,13 @@ import lombok.NoArgsConstructor;
 public class WorkspaceDto {
     private Long id;
     private String name;
-    private Long parentId;
+    private Long ownerId;
 
     public static WorkspaceDto from(Workspace workspace) {
         return new WorkspaceDto(
             workspace.getId(),
             workspace.getName(),
-            workspace.getParent() != null ? workspace.getParent().getId() : null
+            workspace.getUser() != null ? workspace.getUser().getId() : null
         );
     }
 } 

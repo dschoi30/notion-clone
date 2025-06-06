@@ -10,6 +10,10 @@ import com.example.notionclone.exception.ResourceNotFoundException;
 import com.example.notionclone.domain.notification.service.NotificationService;
 import com.example.notionclone.domain.notification.entity.NotificationType;
 import com.example.notionclone.domain.user.repository.UserRepository;
+import com.example.notionclone.domain.notification.repository.NotificationRepository;
+import com.example.notionclone.domain.notification.entity.NotificationStatus;
+import com.example.notionclone.domain.permission.repository.PermissionRepository;
+import com.example.notionclone.domain.permission.entity.Permission;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.Objects;
+import java.util.ArrayList;
 
 @Slf4j
 @Service
@@ -27,31 +33,45 @@ public class DocumentService {
   private final WorkspaceRepository workspaceRepository;
   private final UserRepository userRepository;
   private final NotificationService notificationService;
+  private final NotificationRepository notificationRepository;
+  private final PermissionRepository permissionRepository;
 
   public List<DocumentResponse> getDocumentsByWorkspace(Long workspaceId) {
     log.debug("Getting documents for workspace: {}", workspaceId);
     return documentRepository.findByWorkspaceId(workspaceId)
         .stream()
-        .map(DocumentResponse::from)
+        .map(doc -> {
+            List<Permission> permissions = permissionRepository.findByDocument(doc);
+            return DocumentResponse.from(doc, permissions);
+        })
         .collect(Collectors.toList());
   }
 
   public DocumentResponse getDocument(Long id) {
     log.debug("Getting document: {}", id);
     return documentRepository.findById(id)
-        .map(DocumentResponse::from)
+        .map(doc -> {
+            List<Permission> permissions = permissionRepository.findByDocument(doc);
+            return DocumentResponse.from(doc, permissions);
+        })
         .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + id));
   }
 
   public List<DocumentResponse> getAllDocuments() {
     return documentRepository.findAll().stream()
-        .map(DocumentResponse::from)
+        .map(doc -> {
+            List<Permission> permissions = permissionRepository.findByDocument(doc);
+            return DocumentResponse.from(doc, permissions);
+        })
         .collect(Collectors.toList());
   }
 
   public List<DocumentResponse> getDocumentsWithNoWorkspace() {
     return documentRepository.findDocumentsWithNoWorkspace().stream()
-        .map(DocumentResponse::from)
+        .map(doc -> {
+            List<Permission> permissions = permissionRepository.findByDocument(doc);
+            return DocumentResponse.from(doc, permissions);
+        })
         .collect(Collectors.toList());
   }
 
@@ -102,7 +122,10 @@ public class DocumentService {
   public List<DocumentResponse> getTrashedDocuments(Long workspaceId) {
     return documentRepository.findByWorkspaceIdAndIsTrashedTrue(workspaceId)
         .stream()
-        .map(DocumentResponse::from)
+        .map(doc -> {
+            List<Permission> permissions = permissionRepository.findByDocument(doc);
+            return DocumentResponse.from(doc, permissions);
+        })
         .collect(Collectors.toList());
   }
 
@@ -132,14 +155,36 @@ public class DocumentService {
     documentRepository.deleteAllTrashedByWorkspaceId(workspaceId);
   }
 
-  @Transactional
-  public void inviteToDocument(Long documentId, String email, User inviter) {
-    Document document = documentRepository.findById(documentId)
-        .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId));
-    User invitee = userRepository.findByEmail(email)
-        .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
-    String message = String.format("%s님이 '%s' 문서에 초대했습니다.", inviter.getName(), document.getTitle());
-    String payload = String.format("{\"documentId\":%d}", documentId);
-    notificationService.sendNotification(invitee, NotificationType.INVITE, message, payload);
+  public List<DocumentResponse> getAccessibleDocuments(Long workspaceId, User user) {
+    // 1. 내가 소유한 문서(개인)
+    List<Document> personalDocs = documentRepository.findByWorkspaceIdAndUserId(workspaceId, user.getId());
+    // 2. 초대받아 ACCEPTED된 공유 문서
+    List<Long> sharedDocIds = notificationRepository
+      .findByReceiverAndTypeAndStatus(user, NotificationType.INVITE, NotificationStatus.ACCEPTED)
+      .stream()
+      .map(n -> {
+        try {
+          String payload = n.getPayload();
+          int idx = payload.indexOf(":");
+          int end = payload.indexOf("}");
+          return Long.parseLong(payload.substring(idx + 1, end));
+        } catch (Exception e) {
+          return null;
+        }
+      })
+      .filter(Objects::nonNull)
+      .collect(Collectors.toList());
+    List<Document> sharedDocs = sharedDocIds.isEmpty() ? List.of() :
+      documentRepository.findAllById(sharedDocIds)
+        .stream()
+        .filter(doc -> doc.getWorkspace().getId().equals(workspaceId))
+        .collect(Collectors.toList());
+    List<Document> allDocs = new ArrayList<>();
+    allDocs.addAll(personalDocs);
+    allDocs.addAll(sharedDocs);
+    return allDocs.stream().map(doc -> {
+        List<Permission> permissions = permissionRepository.findByDocument(doc);
+        return DocumentResponse.from(doc, permissions);
+    }).collect(Collectors.toList());
   }
 }

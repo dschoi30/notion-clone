@@ -31,18 +31,7 @@ public class WorkspaceController {
         List<WorkspaceDto> workspaces = workspaceService.getWorkspaces(user);
         return ResponseEntity.ok(workspaces);
     }
-
-    @GetMapping("/{parentId}/sub-workspaces")
-    public ResponseEntity<List<WorkspaceDto>> getSubWorkspaces(
-            @CurrentUser UserPrincipal userPrincipal,
-            @PathVariable Long parentId) {
-        log.debug("Get sub-workspaces request for user principal: {} and parent: {}", userPrincipal.getId(), parentId);
-        User user = userRepository.findById(userPrincipal.getId())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        List<WorkspaceDto> workspaces = workspaceService.getSubWorkspaces(user, parentId);
-        return ResponseEntity.ok(workspaces);
-    }
-
+    
     @PostMapping
     public ResponseEntity<WorkspaceDto> createWorkspace(
             @CurrentUser UserPrincipal userPrincipal,
@@ -51,7 +40,7 @@ public class WorkspaceController {
         log.debug("Request data: {}", request);
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        WorkspaceDto workspace = workspaceService.createWorkspace(user, request.getName(), request.getParentId());
+        WorkspaceDto workspace = workspaceService.createWorkspace(user, request.getName());
         return ResponseEntity.ok(workspace);
     }
 
@@ -64,7 +53,7 @@ public class WorkspaceController {
         log.debug("Request data: {}", request);
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        WorkspaceDto workspace = workspaceService.updateWorkspace(user, workspaceId, request.getName(), request.getParentId());
+        WorkspaceDto workspace = workspaceService.updateWorkspace(user, workspaceId, request.getName());
         return ResponseEntity.ok(workspace);
     }
 
@@ -77,5 +66,13 @@ public class WorkspaceController {
                 .orElseThrow(() -> new RuntimeException("User not found"));
         workspaceService.deleteWorkspace(user, workspaceId);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/accessible")
+    public ResponseEntity<List<WorkspaceDto>> getAccessibleWorkspaces(@CurrentUser UserPrincipal userPrincipal) {
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        List<WorkspaceDto> workspaces = workspaceService.getAccessibleWorkspaces(user);
+        return ResponseEntity.ok(workspaces);
     }
 } 

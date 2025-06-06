@@ -69,3 +69,8 @@ export async function fetchImageViaProxy(imageUrl) {
 export async function inviteToDocument(workspaceId, documentId, email) {
   return api.post(`/api/workspaces/${workspaceId}/documents/${documentId}/invite`, { email });
 }
+
+export async function getAccessibleDocuments(workspaceId) {
+  const response = await api.get(`/api/workspaces/${workspaceId}/documents/accessible`);
+  return response.data;
+}

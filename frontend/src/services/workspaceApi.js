@@ -36,4 +36,9 @@ export async function addWorkspaceMember(id, email) {
 
 export async function removeWorkspaceMember(id, memberId) {
   await api.delete(`/api/workspaces/${id}/members/${memberId}`);
+}
+
+export async function getAccessibleWorkspaces() {
+  const res = await api.get('/api/workspaces/accessible');
+  return res.data;
 } 

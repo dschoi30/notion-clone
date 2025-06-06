@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { PlusIcon, TrashIcon, GripVertical } from 'lucide-react';
 import { useDocument } from '@/contexts/DocumentContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   DndContext,
   closestCenter,
@@ -128,18 +129,79 @@ export default function DocumentList() {
     updateDocumentOrder,
   } = useDocument();
 
+  const { user } = useAuth();
   const { currentWorkspace, workspaces } = useWorkspace();
   const [items, setItems] = useState([]);
 
   useEffect(() => {
-    // workspaces가 준비되지 않았거나 currentWorkspace가 null이면 fetchDocuments 호출하지 않음
     if (workspaces.length === 0 || !currentWorkspace) return;
     fetchDocuments();
   }, [currentWorkspace, workspaces]);
 
+  // 워크스페이스 소유자 여부 판별
+  const isMyWorkspace = currentWorkspace && currentWorkspace.ownerId === user.id;
+
+  // 문서 분류
+  let sharedDocuments = [];
+  let personalDocuments = [];
+  if (isMyWorkspace) {
+    sharedDocuments = documents.filter(
+      doc => doc.userId === user.id && doc.permissions && doc.permissions.length > 0
+    );
+    personalDocuments = documents.filter(
+      doc => doc.userId === user.id && (!doc.permissions || doc.permissions.length === 0)
+    );
+  } else {
+    sharedDocuments = documents.filter(
+      doc => doc.permissions && doc.permissions.some(p => p.userId === user.id && p.status === 'ACCEPTED')
+    );
+  }
+
+  // 섹션별 DnD items 관리
+  const [sharedItems, setSharedItems] = useState([]);
+  const [personalItems, setPersonalItems] = useState([]);
   useEffect(() => {
-    setItems(documents.map(doc => doc.id));
-  }, [documents]);
+    setSharedItems(sharedDocuments.map(doc => doc.id));
+    setPersonalItems(personalDocuments.map(doc => doc.id));
+  }, [sharedDocuments, personalDocuments]);
+
+  // DnD 센서 설정
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // 섹션별 드래그 종료 핸들러
+  const handleSharedDragEnd = async (event) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      const oldIndex = sharedItems.indexOf(active.id);
+      const newIndex = sharedItems.indexOf(over.id);
+      const newItems = arrayMove(sharedItems, oldIndex, newIndex);
+      setSharedItems(newItems);
+      try {
+        await updateDocumentOrder(newItems);
+      } catch (e) {
+        alert('순서 저장에 실패했습니다.');
+      }
+    }
+  };
+  const handlePersonalDragEnd = async (event) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      const oldIndex = personalItems.indexOf(active.id);
+      const newIndex = personalItems.indexOf(over.id);
+      const newItems = arrayMove(personalItems, oldIndex, newIndex);
+      setPersonalItems(newItems);
+      try {
+        await updateDocumentOrder(newItems);
+      } catch (e) {
+        alert('순서 저장에 실패했습니다.');
+      }
+    }
+  };
 
   const handleCreateDocument = async () => {
     try {
@@ -161,31 +223,6 @@ export default function DocumentList() {
     }
   };
 
-  // DnD 센서 설정
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  // 드래그 종료 시 순서 변경
-  const handleDragEnd = async (event) => {
-    const { active, over } = event;
-    if (active.id !== over?.id) {
-      const oldIndex = items.indexOf(active.id);
-      const newIndex = items.indexOf(over.id);
-      const newItems = arrayMove(items, oldIndex, newIndex);
-      setItems(newItems);
-      try {
-        await updateDocumentOrder(newItems);
-        // (선택) 성공 시 fetchDocuments()로 동기화
-      } catch (e) {
-        alert('순서 저장에 실패했습니다.');
-      }
-    }
-  };
-
   if (!currentWorkspace) {
     return (
       <div className="p-4 text-center text-gray-500">
@@ -204,43 +241,83 @@ export default function DocumentList() {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">문서</h2>
-          <Button onClick={handleCreateDocument} size="sm">
-            <PlusIcon className="w-4 h-4 mr-1" />
-            새 문서
-          </Button>
-        </div>
-        {documents.length === 0 ? (
-          <div className="text-center text-gray-500">
-            문서가 없습니다.
+      <div className="p-4 space-y-8">
+        {/* 공유 문서 섹션 */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-lg font-semibold">공유 문서</h2>
+            {/* 내 워크스페이스일 때만 새 문서 버튼 노출 */}
+            {isMyWorkspace && (
+              <Button onClick={handleCreateDocument} size="sm">
+                <PlusIcon className="w-4 h-4 mr-1" />
+                새 문서
+              </Button>
+            )}
           </div>
-        ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext items={items} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2">
-                {items.map(id => {
-                  const document = documents.find(doc => doc.id === id);
-                  if (!document) return null;
-                  return (
-                    <SortableDocumentItem
-                      key={document.id}
-                      id={document.id} 
-                      document={document}
-                      currentDocument={currentDocument}
-                      onSelect={selectDocument}
-                      onDelete={handleDeleteDocument}
-                    />
-                  );
-                })}
-              </div>
-            </SortableContext>
-          </DndContext>
+          {sharedDocuments.length === 0 ? (
+            <div className="text-center text-gray-500">공유 문서가 없습니다.</div>
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleSharedDragEnd}
+            >
+              <SortableContext items={sharedItems} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {sharedItems.map(id => {
+                    const document = sharedDocuments.find(doc => doc.id === id);
+                    if (!document) return null;
+                    return (
+                      <SortableDocumentItem
+                        key={document.id}
+                        id={document.id}
+                        document={document}
+                        currentDocument={currentDocument}
+                        onSelect={selectDocument}
+                        onDelete={handleDeleteDocument}
+                      />
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+        </div>
+        {/* 개인 문서 섹션: 내 워크스페이스일 때만 노출 */}
+        {isMyWorkspace && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-semibold">개인 문서</h2>
+            </div>
+            {personalDocuments.length === 0 ? (
+              <div className="text-center text-gray-500">개인 문서가 없습니다.</div>
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handlePersonalDragEnd}
+              >
+                <SortableContext items={personalItems} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-2">
+                    {personalItems.map(id => {
+                      const document = personalDocuments.find(doc => doc.id === id);
+                      if (!document) return null;
+                      return (
+                        <SortableDocumentItem
+                          key={document.id}
+                          id={document.id}
+                          document={document}
+                          currentDocument={currentDocument}
+                          onSelect={selectDocument}
+                          onDelete={handleDeleteDocument}
+                        />
+                      );
+                    })}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            )}
+          </div>
         )}
       </div>
     </div>
