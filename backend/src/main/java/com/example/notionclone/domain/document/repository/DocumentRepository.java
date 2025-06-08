@@ -15,6 +15,8 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
     
     List<Document> findByWorkspaceIdAndIsTrashedTrue(Long workspaceId);
     
+    List<Document> findByWorkspaceIdAndIsTrashedFalse(Long workspaceId);
+    
     @Query("SELECT d FROM Document d WHERE d.workspace IS NULL")
     List<Document> findDocumentsWithNoWorkspace();
     

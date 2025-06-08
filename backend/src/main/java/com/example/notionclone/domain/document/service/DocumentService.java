@@ -7,9 +7,7 @@ import com.example.notionclone.domain.user.entity.User;
 import com.example.notionclone.domain.workspace.entity.Workspace;
 import com.example.notionclone.domain.workspace.repository.WorkspaceRepository;
 import com.example.notionclone.exception.ResourceNotFoundException;
-import com.example.notionclone.domain.notification.service.NotificationService;
 import com.example.notionclone.domain.notification.entity.NotificationType;
-import com.example.notionclone.domain.user.repository.UserRepository;
 import com.example.notionclone.domain.notification.repository.NotificationRepository;
 import com.example.notionclone.domain.notification.entity.NotificationStatus;
 import com.example.notionclone.domain.permission.repository.PermissionRepository;
@@ -31,14 +29,12 @@ import java.util.ArrayList;
 public class DocumentService {
   private final DocumentRepository documentRepository;
   private final WorkspaceRepository workspaceRepository;
-  private final UserRepository userRepository;
-  private final NotificationService notificationService;
   private final NotificationRepository notificationRepository;
   private final PermissionRepository permissionRepository;
 
   public List<DocumentResponse> getDocumentsByWorkspace(Long workspaceId) {
     log.debug("Getting documents for workspace: {}", workspaceId);
-    return documentRepository.findByWorkspaceId(workspaceId)
+    return documentRepository.findByWorkspaceIdAndIsTrashedFalse(workspaceId)
         .stream()
         .map(doc -> {
             List<Permission> permissions = permissionRepository.findByDocument(doc);
