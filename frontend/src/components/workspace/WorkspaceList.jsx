@@ -79,7 +79,7 @@ export default function WorkspaceList() {
   return (
     <div className="relative border-b border-gray-200" ref={dropdownRef}>
       <div 
-        className="flex items-center justify-between p-4 bg-white cursor-pointer hover:bg-gray-50"
+        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50"
         onClick={toggleDropdown}
       >
         <div className="flex items-center flex-1 min-w-0 space-x-2">

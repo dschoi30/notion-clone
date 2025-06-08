@@ -73,18 +73,27 @@ function SortableDocumentItem({ document, currentDocument, onSelect, onDelete, i
     background: isDragging ? '#f3f4f6' : undefined,
   };
 
+  const [isHovered, setIsHovered] = useState(false);
+
   return (
     <Card
       ref={setNodeRef}
-      style={style}
-      className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
-        currentDocument?.id === document.id ? 'bg-gray-100' : ''
-      }`}
+      style={{
+        ...style,
+        background: currentDocument?.id === document.id
+          ? '#F0F0EF'
+          : isHovered
+            ? '#F1F1EF'
+            : undefined
+      }}
+      className={`group px-4 py-2 min-h-[50px] flex items-center cursor-pointer transition-colors`}
       onMouseDown={handlePointerDown}
       onMouseUp={handlePointerUp}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       {...attributes}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between w-full h-full">
         <span
           {...listeners}
           className="flex items-center mr-2"
@@ -108,6 +117,7 @@ function SortableDocumentItem({ document, currentDocument, onSelect, onDelete, i
             e.stopPropagation();
             onDelete(document.id);
           }}
+          className="hidden group-hover:flex"
         >
           <TrashIcon className="w-4 h-4 text-red-500" />
         </Button>
