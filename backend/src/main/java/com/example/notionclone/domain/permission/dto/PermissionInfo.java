@@ -8,11 +8,15 @@ import lombok.Getter;
 @Getter
 public class PermissionInfo {
     private Long userId;
+    private String name;
+    private String email;
     private PermissionType permissionType;
     private PermissionStatus status;
 
     public PermissionInfo(Permission permission) {
         this.userId = permission.getUser().getId();
+        this.name = permission.getUser().getName();
+        this.email = permission.getUser().getEmail();
         this.permissionType = permission.getPermissionType();
         this.status = permission.getStatus();
     }

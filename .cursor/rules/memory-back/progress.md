@@ -1,5 +1,0 @@
-- [x] WorkspaceList 컴포넌트 단위테스트 파일(WorkspaceList.test.jsx) 작성 완료
-  - 주요 동작(목록 렌더링, 로딩/에러, 워크스페이스 선택, 추가/설정/로그아웃 버튼, 모달 표시 등) 테스트 포함
-  - useWorkspace, useAuth 등 context hook mocking 적용
-  - linter 에러(테스트 환경 글로벌 객체 관련) 해결
-- [ ] WorkspaceSettingsModal 등 추가 workspace 관련 테스트 작성 예정 

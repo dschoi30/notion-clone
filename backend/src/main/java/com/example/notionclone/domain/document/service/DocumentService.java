@@ -147,6 +147,10 @@ public class DocumentService {
     if (doc.getWorkspace() == null || !doc.getWorkspace().getId().equals(workspaceId)) {
       throw new ResourceNotFoundException("Document not found in workspace: " + workspaceId);
     }
+    // 1. Permission 먼저 삭제
+    List<Permission> permissions = permissionRepository.findByDocument(doc);
+    permissionRepository.deleteAll(permissions);
+    // 2. 문서 삭제
     documentRepository.delete(doc);
   }
 

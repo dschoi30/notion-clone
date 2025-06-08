@@ -9,9 +9,6 @@ public class DocumentDto {
     private Long id;
     private String title;
     private String content;
-    private Long parentId;
     private Long ownerId;
-    private boolean isFolder;
     private String icon;
-    private Integer position;
 } 

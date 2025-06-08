@@ -1,5 +1,5 @@
 // src/components/documents/DocumentList.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { PlusIcon, TrashIcon, GripVertical } from 'lucide-react';
@@ -141,29 +141,35 @@ export default function DocumentList() {
   // 워크스페이스 소유자 여부 판별
   const isMyWorkspace = currentWorkspace && currentWorkspace.ownerId === user.id;
 
-  // 문서 분류
-  let sharedDocuments = [];
-  let personalDocuments = [];
-  if (isMyWorkspace) {
-    sharedDocuments = documents.filter(
-      doc => doc.userId === user.id && doc.permissions && doc.permissions.length > 0
-    );
-    personalDocuments = documents.filter(
-      doc => doc.userId === user.id && (!doc.permissions || doc.permissions.length === 0)
-    );
-  } else {
-    sharedDocuments = documents.filter(
-      doc => doc.permissions && doc.permissions.some(p => p.userId === user.id && p.status === 'ACCEPTED')
-    );
-  }
+  // 문서 분류(useMemo로 캐싱)
+  const sharedDocuments = useMemo(() => {
+    if (isMyWorkspace) {
+      return documents.filter(
+        doc => doc.userId === user.id && doc.permissions && doc.permissions.length > 0
+      );
+    } else {
+      return documents.filter(
+        doc => doc.permissions && doc.permissions.some(p => p.userId === user.id && p.status === 'ACCEPTED')
+      );
+    }
+  }, [documents, isMyWorkspace, user.id]);
 
-  // 섹션별 DnD items 관리
+  const personalDocuments = useMemo(() => {
+    if (isMyWorkspace) {
+      return documents.filter(
+        doc => doc.userId === user.id && (!doc.permissions || doc.permissions.length === 0)
+      );
+    }
+    return [];
+  }, [documents, isMyWorkspace, user.id]);
+
+  // 섹션별 DnD items 관리 (documents만 의존)
   const [sharedItems, setSharedItems] = useState([]);
   const [personalItems, setPersonalItems] = useState([]);
   useEffect(() => {
     setSharedItems(sharedDocuments.map(doc => doc.id));
     setPersonalItems(personalDocuments.map(doc => doc.id));
-  }, [sharedDocuments, personalDocuments]);
+  }, [documents]);
 
   // DnD 센서 설정
   const sensors = useSensors(

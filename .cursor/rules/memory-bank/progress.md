@@ -2,3 +2,9 @@
 - 2024-06-29: useDocumentSocket.js에서 Stomp 클라이언트 생성 방식을 공식 권장 방식(Client + webSocketFactory)으로 변경하여 자동 재연결 지원 및 경고 해결. 
 - vite.config.js의 WebSocket 프록시 설정을 확인하고 주석을 추가하여 명확히 함. 
 - 2024-06-29: WebSocket 연결 시 JWT 인증을 위해 프론트엔드에서 토큰을 쿼리 파라미터로 전달하고, 백엔드에서 JwtHandshakeInterceptor로 검증하는 기능 추가. 
+- [x] WorkspaceList 컴포넌트 단위테스트 파일(WorkspaceList.test.jsx) 작성 완료
+  - 주요 동작(목록 렌더링, 로딩/에러, 워크스페이스 선택, 추가/설정/로그아웃 버튼, 모달 표시 등) 테스트 포함
+  - useWorkspace, useAuth 등 context hook mocking 적용
+  - linter 에러(테스트 환경 글로벌 객체 관련) 해결
+- [ ] WorkspaceSettingsModal 등 추가 workspace 관련 테스트 작성 예정
+- NotificationService의 acceptNotification에서 알림(INVITE) 수락 시 permission 테이블의 status를 ACCEPTED로 변경하는 로직 추가 (payload에서 documentId 파싱, PermissionService 활용) 

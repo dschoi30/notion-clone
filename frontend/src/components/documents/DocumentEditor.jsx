@@ -6,9 +6,13 @@ import useDocumentSocket from '../../hooks/useDocumentSocket';
 import DocumentShareModal from './DocumentShareModal';
 import { Button } from '../ui/button';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 const DocumentEditor = () => {
   const { currentWorkspace } = useWorkspace();
+  const { user } = useAuth();
+  const isMyWorkspace = currentWorkspace && currentWorkspace.ownerId === user.id;
+  const isGuest = !isMyWorkspace;
   const { currentDocument, updateDocument } = useDocument();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -123,18 +127,21 @@ const DocumentEditor = () => {
               saveStatus === 'error' ? '저장 실패' :
               saveStatus === 'unsaved' ? '저장 대기' : '저장됨'}
             </span>
-            <Button
-              ref={shareButtonRef}
-              size="sm"
-              variant="outline"
-              className="ml-2"
-              onClick={() => setShowShareModal((v) => !v)}
-            >
-              공유
-            </Button>
+            {/* 게스트가 아닐 때만 공유 버튼 노출 */}
+            {!isGuest && (
+              <Button
+                ref={shareButtonRef}
+                size="sm"
+                variant="outline"
+                className="ml-2"
+                onClick={() => setShowShareModal((v) => !v)}
+              >
+                공유
+              </Button>
+            )}
           </div>
           {/* 공유 모달 */}
-          {showShareModal && (
+          {showShareModal && !isGuest && (
             <DocumentShareModal
               open={showShareModal}
               onClose={() => setShowShareModal(false)}
