@@ -44,4 +44,24 @@ public class PermissionService {
         return permissionRepository.findByUserAndDocument(user, document)
                 .orElse(null);
     }
+
+    public Permission getPermissionByUserIdAndDocumentId(Long userId, Long documentId) {
+        return permissionRepository.findByUserIdAndDocumentId(userId, documentId)
+                .orElse(null);
+    }
+
+    @Transactional
+    public Permission updatePermissionType(Long userId, Long documentId, String permissionType) {
+        Permission permission = permissionRepository.findByUserIdAndDocumentId(userId, documentId)
+            .orElseThrow(() -> new RuntimeException("Permission not found"));
+        permission.setPermissionType(PermissionType.valueOf(permissionType));
+        return permissionRepository.save(permission);
+    }
+
+    @Transactional
+    public void removePermission(Long userId, Long documentId) {
+        Permission permission = permissionRepository.findByUserIdAndDocumentId(userId, documentId)
+            .orElseThrow(() -> new RuntimeException("Permission not found"));
+        permissionRepository.delete(permission);
+    }
 } 

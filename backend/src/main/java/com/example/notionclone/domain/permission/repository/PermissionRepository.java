@@ -14,4 +14,5 @@ public interface PermissionRepository extends JpaRepository<Permission, Long> {
     List<Permission> findByDocumentAndStatus(Document document, PermissionStatus status);
     Optional<Permission> findByUserAndDocument(User user, Document document);
     List<Permission> findByDocument(Document document);
+    Optional<Permission> findByUserIdAndDocumentId(Long userId, Long documentId);
 } 

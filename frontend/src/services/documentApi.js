@@ -74,3 +74,11 @@ export async function getAccessibleDocuments(workspaceId) {
   const response = await api.get(`/api/workspaces/${workspaceId}/documents/accessible`);
   return response.data;
 }
+
+export async function updateDocumentPermission(workspaceId, documentId, userId, permissionType) {
+  return api.patch(`/api/workspaces/${workspaceId}/documents/${documentId}/permissions/${userId}`, { permissionType });
+}
+
+export async function removeDocumentPermission(workspaceId, documentId, userId) {
+  return api.delete(`/api/workspaces/${workspaceId}/documents/${documentId}/permissions/${userId}`);
+}

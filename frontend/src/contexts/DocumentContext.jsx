@@ -132,6 +132,22 @@ export function DocumentProvider({ children }) {
     // 서버 반영 후 fetchDocuments()로 최신화 가능
   }, [currentWorkspace]);
 
+  // 단일 문서 정보 갱신용 fetchDocument 함수 추가
+  const fetchDocument = useCallback(async (documentId) => {
+    if (!currentWorkspace || !documentId) return;
+    try {
+      setLoading(true);
+      setError(null);
+      const fullDocument = await documentApi.getDocument(currentWorkspace.id, documentId);
+      setCurrentDocument(fullDocument);
+    } catch (err) {
+      setError(err.message);
+      console.error('Failed to fetch document:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentWorkspace]);
+
   const value = {
     documents,
     currentDocument,
@@ -143,6 +159,7 @@ export function DocumentProvider({ children }) {
     deleteDocument,
     selectDocument,
     updateDocumentOrder,
+    fetchDocument,
   };
 
   return (

@@ -1,8 +1,53 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogPortal, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { inviteToDocument } from '@/services/documentApi';
+import { inviteToDocument, updateDocumentPermission, removeDocumentPermission } from '@/services/documentApi';
 import { useDocument } from '@/contexts/DocumentContext';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
+import { ChevronDown } from 'lucide-react';
+
+function PermissionDropdown({ value, onChange, disabled, loading }) {
+  const options = [
+    { value: 'WRITE', label: '전체 허용' },
+    { value: 'READ', label: '읽기 허용' },
+    { value: 'REMOVE', label: '제거' },
+  ];
+  const selected = options.find(o => o.value === value);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className={`text-xs border rounded px-2 py-1 bg-white min-w-[80px] text-left flex items-center justify-between ${disabled ? 'opacity-60 cursor-not-allowed' : 'hover:border-gray-400'} ${loading ? 'opacity-60' : ''}`}
+          disabled={disabled || loading}
+        >
+          <span>{selected?.label || value}</span>
+          <ChevronDown className="w-4 h-4 ml-1" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-[100px]">
+        {options.map(opt => (
+          <DropdownMenuItem
+            key={opt.value}
+            onSelect={() => {
+              if (opt.value !== value) onChange(opt.value);
+            }}
+            disabled={opt.value === value}
+            className={opt.value === value ? 'font-bold text-blue-600' : ''}
+          >
+            {opt.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 export default function DocumentShareModal({ open, onClose, workspaceId, documentId, anchorRef }) {
   const dialogRef = useRef(null);
@@ -11,7 +56,9 @@ export default function DocumentShareModal({ open, onClose, workspaceId, documen
   const [inviteStatus, setInviteStatus] = useState(null);
   const { currentDocument } = useDocument();
   const permissions = currentDocument?.permissions || [];
-console.log(permissions)
+  const { user } = useAuth();
+  const [loadingUserId, setLoadingUserId] = useState(null);
+  const { fetchDocument } = useDocument();
   // 위치 계산 (모달 우측 끝이 공유 버튼 우측 끝과 일치)
   useEffect(() => {
     if (!open || !workspaceId || !documentId || !anchorRef?.current) return;
@@ -37,11 +84,24 @@ console.log(permissions)
     }
   };
 
-  // 권한 한글 매핑
-  const permissionTypeLabel = {
-    READ: '읽기 허용',
-    WRITE: '전체 허용',
-    OWNER: '전체 허용',
+  const handlePermissionChange = async (userId, value) => {
+    setLoadingUserId(userId);
+    try {
+      if (value === 'REMOVE') {
+        if (window.confirm('정말로 이 사용자의 권한을 제거하시겠습니까?')) {
+          await removeDocumentPermission(workspaceId, documentId, userId);
+        } else {
+          setLoadingUserId(null);
+          return;
+        }
+      } else {
+        await updateDocumentPermission(workspaceId, documentId, userId, value);
+      }
+      await fetchDocument(documentId);
+    } catch (e) {
+      alert('권한 변경/제거에 실패했습니다.');
+    }
+    setLoadingUserId(null);
   };
 
   return (
@@ -101,7 +161,12 @@ console.log(permissions)
                         <span className="text-xs leading-tight text-gray-500">{p.email}</span>
                       </div>
                     </div>
-                    <span className="text-xs text-blue-600">{permissionTypeLabel[p.permissionType] || p.permissionType}</span>
+                    <PermissionDropdown
+                      value={p.permissionType}
+                      onChange={val => handlePermissionChange(p.userId, val)}
+                      disabled={p.userId === user.id}
+                      loading={loadingUserId === p.userId}
+                    />
                   </li>
                 ))}
               </ul>
