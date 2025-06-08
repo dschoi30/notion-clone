@@ -10,7 +10,7 @@ import Link from '@tiptap/extension-link';
 import TextStyle from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import { Extension } from '@tiptap/core';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import EditorMenuBar from './EditorMenuBar';
 import './Editor.css';
 import CustomImage from './CustomImage';
@@ -81,7 +81,7 @@ async function uploadImageToCloudinary(file) {
   return data.secure_url;
 }
 
-const Editor = ({ content, onUpdate }) => {
+const Editor = forwardRef(({ content, onUpdate }, ref) => {
   const [isComposing, setIsComposing] = useState(false);
   const latestHTML = useRef('');
 
@@ -278,6 +278,12 @@ const Editor = ({ content, onUpdate }) => {
     },
   });
 
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      if (editor) editor.commands.focus();
+    }
+  }), [editor]);
+
   // compositionend에서만 onUpdate를 강제 호출
   const handleCompositionStart = () => setIsComposing(true);
   const handleCompositionEnd = () => {
@@ -327,6 +333,6 @@ const Editor = ({ content, onUpdate }) => {
       />
     </div>
   );
-};
+});
 
 export default Editor; 

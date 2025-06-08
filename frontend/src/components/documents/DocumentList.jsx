@@ -120,7 +120,7 @@ export default function DocumentList() {
   const {
     documents,
     currentDocument,
-    loading,
+    documentsLoading,
     error,
     fetchDocuments,
     createDocument,
@@ -237,7 +237,7 @@ export default function DocumentList() {
     );
   }
 
-  if (loading) {
+  if (documentsLoading) {
     return <div className="p-4">로딩 중...</div>;
   }
 

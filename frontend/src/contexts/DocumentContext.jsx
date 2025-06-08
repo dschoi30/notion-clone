@@ -16,7 +16,8 @@ export function useDocument() {
 export function DocumentProvider({ children }) {
   const [documents, setDocuments] = useState([]);
   const [currentDocument, setCurrentDocument] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentLoading, setDocumentLoading] = useState(false);
   const [error, setError] = useState(null);
   const { currentWorkspace } = useWorkspace();
 
@@ -42,16 +43,15 @@ export function DocumentProvider({ children }) {
 
   const fetchDocuments = useCallback(async () => {
     if (!currentWorkspace) return;
-    
     try {
-      setLoading(true);
+      setDocumentsLoading(true);
       setError(null);
       const data = await documentApi.getDocuments(currentWorkspace.id);
       setDocuments(data);
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      setDocumentsLoading(false);
     }
   }, [currentWorkspace]);
 
@@ -59,7 +59,7 @@ export function DocumentProvider({ children }) {
     if (!currentWorkspace) return;
 
     try {
-      setLoading(true);
+      setDocumentsLoading(true);
       setError(null);
       const newDocument = await documentApi.createDocument(currentWorkspace.id, documentData);
       setDocuments(prev => [...prev, newDocument]);
@@ -68,7 +68,7 @@ export function DocumentProvider({ children }) {
       setError(err.message);
       throw err;
     } finally {
-      setLoading(false);
+      setDocumentsLoading(false);
     }
   }, [currentWorkspace]);
 
@@ -94,7 +94,7 @@ export function DocumentProvider({ children }) {
     if (!currentWorkspace) return;
 
     try {
-      setLoading(true);
+      setDocumentsLoading(true);
       setError(null);
       await documentApi.deleteDocument(currentWorkspace.id, id);
       setDocuments(prev => prev.filter(doc => doc.id !== id));
@@ -105,15 +105,14 @@ export function DocumentProvider({ children }) {
       setError(err.message);
       throw err;
     } finally {
-      setLoading(false);
+      setDocumentsLoading(false);
     }
   }, [currentWorkspace, currentDocument, documents]);
 
   const selectDocument = useCallback(async (document) => {
     if (!currentWorkspace || !document) return;
-
     try {
-      setLoading(true);
+      setDocumentLoading(true);
       setError(null);
       const fullDocument = await documentApi.getDocument(currentWorkspace.id, document.id);
       setCurrentDocument(fullDocument);
@@ -122,7 +121,7 @@ export function DocumentProvider({ children }) {
       setError(err.message);
       console.error('Failed to fetch document:', err);
     } finally {
-      setLoading(false);
+      setDocumentLoading(false);
     }
   }, [currentWorkspace]);
 
@@ -136,7 +135,7 @@ export function DocumentProvider({ children }) {
   const fetchDocument = useCallback(async (documentId) => {
     if (!currentWorkspace || !documentId) return;
     try {
-      setLoading(true);
+      setDocumentLoading(true);
       setError(null);
       const fullDocument = await documentApi.getDocument(currentWorkspace.id, documentId);
       setCurrentDocument(fullDocument);
@@ -144,14 +143,13 @@ export function DocumentProvider({ children }) {
       setError(err.message);
       console.error('Failed to fetch document:', err);
     } finally {
-      setLoading(false);
+      setDocumentLoading(false);
     }
   }, [currentWorkspace]);
 
   const value = {
     documents,
     currentDocument,
-    loading,
     error,
     fetchDocuments,
     createDocument,
@@ -160,6 +158,8 @@ export function DocumentProvider({ children }) {
     selectDocument,
     updateDocumentOrder,
     fetchDocument,
+    documentsLoading,
+    documentLoading,
   };
 
   return (

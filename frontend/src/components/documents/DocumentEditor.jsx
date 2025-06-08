@@ -13,7 +13,7 @@ const DocumentEditor = () => {
   const { user } = useAuth();
   const isMyWorkspace = currentWorkspace && currentWorkspace.ownerId === user.id;
   const isGuest = !isMyWorkspace;
-  const { currentDocument, updateDocument } = useDocument();
+  const { currentDocument, updateDocument, documentLoading } = useDocument();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
@@ -21,6 +21,7 @@ const DocumentEditor = () => {
   const prevDocumentRef = useRef();
   const titleRef = useRef(title);
   const contentRef = useRef(content);
+  const editorRef = useRef(null);
 
   // 공유 모달 상태
   const [showShareModal, setShowShareModal] = useState(false);
@@ -99,8 +100,21 @@ const DocumentEditor = () => {
     // eslint-disable-next-line
   }, [currentDocument]);
 
+  const handleTitleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (editorRef.current && typeof editorRef.current.focus === 'function') {
+        editorRef.current.focus();
+      }
+    }
+  };
+
   if (!currentDocument) {
     return <div className="p-4">선택된 문서가 없습니다.</div>;
+  }
+
+  if (documentLoading) {
+    return <div className="p-4">문서 불러오는 중...</div>;
   }
 
   return (
@@ -111,6 +125,7 @@ const DocumentEditor = () => {
             type="text"
             value={title}
             onChange={handleTitleChange}
+            onKeyDown={handleTitleKeyDown}
             placeholder="제목 없음"
             className="w-full text-2xl font-bold bg-transparent border-none outline-none"
           />
@@ -154,6 +169,7 @@ const DocumentEditor = () => {
         <Editor 
           content={content} 
           onUpdate={handleContentChange}
+          ref={editorRef}
         />
       </div>
     </main>
