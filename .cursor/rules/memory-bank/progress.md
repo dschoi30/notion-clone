@@ -8,3 +8,9 @@
   - linter 에러(테스트 환경 글로벌 객체 관련) 해결
 - [ ] WorkspaceSettingsModal 등 추가 workspace 관련 테스트 작성 예정
 - NotificationService의 acceptNotification에서 알림(INVITE) 수락 시 permission 테이블의 status를 ACCEPTED로 변경하는 로직 추가 (payload에서 documentId 파싱, PermissionService 활용) 
+- DocumentShareModal.jsx 공유 모달 위치 계산을 useLayoutEffect로 동기화, 위치 계산 전에는 투명 렌더/비렌더 처리하여 "왼쪽 상단 반짝" 현상 해결 
+- TrashModal에서 문서가 많을 때 화면 아래로 내려가는 현상을 방지하기 위해 모달의 style에 maxHeight: '80vh', overflowY: 'auto'를 추가하고, 위치 계산 시 top 값이 화면을 벗어나지 않도록 보정하는 로직을 적용함. 
+- TrashModal 모달의 top 위치를 항상 화면 하단을 넘지 않게 보정하여, 모달이 화면을 벗어나지 않도록 개선함. 
+- TrashModal 모달 위치 계산을 anchor 아래로 열었을 때 화면을 벗어나면 위로 열고, 위로 열어도 화면을 벗어나면 top을 0으로 고정하는 방식으로 개선함. 
+- TrashModal 위치 계산 시 dialogHeight를 고정값(320)으로 사용하고, 모달 전체가 아니라 ul(문서 리스트)에만 maxHeight, overflowY를 적용하도록 수정함. 
+- TrashModal 위치 계산 시 useLayoutEffect를 사용해 실제 모달 높이(dialogRef.current.offsetHeight)로 위치를 2차 보정하는 로직을 추가함. 위치 계산 함수는 updateDialogPosition으로 분리하고, open/anchorRef/workspaceId/trashedDocuments 변경 시마다 위치를 재계산하도록 개선함. 

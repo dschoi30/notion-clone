@@ -27,6 +27,9 @@ const DocumentEditor = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const shareButtonRef = useRef(null);
 
+  const myPermission = currentDocument?.permissions?.find(p => p.userId === user.id);
+  const isReadOnly = myPermission && myPermission.permissionType === 'WRITE';
+
   useEffect(() => {
     if (currentDocument) {
       setTitle(currentDocument.title);
@@ -170,6 +173,7 @@ const DocumentEditor = () => {
           content={content} 
           onUpdate={handleContentChange}
           ref={editorRef}
+          editable={!isReadOnly}
         />
       </div>
     </main>

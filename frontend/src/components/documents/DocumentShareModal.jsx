@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useLayoutEffect } from 'react';
 import { Dialog, DialogPortal, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { inviteToDocument, updateDocumentPermission, removeDocumentPermission } from '@/services/documentApi';
@@ -51,6 +51,7 @@ function PermissionDropdown({ value, onChange, disabled, loading }) {
 
 export default function DocumentShareModal({ open, onClose, workspaceId, documentId, anchorRef }) {
   const dialogRef = useRef(null);
+  const [modalWidth, setModalWidth] = useState(280);
   const [dialogPosition, setDialogPosition] = useState({ top: 0, left: 0 });
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteStatus, setInviteStatus] = useState(null);
@@ -59,19 +60,29 @@ export default function DocumentShareModal({ open, onClose, workspaceId, documen
   const { user } = useAuth();
   const [loadingUserId, setLoadingUserId] = useState(null);
   const { fetchDocument } = useDocument();
-  // 위치 계산 (모달 우측 끝이 공유 버튼 우측 끝과 일치)
+
   useEffect(() => {
+    if (open && dialogRef.current) {
+      const width = dialogRef.current.offsetWidth;
+      if (width && width !== modalWidth) {
+        setModalWidth(width);
+      }
+    }
+    // eslint-disable-next-line
+  }, [open, dialogRef.current]);
+
+  useLayoutEffect(() => {
     if (!open || !workspaceId || !documentId || !anchorRef?.current) return;
-    const timer = setTimeout(() => {
-      const rect = anchorRef.current.getBoundingClientRect();
-      let modalWidth = dialogRef.current ? dialogRef.current.offsetWidth : 280;
-      setDialogPosition({
-        top: rect.bottom + window.scrollY,
-        left: rect.right - modalWidth + window.scrollX,
-      });
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [open, anchorRef, workspaceId, documentId]);
+    const rect = anchorRef.current.getBoundingClientRect();
+    let idealLeft = rect.right - modalWidth + window.scrollX;
+    let maxLeft = window.innerWidth - modalWidth;
+    let left = Math.min(idealLeft, maxLeft);
+    if (left < 0) left = 0;
+    setDialogPosition({
+      top: rect.bottom + window.scrollY,
+      left,
+    });
+  }, [open, anchorRef, workspaceId, documentId, modalWidth]);
 
   const handleInvite = async () => {
     if (!inviteEmail || !workspaceId || !documentId) return;
@@ -103,6 +114,35 @@ export default function DocumentShareModal({ open, onClose, workspaceId, documen
     }
     setLoadingUserId(null);
   };
+
+  if (!open) return null;
+  if (!dialogRef.current && open) {
+    return (
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogPortal>
+          <DialogContent
+            ref={dialogRef}
+            overlay={false}
+            noDefaultStyle={true}
+            style={{
+              position: 'absolute',
+              top: dialogPosition.top,
+              left: dialogPosition.left,
+              margin: 0,
+              transform: 'none',
+              minWidth: 280,
+              zIndex: 50,
+              transformOrigin: 'top right',
+              opacity: 0,
+              pointerEvents: 'none',
+            }}
+            className="p-6 transition-none bg-white border rounded-lg shadow-xl"
+          >
+          </DialogContent>
+        </DialogPortal>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>

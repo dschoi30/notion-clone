@@ -81,7 +81,7 @@ async function uploadImageToCloudinary(file) {
   return data.secure_url;
 }
 
-const Editor = forwardRef(({ content, onUpdate }, ref) => {
+const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
   const [isComposing, setIsComposing] = useState(false);
   const latestHTML = useRef('');
 
@@ -276,6 +276,7 @@ const Editor = forwardRef(({ content, onUpdate }, ref) => {
         return false;
       },
     },
+    editable,
   });
 
   useImperativeHandle(ref, () => ({

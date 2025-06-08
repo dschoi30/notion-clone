@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useLayoutEffect } from 'react';
 import { Dialog, DialogPortal, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TrashIcon, Undo } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -17,31 +17,28 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
     handleDeleteAll,
   } = useTrash(workspaceId);
 
-  // 휴지통 메뉴 위치 계산 (다이얼로그 하단이 버튼 하단에 맞도록)
-  useEffect(() => {
-    if (!open || !workspaceId || !anchorRef?.current) return;
-    const timer = setTimeout(() => {
-      const rect = anchorRef.current.getBoundingClientRect();
-      let dialogHeight = 0;
-      if (dialogRef.current) {
-        dialogHeight = dialogRef.current.offsetHeight;
-      } else {
-        dialogHeight = 400; // 예상 높이 fallback
-      }
-      setDialogPosition({
-        top: rect.bottom - dialogHeight + window.scrollY, // 다이얼로그 하단과 메뉴 하단 일치
-        left: rect.right + 8 + window.scrollX,           // 메뉴 오른쪽에 8px 여백
-      });
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [open, anchorRef, workspaceId]);
-
-  // 휴지통 문서 목록 fetch
+  // 휴지통 문서 목록 fetch (open, workspaceId 변경 시)
   useEffect(() => {
     if (!open || !workspaceId) return;
     fetchTrashedDocuments();
     // eslint-disable-next-line
   }, [open, workspaceId]);
+
+  // 위치 계산 (open, anchorRef, workspaceId, trashedDocuments.length 변경 시)
+  useLayoutEffect(() => {
+    if (!open || !workspaceId || !anchorRef?.current || !dialogRef.current) return;
+    const rect = anchorRef.current.getBoundingClientRect();
+    const dialogHeight = dialogRef.current.offsetHeight;
+    let top = rect.bottom + window.scrollY;
+    if (top + dialogHeight > window.innerHeight + window.scrollY) {
+      top = rect.top + window.scrollY - dialogHeight;
+      if (top < 0) top = 0;
+    }
+    setDialogPosition({
+      top,
+      left: rect.right + 8 + window.scrollX,
+    });
+  }, [open, anchorRef, workspaceId, trashedDocuments.length]);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
