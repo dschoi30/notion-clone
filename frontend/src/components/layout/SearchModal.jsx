@@ -50,15 +50,22 @@ export default function SearchModal({ open, onClose }) {
     return () => clearTimeout(handler);
   }, [query]);
 
+  // 최근 수정일 기준 정렬 및 30개 제한
+  const recentDocuments = useMemo(() => {
+    return [...documents]
+      .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
+      .slice(0, 30);
+  }, [documents]);
+
   // 검색 결과 필터링
   const results = useMemo(() => {
-    if (!debouncedQuery.trim()) return [];
+    if (!debouncedQuery.trim()) return recentDocuments;
     const lower = debouncedQuery.toLowerCase();
     return documents.filter(doc =>
       (doc.title && doc.title.toLowerCase().includes(lower)) ||
       (doc.content && doc.content.toLowerCase().includes(lower))
     );
-  }, [debouncedQuery, documents]);
+  }, [debouncedQuery, documents, recentDocuments]);
 
   // HTML 태그 제거 함수
   function stripHtmlTags(html) {
@@ -89,7 +96,7 @@ export default function SearchModal({ open, onClose }) {
       <div
         ref={modalRef}
         className="bg-white rounded-lg shadow-lg"
-        style={{ width: '30vw', height: '50vh', minWidth: 320, minHeight: 320, display: 'flex', flexDirection: 'column' }}
+        style={{ width: '40vw', height: '50vh', minWidth: 320, minHeight: 320, display: 'flex', flexDirection: 'column' }}
       >
         <div className="flex items-center w-full pl-3 mb-2">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gray-400">
@@ -105,6 +112,9 @@ export default function SearchModal({ open, onClose }) {
           />
         </div>
         <div className="flex-1 px-2 mt-4 overflow-y-auto">
+          <div className="px-2 mb-2 text-xs text-gray-400">
+            {debouncedQuery.trim() ? '검색 결과' : '최근 문서'}
+          </div>
           {documentsLoading ? (
             <div className="mt-8 text-center text-gray-400">문서 목록 불러오는 중...</div>
           ) : debouncedQuery.trim() && results.length === 0 ? (
