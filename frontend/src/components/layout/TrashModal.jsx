@@ -24,20 +24,45 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
     // eslint-disable-next-line
   }, [open, workspaceId]);
 
-  // 위치 계산 (open, anchorRef, workspaceId, trashedDocuments.length 변경 시)
-  useLayoutEffect(() => {
-    if (!open || !workspaceId || !anchorRef?.current || !dialogRef.current) return;
-    const rect = anchorRef.current.getBoundingClientRect();
-    const dialogHeight = dialogRef.current.offsetHeight;
+  // 위치 계산 함수 분리
+  function calculateDialogPosition(anchorEl, dialogEl) {
+    const rect = anchorEl.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      console.warn('TrashModal: anchorRef의 getBoundingClientRect 값이 0입니다.', rect);
+      return null;
+    }
+    const dialogHeight = dialogEl.offsetHeight;
     let top = rect.bottom + window.scrollY;
     if (top + dialogHeight > window.innerHeight + window.scrollY) {
       top = rect.top + window.scrollY - dialogHeight;
       if (top < 0) top = 0;
     }
-    setDialogPosition({
+    return {
       top,
       left: rect.right + 8 + window.scrollX,
-    });
+    };
+  }
+
+  // 위치 계산 (open, anchorRef, workspaceId, trashedDocuments.length 변경 시)
+  useLayoutEffect(() => {
+    if (!open || !workspaceId) return;
+    if (!anchorRef?.current) {
+      console.warn('TrashModal: anchorRef.current가 null입니다.');
+      return;
+    }
+    if (!dialogRef.current) {
+      setTimeout(() => {
+        if (!dialogRef.current) {
+          console.warn('TrashModal: dialogRef.current가 null입니다. (재시도 후에도 null)');
+          return;
+        }
+        const pos = calculateDialogPosition(anchorRef.current, dialogRef.current);
+        if (pos) setDialogPosition(pos);
+      }, 0);
+      return;
+    }
+    const pos = calculateDialogPosition(anchorRef.current, dialogRef.current);
+    if (pos) setDialogPosition(pos);
   }, [open, anchorRef, workspaceId, trashedDocuments.length]);
 
   return (
