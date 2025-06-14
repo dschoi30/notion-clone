@@ -20,3 +20,6 @@
 - TrashModal 위치 계산 useLayoutEffect에 anchorRef, dialogRef, getBoundingClientRect 예외 및 경고 추가 (2024-06-12)
 - TrashModal 위치 계산에서 dialogRef.current가 null일 때 setTimeout으로 1프레임 뒤에 위치 계산을 재시도하도록 개선 (2024-06-12)
 - TrashModal 위치 계산 로직을 calculateDialogPosition 함수로 분리하고, useLayoutEffect 내 중복 코드를 제거해 리팩토링 (2024-06-12)
+- 작성자 필터 모달이 드롭다운처럼 버튼(anchorRef) 아래에 자연스럽게 위치하도록 수정. SearchFilters의 작성자 버튼에 ref를 부여해 AuthorFilterModal에 anchorRef로 전달, absolute 위치 계산 및 오버레이 제거까지 완료.
+- 날짜 필터(DateFilterModal) 드롭다운 모달 컴포넌트 생성 및 SearchFilters, SearchModal과 연동. 날짜 버튼 클릭 시 모달 오픈, 오늘/이번 주/이번 달/직접 선택 등 프리셋 선택 가능. 선택 시 버튼에 라벨 표시. (직접 선택은 미구현)
+- DateFilterModal에서 '직접 선택' 버튼 제거 및 showCalendar를 항상 true로 고정하여, 모달이 열리면 바로 캘린더가 보이도록 개선 (2024-06-09)
