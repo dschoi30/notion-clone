@@ -52,7 +52,19 @@ public class DocumentResponse {
         response.updatedAt = document.getUpdatedAt();
         response.isTrashed = document.isTrashed();
         response.userId = document.getUser().getId();
-        response.permissions = permissions.stream().map(PermissionInfo::new).collect(Collectors.toList());
+        boolean ownerExists = permissions.stream().anyMatch(p -> p.getUser().getId().equals(document.getUser().getId()));
+        List<PermissionInfo> permissionInfos = permissions.stream().map(PermissionInfo::new).collect(Collectors.toList());
+        if (!ownerExists) {
+            PermissionInfo ownerInfo = new PermissionInfo(
+                document.getUser().getId(),
+                document.getUser().getName(),
+                document.getUser().getEmail(),
+                com.example.notionclone.domain.permission.entity.PermissionType.OWNER,
+                null
+            );
+            permissionInfos.add(0, ownerInfo);
+        }
+        response.permissions = permissionInfos;
         return response;
     }
 } 

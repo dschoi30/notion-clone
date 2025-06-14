@@ -12,6 +12,7 @@ import com.example.notionclone.domain.notification.repository.NotificationReposi
 import com.example.notionclone.domain.notification.entity.NotificationStatus;
 import com.example.notionclone.domain.permission.repository.PermissionRepository;
 import com.example.notionclone.domain.permission.entity.Permission;
+import com.example.notionclone.domain.permission.entity.PermissionStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -43,14 +44,27 @@ public class DocumentService {
         .collect(Collectors.toList());
   }
 
-  public DocumentResponse getDocument(Long id) {
-    log.debug("Getting document: {}", id);
-    return documentRepository.findById(id)
-        .map(doc -> {
-            List<Permission> permissions = permissionRepository.findByDocument(doc);
-            return DocumentResponse.from(doc, permissions);
-        })
+  public DocumentResponse getDocument(Long id, User user) {
+    Document document = documentRepository.findById(id)
         .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + id));
+
+    // 1. 소유자면 허용
+    if (document.getUser().getId().equals(user.getId())) {
+        List<Permission> permissions = permissionRepository.findByDocument(document);
+        return DocumentResponse.from(document, permissions);
+    }
+
+    // 2. Permission에서 ACCEPTED 권한 확인
+    boolean hasAcceptedPermission = permissionRepository.findByDocument(document).stream()
+        .anyMatch(p -> p.getUser().getId().equals(user.getId())
+                    && p.getStatus() == PermissionStatus.ACCEPTED);
+
+    if (!hasAcceptedPermission) {
+        throw new ResourceNotFoundException("No permission to view this document.");
+    }
+
+    List<Permission> permissions = permissionRepository.findByDocument(document);
+    return DocumentResponse.from(document, permissions);
   }
 
   public List<DocumentResponse> getAllDocuments() {
@@ -159,25 +173,13 @@ public class DocumentService {
     // 1. 내가 소유한 문서(개인)
     List<Document> personalDocs = documentRepository.findByWorkspaceIdAndUserId(workspaceId, user.getId());
     // 2. 초대받아 ACCEPTED된 공유 문서
-    List<Long> sharedDocIds = notificationRepository
-      .findByReceiverAndTypeAndStatus(user, NotificationType.INVITE, NotificationStatus.ACCEPTED)
-      .stream()
-      .map(n -> {
-        try {
-          String payload = n.getPayload();
-          int idx = payload.indexOf(":");
-          int end = payload.indexOf("}");
-          return Long.parseLong(payload.substring(idx + 1, end));
-        } catch (Exception e) {
-          return null;
-        }
-      })
-      .filter(Objects::nonNull)
-      .collect(Collectors.toList());
-    List<Document> sharedDocs = sharedDocIds.isEmpty() ? List.of() :
-      documentRepository.findAllById(sharedDocIds)
+    List<Long> acceptedDocIds = permissionRepository.findAcceptedDocumentIdsByUserAndWorkspace(
+        user.getId(), PermissionStatus.ACCEPTED, workspaceId
+    );
+    List<Document> sharedDocs = acceptedDocIds.isEmpty() ? List.of() :
+      documentRepository.findAllById(acceptedDocIds)
         .stream()
-        .filter(doc -> doc.getWorkspace().getId().equals(workspaceId))
+        .filter(doc -> !doc.getUser().getId().equals(user.getId()))
         .collect(Collectors.toList());
     List<Document> allDocs = new ArrayList<>();
     allDocs.addAll(personalDocs);

@@ -21,6 +21,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             .setAllowedOriginPatterns("*")
             .addInterceptors(new JwtHandshakeInterceptor(jwtTokenProvider))
             .withSockJS();
+        registry.addEndpoint("/ws/presence")
+            .setAllowedOriginPatterns("*")
+            .addInterceptors(new JwtHandshakeInterceptor(jwtTokenProvider))
+            .withSockJS();
     }
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         registry.enableSimpleBroker("/topic");
