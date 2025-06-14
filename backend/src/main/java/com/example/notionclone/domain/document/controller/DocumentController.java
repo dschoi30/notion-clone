@@ -50,7 +50,9 @@ public class DocumentController {
             @PathVariable Long workspaceId,
             @PathVariable Long id) {
         log.debug("Get document request for id: {} in workspace: {} by user: {}", id, workspaceId, userPrincipal.getId());
-        return ResponseEntity.ok(documentService.getDocument(id));
+        User user = userRepository.findById(userPrincipal.getId())
+            .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
+        return ResponseEntity.ok(documentService.getDocument(id, user));
     }
 
     @GetMapping("/no-workspace")

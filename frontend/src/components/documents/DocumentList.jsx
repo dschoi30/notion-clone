@@ -153,21 +153,37 @@ export default function DocumentList() {
 
   // 문서 분류(useMemo로 캐싱)
   const sharedDocuments = useMemo(() => {
-    if (isMyWorkspace) {
-      return documents.filter(
-        doc => doc.userId === user.id && doc.permissions && doc.permissions.length > 0
-      );
-    } else {
-      return documents.filter(
-        doc => doc.permissions && doc.permissions.some(p => p.userId === user.id && p.status === 'ACCEPTED')
-      );
-    }
-  }, [documents, isMyWorkspace, user.id]);
+    // 1. 내가 소유자가 아니면서, 내 permission이 ACCEPTED + READ/WRITE
+    const sharedToMe = documents.filter(
+      doc =>
+        doc.userId !== user.id &&
+        doc.permissions &&
+        doc.permissions.some(
+          p =>
+            p.userId === user.id &&
+            p.status === 'ACCEPTED' &&
+            (p.permissionType === 'READ' || p.permissionType === 'WRITE')
+        )
+    );
+    // 2. 내가 소유자이면서, 나 이외의 권한자가 1명 이상 있는 문서(상대방 수락 여부 무관)
+    const sharedByMe = documents.filter(
+      doc =>
+        doc.userId === user.id &&
+        doc.permissions &&
+        doc.permissions.some(p => p.userId !== user.id)
+    );
+    // 중복 제거
+    const all = [...sharedToMe, ...sharedByMe];
+    const unique = Array.from(new Map(all.map(doc => [doc.id, doc])).values());
+    return unique;
+  }, [documents, user.id]);
 
+  const sharedDocumentIds = new Set(sharedDocuments.map(doc => doc.id));
   const personalDocuments = useMemo(() => {
     if (isMyWorkspace) {
       return documents.filter(
-        doc => doc.userId === user.id && (!doc.permissions || doc.permissions.length === 0)
+        doc => doc.userId === user.id &&
+        !sharedDocumentIds.has(doc.id)
       );
     }
     return [];

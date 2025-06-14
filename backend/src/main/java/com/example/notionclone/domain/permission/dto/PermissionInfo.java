@@ -20,4 +20,12 @@ public class PermissionInfo {
         this.permissionType = permission.getPermissionType();
         this.status = permission.getStatus();
     }
+
+    public PermissionInfo(Long userId, String name, String email, PermissionType permissionType, PermissionStatus status) {
+        this.userId = userId;
+        this.name = name;
+        this.email = email;
+        this.permissionType = permissionType;
+        this.status = status;
+    }
 } 

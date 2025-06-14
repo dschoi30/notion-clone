@@ -7,6 +7,7 @@ import DocumentShareModal from './DocumentShareModal';
 import { Button } from '../ui/button';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
+import useDocumentPresence from '../../hooks/useDocumentPresence';
 
 const DocumentEditor = () => {
   const { currentWorkspace } = useWorkspace();
@@ -29,6 +30,8 @@ const DocumentEditor = () => {
 
   const myPermission = currentDocument?.permissions?.find(p => p.userId === user.id);
   const isReadOnly = myPermission && myPermission.permissionType === 'WRITE';
+
+  const viewers = useDocumentPresence(currentDocument?.id, user);
 
   useEffect(() => {
     if (currentDocument) {
@@ -132,6 +135,24 @@ const DocumentEditor = () => {
             placeholder="제목 없음"
             className="w-full text-2xl font-bold bg-transparent border-none outline-none"
           />
+          {/* 권한자 이니셜 아이콘 목록 */}
+          <div className="flex items-center mr-2">
+            {currentDocument?.permissions?.map((p) => {
+              const isPresent = viewers.some(v => String(v.userId) === String(p.userId));
+              return (
+                <div
+                  key={p.userId}
+                  className={
+                    'flex items-center justify-center w-8 h-8 mr-1 text-base font-bold rounded-full select-none bg-blue-500 text-white ring-2 ring-blue-400 ' +
+                    (isPresent ? 'opacity-100' : 'opacity-40')
+                  }
+                  title={p.name || p.email || ''}
+                >
+                  {p.name ? p.name.charAt(0).toUpperCase() : '?'}
+                </div>
+              );
+            })}
+          </div>
           <div className="flex items-center ml-2 space-x-2">
             <span
               style={{ whiteSpace: 'nowrap' }}
