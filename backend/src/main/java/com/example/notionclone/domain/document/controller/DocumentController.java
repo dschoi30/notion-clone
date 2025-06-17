@@ -66,16 +66,16 @@ public class DocumentController {
             @PathVariable Long workspaceId,
             @RequestBody CreateDocumentRequest request) {
         log.debug("Create document request in workspace: {} by user: {}", workspaceId, userPrincipal.getId());
-        
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
-        
         request.setWorkspaceId(workspaceId);
         return ResponseEntity.ok(documentService.createDocument(
                 request.getTitle(),
                 request.getContent(),
                 workspaceId,
-                user
+                user,
+                request.getParentId(),
+                request.getViewType()
         ));
     }
 
@@ -89,7 +89,9 @@ public class DocumentController {
         return ResponseEntity.ok(documentService.updateDocument(
                 id,
                 request.getTitle(),
-                request.getContent()
+                request.getContent(),
+                request.getParentId(),
+                request.getViewType()
         ));
     }
 
@@ -178,5 +180,21 @@ public class DocumentController {
         User user = userRepository.findById(userPrincipal.getId())
             .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
         return ResponseEntity.ok(documentService.getAccessibleDocuments(workspaceId, user));
+    }
+
+    @GetMapping("/parent")
+    public ResponseEntity<List<DocumentResponse>> getRootDocuments(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId) {
+        // parentId == null인 문서만 조회
+        return ResponseEntity.ok(documentService.getChildDocuments(null));
+    }
+
+    @GetMapping("/parent/{parentId}")
+    public ResponseEntity<List<DocumentResponse>> getChildDocuments(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId,
+            @PathVariable Long parentId) {
+        return ResponseEntity.ok(documentService.getChildDocuments(parentId));
     }
 } 

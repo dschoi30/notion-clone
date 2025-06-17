@@ -147,11 +147,28 @@ export function DocumentProvider({ children }) {
     }
   }, [currentWorkspace]);
 
+  // parentId 기반 하위 문서(서브페이지) 목록 조회
+  const fetchChildDocuments = useCallback(async (parentId) => {
+    if (!currentWorkspace) return [];
+    try {
+      setDocumentsLoading(true);
+      setError(null);
+      const data = await documentApi.getChildDocuments(currentWorkspace.id, parentId);
+      return data;
+    } catch (err) {
+      setError(err.message);
+      return [];
+    } finally {
+      setDocumentsLoading(false);
+    }
+  }, [currentWorkspace]);
+
   const value = {
     documents,
     currentDocument,
     error,
     fetchDocuments,
+    fetchChildDocuments,
     createDocument,
     updateDocument,
     deleteDocument,

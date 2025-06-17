@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.Objects;
 import java.util.ArrayList;
+import com.example.notionclone.domain.document.entity.ViewType;
 
 @Slf4j
 @Service
@@ -39,7 +40,8 @@ public class DocumentService {
         .stream()
         .map(doc -> {
             List<Permission> permissions = permissionRepository.findByDocument(doc);
-            return DocumentResponse.from(doc, permissions);
+            boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(doc.getId());
+            return DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, permissions, hasChildren);
         })
         .collect(Collectors.toList());
   }
@@ -51,7 +53,8 @@ public class DocumentService {
     // 1. 소유자면 허용
     if (document.getUser().getId().equals(user.getId())) {
         List<Permission> permissions = permissionRepository.findByDocument(document);
-        return DocumentResponse.from(document, permissions);
+        boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(document.getId());
+        return DocumentResponse.fromDocumentWithPermissionsAndChildren(document, permissions, hasChildren);
     }
 
     // 2. Permission에서 ACCEPTED 권한 확인
@@ -64,14 +67,16 @@ public class DocumentService {
     }
 
     List<Permission> permissions = permissionRepository.findByDocument(document);
-    return DocumentResponse.from(document, permissions);
+    boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(document.getId());
+    return DocumentResponse.fromDocumentWithPermissionsAndChildren(document, permissions, hasChildren);
   }
 
   public List<DocumentResponse> getAllDocuments() {
     return documentRepository.findAll().stream()
         .map(doc -> {
             List<Permission> permissions = permissionRepository.findByDocument(doc);
-            return DocumentResponse.from(doc, permissions);
+            boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(doc.getId());
+            return DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, permissions, hasChildren);
         })
         .collect(Collectors.toList());
   }
@@ -80,35 +85,55 @@ public class DocumentService {
     return documentRepository.findDocumentsWithNoWorkspace().stream()
         .map(doc -> {
             List<Permission> permissions = permissionRepository.findByDocument(doc);
-            return DocumentResponse.from(doc, permissions);
+            boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(doc.getId());
+            return DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, permissions, hasChildren);
         })
         .collect(Collectors.toList());
   }
 
   @Transactional
-  public DocumentResponse createDocument(String title, String content, Long workspaceId, User user) {
+  public DocumentResponse createDocument(String title, String content, Long workspaceId, User user, Long parentId, String viewTypeStr) {
     log.debug("Creating document in workspace: {} for user: {}", workspaceId, user.getId());
     Workspace workspace = workspaceRepository.findById(workspaceId)
         .orElseThrow(() -> new ResourceNotFoundException("Workspace not found with id: " + workspaceId));
-
+    Document parent = null;
+    if (parentId != null) {
+        parent = documentRepository.findById(parentId)
+            .orElseThrow(() -> new ResourceNotFoundException("Parent document not found with id: " + parentId));
+    }
+    ViewType viewType = ViewType.valueOf(viewTypeStr != null ? viewTypeStr : "PAGE");
     Document document = Document.builder()
         .title(title)
         .content(content)
         .workspace(workspace)
         .user(user)
+        .parent(parent)
+        .viewType(viewType)
         .build();
-
-    return DocumentResponse.from(documentRepository.save(document));
+    Document saved = documentRepository.save(document);
+    List<Permission> permissions = permissionRepository.findByDocument(saved);
+    boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(saved.getId());
+    return DocumentResponse.fromDocumentWithPermissionsAndChildren(saved, permissions, hasChildren);
   }
 
   @Transactional
-  public DocumentResponse updateDocument(Long id, String title, String content) {
+  public DocumentResponse updateDocument(Long id, String title, String content, Long parentId, String viewTypeStr) {
     log.debug("Updating document: {}", id);
     Document document = documentRepository.findById(id)
         .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + id));
-
     document.update(title, content);
-    return DocumentResponse.from(document);
+    if (parentId != null) {
+        Document parent = documentRepository.findById(parentId)
+            .orElseThrow(() -> new ResourceNotFoundException("Parent document not found with id: " + parentId));
+        document.setParent(parent);
+    }
+    if (viewTypeStr != null) {
+        document.setViewType(ViewType.valueOf(viewTypeStr));
+    }
+    Document updated = documentRepository.save(document);
+    List<Permission> permissions = permissionRepository.findByDocument(updated);
+    boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(updated.getId());
+    return DocumentResponse.fromDocumentWithPermissionsAndChildren(updated, permissions, hasChildren);
   }
 
   @Transactional
@@ -134,7 +159,8 @@ public class DocumentService {
         .stream()
         .map(doc -> {
             List<Permission> permissions = permissionRepository.findByDocument(doc);
-            return DocumentResponse.from(doc, permissions);
+            boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(doc.getId());
+            return DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, permissions, hasChildren);
         })
         .collect(Collectors.toList());
   }
@@ -186,7 +212,20 @@ public class DocumentService {
     allDocs.addAll(sharedDocs);
     return allDocs.stream().map(doc -> {
         List<Permission> permissions = permissionRepository.findByDocument(doc);
-        return DocumentResponse.from(doc, permissions);
+        boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(doc.getId());
+        return DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, permissions, hasChildren);
     }).collect(Collectors.toList());
+  }
+
+  @Transactional(readOnly = true)
+  public List<DocumentResponse> getChildDocuments(Long parentId) {
+    return documentRepository.findByParentIdAndIsTrashedFalse(parentId)
+        .stream()
+        .map(doc -> {
+            List<Permission> permissions = permissionRepository.findByDocument(doc);
+            boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(doc.getId());
+            return DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, permissions, hasChildren);
+        })
+        .collect(Collectors.toList());
   }
 }

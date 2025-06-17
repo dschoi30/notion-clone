@@ -38,6 +38,14 @@ public class Document extends BaseTimeEntity {
     @Column(nullable = false)
     private boolean isTrashed = false;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    private Document parent;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "view_type", nullable = false)
+    private ViewType viewType;
+
     public Document(String title, String content) {
         this(title, content, null);
     }
@@ -63,5 +71,21 @@ public class Document extends BaseTimeEntity {
 
     public void setTrashed(boolean trashed) {
         this.isTrashed = trashed;
+    }
+
+    public Document getParent() {
+        return parent;
+    }
+
+    public void setParent(Document parent) {
+        this.parent = parent;
+    }
+
+    public ViewType getViewType() {
+        return viewType;
+    }
+
+    public void setViewType(ViewType viewType) {
+        this.viewType = viewType;
     }
 } 
