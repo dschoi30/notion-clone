@@ -82,3 +82,12 @@ export async function updateDocumentPermission(workspaceId, documentId, userId, 
 export async function removeDocumentPermission(workspaceId, documentId, userId) {
   return api.delete(`/api/workspaces/${workspaceId}/documents/${documentId}/permissions/${userId}`);
 }
+
+// parentId 기반 하위 문서(서브페이지) 목록 조회
+export async function getChildDocuments(workspaceId, parentId) {
+  const url = parentId == null
+    ? `/api/workspaces/${workspaceId}/documents/parent`
+    : `/api/workspaces/${workspaceId}/documents/parent/${parentId}`;
+  const response = await api.get(url);
+  return response.data;
+}

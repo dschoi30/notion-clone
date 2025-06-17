@@ -11,4 +11,6 @@ public class CreateDocumentRequest {
     private String title;
     private String content;
     private Long workspaceId;
+    private Long parentId;
+    private String viewType;
 } 

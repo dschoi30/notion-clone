@@ -1,18 +1,16 @@
 package com.example.notionclone.domain.user.entity;
 
+import com.example.notionclone.domain.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
 @Getter
 @Setter
-public class User {
+public class User extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -28,10 +26,4 @@ public class User {
 
     @Column(name = "profile_image_url")
     private String profileImageUrl;
-
-    @CreationTimestamp
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
 } 
