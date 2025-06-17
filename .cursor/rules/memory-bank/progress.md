@@ -26,3 +26,10 @@
 - 2024-06-09: DocumentEditor.jsx 상단에 문서 권한자 이니셜 아이콘 목록을 표시하고, 현재 로그인한 사용자는 강조 스타일로 보여주는 기능을 추가함.
 - 2024-06-09: useDocumentPresence.js 커스텀 훅 생성(문서별 실시간 접속자 목록 관리, 소켓 연결)
 - 2024-06-09: DocumentEditor.jsx에서 권한자 이니셜 아이콘에 presence(접속자) 강조(초록색 테두리) 적용
+- [x] 1. ERD/DB 및 모델 구조 확정 및 반영 (Document parent/viewType, Property/Value, Enum 생성)
+- [x] 2. API(백엔드) 확장 및 구현 (Document parent/viewType 반영, 하위 문서 조회, 생성/수정 API 확장 등)
+- [ ] 3. 프론트엔드 DocumentList/Editor 구조 개편
+- [ ] 4. TableView, GalleryView 등 뷰 타입별 컴포넌트 구현
+- [ ] 5. 속성/행 관리 기능 개발
+- [ ] 6. UX/UI 개선 및 테스트, 배포
+- 2024-07-01: DocumentEditor.jsx 최초 생성 상태(제목/내용/자식문서 모두 비어있고 viewType이 PAGE)에서만 하단에 '테이블', '갤러리' 버튼이 나타나도록 UI 구현. '테이블' 클릭 시 viewType을 TABLE로 변경하고, 테이블 기본 UI(헤더: 이름, 빈 1행, 속성 추가/새 페이지 버튼) 렌더링까지 완료.
