@@ -8,13 +8,14 @@ import { Button } from '../ui/button';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import useDocumentPresence from '../../hooks/useDocumentPresence';
+import DocumentTableView from './DocumentTableView';
 
 const DocumentEditor = () => {
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
   const isMyWorkspace = currentWorkspace && currentWorkspace.ownerId === user.id;
   const isGuest = !isMyWorkspace;
-  const { currentDocument, updateDocument, documentLoading } = useDocument();
+  const { currentDocument, updateDocument, documentLoading, fetchChildDocuments } = useDocument();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
@@ -32,6 +33,31 @@ const DocumentEditor = () => {
   const isReadOnly = myPermission && myPermission.permissionType === 'WRITE';
 
   const viewers = useDocumentPresence(currentDocument?.id, user);
+
+  // 자식 문서 목록 상태 추가 (최초 진입 시 판별용)
+  const [childDocuments, setChildDocuments] = useState([]);
+
+  // 테이블 속성(컬럼) 및 값 상태 (mock)
+  const [properties, setProperties] = useState([]); // [{ id, name }]
+  const [rows, setRows] = useState([]); // [{ id, values: { [propertyId]: value } }]
+
+  // 속성 추가 모달 상태
+  const [showPropertyModal, setShowPropertyModal] = useState(false);
+  const [newPropertyName, setNewPropertyName] = useState('');
+  const [newPropertyType, setNewPropertyType] = useState('text');
+
+  // 최초 진입 시 자식 문서 조회
+  useEffect(() => {
+    async function fetchChildren() {
+      if (currentDocument) {
+        const children = await fetchChildDocuments(currentDocument.id);
+        setChildDocuments(children);
+      } else {
+        setChildDocuments([]);
+      }
+    }
+    fetchChildren();
+  }, [currentDocument, fetchChildDocuments]);
 
   useEffect(() => {
     if (currentDocument) {
@@ -115,6 +141,57 @@ const DocumentEditor = () => {
     }
   };
 
+  // viewType 변경 핸들러
+  const handleChangeViewType = async (type) => {
+    if (!currentDocument) return;
+    await updateDocument(currentDocument.id, { viewType: type });
+  };
+
+  // 최초 생성 상태 판별: 제목, 내용, 자식 문서 모두 비어있고 viewType이 PAGE
+  const isInitial =
+    currentDocument &&
+    (!currentDocument.title || currentDocument.title.trim() === '') &&
+    (!currentDocument.content || currentDocument.content.trim() === '') &&
+    childDocuments.length === 0 &&
+    currentDocument.viewType === 'PAGE';
+
+  // '+ 속성 추가' 클릭 시
+  const handleAddProperty = () => {
+    setShowPropertyModal(true);
+    setNewPropertyName('');
+    setNewPropertyType('text');
+  };
+
+  // 모달에서 속성 추가 확인
+  const handleConfirmAddProperty = () => {
+    if (!newPropertyName) return;
+    const newProperty = { id: Date.now().toString(), name: newPropertyName, type: newPropertyType };
+    setProperties(prev => [...prev, newProperty]);
+    setRows(prev => prev.map(row => ({ ...row, values: { ...row.values, [newProperty.id]: '' } })));
+    setShowPropertyModal(false);
+  };
+
+  // '새 페이지' 클릭 시
+  const handleAddRow = () => {
+    const newRow = { id: Date.now().toString(), title: '', values: {} };
+    properties.forEach(p => { newRow.values[p.id] = ''; });
+    setRows(prev => [...prev, newRow]);
+  };
+
+  // 셀 값 변경
+  const handleCellChange = (rowId, propertyId, value) => {
+    setRows(prev => prev.map(row =>
+      row.id === rowId ? { ...row, values: { ...row.values, [propertyId]: value } } : row
+    ));
+  };
+
+  // 이름(title) 변경
+  const handleTitleCellChange = (rowId, value) => {
+    setRows(prev => prev.map(row =>
+      row.id === rowId ? { ...row, title: value } : row
+    ));
+  };
+
   if (!currentDocument) {
     return <div className="p-4">선택된 문서가 없습니다.</div>;
   }
@@ -190,12 +267,29 @@ const DocumentEditor = () => {
             />
           )}
         </div>
-        <Editor 
-          content={content} 
-          onUpdate={handleContentChange}
-          ref={editorRef}
-          editable={!isReadOnly}
-        />
+        {/* viewType이 TABLE이면 DocumentTableView, 아니면 기존 에디터 */}
+        {currentDocument.viewType === 'TABLE' ? (
+          <DocumentTableView
+            properties={properties}
+            setProperties={setProperties}
+            rows={rows}
+            setRows={setRows}
+          />
+        ) : (
+          <Editor 
+            content={content} 
+            onUpdate={handleContentChange}
+            ref={editorRef}
+            editable={!isReadOnly}
+          />
+        )}
+        {/* 최초 생성 상태에서만 하단 버튼 노출 */}
+        {isInitial && (
+          <div className="flex gap-2 mt-4">
+            <Button onClick={() => handleChangeViewType('TABLE')} variant="outline">테이블</Button>
+            <Button onClick={() => handleChangeViewType('GALLERY')} variant="outline">갤러리</Button>
+          </div>
+        )}
       </div>
     </main>
   );
