@@ -4,8 +4,11 @@ import com.example.notionclone.domain.permission.entity.Permission;
 import com.example.notionclone.domain.permission.entity.PermissionType;
 import com.example.notionclone.domain.permission.entity.PermissionStatus;
 import lombok.Getter;
+import lombok.Builder;
+import lombok.Data;
 
-@Getter
+@Data
+@Builder
 public class PermissionInfo {
     private Long userId;
     private String name;
@@ -27,5 +30,14 @@ public class PermissionInfo {
         this.email = email;
         this.permissionType = permissionType;
         this.status = status;
+    }
+
+    public static PermissionInfo from(Permission permission) {
+        return PermissionInfo.builder()
+                .userId(permission.getUser().getId())
+                .name(permission.getUser().getName())
+                .email(permission.getUser().getEmail())
+                .permissionType(permission.getPermissionType())
+                .build();
     }
 } 

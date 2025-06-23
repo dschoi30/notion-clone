@@ -33,6 +33,8 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
 
     List<Document> findByWorkspaceIdAndUserId(Long workspaceId, Long userId);
 
+    List<Document> findByWorkspaceIdAndUserIdAndIsTrashedFalse(Long workspaceId, Long userId);
+
     List<Document> findByParentIdAndIsTrashedFalse(Long parentId);
 
     boolean existsByParentIdAndIsTrashedFalse(Long parentId);

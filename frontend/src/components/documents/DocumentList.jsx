@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { PlusIcon, TrashIcon, GripVertical, ArrowLeft, ChevronRight, ChevronDown, FileText } from 'lucide-react';
+import { PlusIcon, TrashIcon, GripVertical, ArrowLeft, ChevronRight, ChevronDown, FileText, Table } from 'lucide-react';
 import { useDocument } from '@/contexts/DocumentContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -48,6 +48,8 @@ function DocumentTreeItem({ document, currentDocument, onSelect, onDelete, opene
     }
   };
 
+  const Icon = document.viewType === 'TABLE' ? Table : FileText;
+
   return (
     <>
       <div
@@ -76,12 +78,12 @@ function DocumentTreeItem({ document, currentDocument, onSelect, onDelete, opene
             </button>
           ) : (
             <span className="flex items-center justify-center w-8 h-8 mr-1">
-              <FileText className="w-4 h-4 text-gray-400" />
+              <Icon className="w-4 h-4 text-gray-400" />
             </span>
           )
         ) : (
           <span className="flex items-center justify-center w-8 h-8 mr-1">
-            <FileText className="w-4 h-4 text-gray-400" />
+            <Icon className="w-4 h-4 text-gray-400" />
           </span>
         )}
         <span
@@ -150,12 +152,10 @@ export default function DocumentList() {
   }, [currentWorkspace, fetchDocuments]);
 
   // 공유/개인 문서 분류 (최상위 문서만)
+  // 백엔드에서 이미 접근 가능한 문서만 필터링해서 보내주므로, 프론트에서는 단순 분류만 수행
   const sharedDocuments = documents.filter(doc =>
     doc.parentId == null &&
-    ((doc.userId !== user.id && doc.permissions && doc.permissions.some(
-      p => p.userId === user.id && p.status === 'ACCEPTED' && (p.permissionType === 'READ' || p.permissionType === 'WRITE')
-    )) ||
-    (doc.userId === user.id && doc.permissions && doc.permissions.some(p => p.userId !== user.id)))
+    (doc.userId !== user.id || (doc.permissions && doc.permissions.some(p => p.userId !== user.id)))
   );
   const personalDocuments = documents.filter(doc =>
     doc.parentId == null &&

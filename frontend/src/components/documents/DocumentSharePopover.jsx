@@ -49,9 +49,9 @@ function PermissionDropdown({ value, onChange, disabled, loading }) {
   );
 }
 
-export default function DocumentShareModal({ open, onClose, workspaceId, documentId, anchorRef }) {
+export default function DocumentSharePopover({ open, onClose, workspaceId, documentId, anchorRef }) {
   const dialogRef = useRef(null);
-  const [modalWidth, setModalWidth] = useState(280);
+  const [popoverWidth, setPopoverWidth] = useState(280);
   const [dialogPosition, setDialogPosition] = useState({ top: 0, left: 0 });
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteStatus, setInviteStatus] = useState(null);
@@ -64,8 +64,8 @@ export default function DocumentShareModal({ open, onClose, workspaceId, documen
   useEffect(() => {
     if (open && dialogRef.current) {
       const width = dialogRef.current.offsetWidth;
-      if (width && width !== modalWidth) {
-        setModalWidth(width);
+      if (width && width !== popoverWidth) {
+        setPopoverWidth(width);
       }
     }
     // eslint-disable-next-line
@@ -74,15 +74,15 @@ export default function DocumentShareModal({ open, onClose, workspaceId, documen
   useLayoutEffect(() => {
     if (!open || !workspaceId || !documentId || !anchorRef?.current) return;
     const rect = anchorRef.current.getBoundingClientRect();
-    let idealLeft = rect.right - modalWidth + window.scrollX;
-    let maxLeft = window.innerWidth - modalWidth;
+    let idealLeft = rect.right - popoverWidth + window.scrollX;
+    let maxLeft = window.innerWidth - popoverWidth;
     let left = Math.min(idealLeft, maxLeft);
     if (left < 0) left = 0;
     setDialogPosition({
       top: rect.bottom + window.scrollY,
       left,
     });
-  }, [open, anchorRef, workspaceId, documentId, modalWidth]);
+  }, [open, anchorRef, workspaceId, documentId, popoverWidth]);
 
   const handleInvite = async () => {
     if (!inviteEmail || !workspaceId || !documentId) return;

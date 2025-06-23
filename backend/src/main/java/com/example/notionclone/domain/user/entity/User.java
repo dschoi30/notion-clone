@@ -1,6 +1,6 @@
 package com.example.notionclone.domain.user.entity;
 
-import com.example.notionclone.domain.BaseTimeEntity;
+import com.example.notionclone.domain.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -10,7 +10,7 @@ import lombok.Setter;
 @Table(name = "users")
 @Getter
 @Setter
-public class User extends BaseTimeEntity {
+public class User extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
