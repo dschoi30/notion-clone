@@ -16,6 +16,7 @@ public class DocumentPropertyDto {
     private String name;
     private PropertyType type;
     private Integer sortOrder;
+    private Integer width;
 
     public static DocumentPropertyDto from(DocumentProperty property) {
         return DocumentPropertyDto.builder()
@@ -23,6 +24,7 @@ public class DocumentPropertyDto {
                 .name(property.getName())
                 .type(property.getType())
                 .sortOrder(property.getSortOrder())
+                .width(property.getWidth())
                 .build();
     }
 } 

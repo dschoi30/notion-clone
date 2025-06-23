@@ -307,4 +307,23 @@ public class DocumentController {
                         .build())
                 .collect(Collectors.toList());
     }
+
+    // --- 컬럼 너비 변경 API ---
+    @PatchMapping("/{documentId}/title-width")
+    public ResponseEntity<Void> updateTitleColumnWidth(
+            @PathVariable Long workspaceId,
+            @PathVariable Long documentId,
+            @RequestBody WidthUpdateRequest request) {
+        documentService.updateTitleColumnWidth(documentId, request.getWidth());
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/properties/{propertyId}/width")
+    public ResponseEntity<Void> updatePropertyWidth(
+            @PathVariable Long workspaceId,
+            @PathVariable Long propertyId,
+            @RequestBody WidthUpdateRequest request) {
+        documentPropertyService.updatePropertyWidth(propertyId, request.getWidth());
+        return ResponseEntity.ok().build();
+    }
 } 

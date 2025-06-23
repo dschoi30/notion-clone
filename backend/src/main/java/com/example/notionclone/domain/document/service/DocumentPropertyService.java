@@ -66,4 +66,12 @@ public class DocumentPropertyService {
         property.setName(name);
         return propertyRepository.save(property);
     }
+
+    @Transactional
+    public void updatePropertyWidth(Long propertyId, Integer width) {
+        DocumentProperty property = propertyRepository.findById(propertyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Property not found: " + propertyId));
+        property.setWidth(width);
+        propertyRepository.save(property);
+    }
 } 

@@ -32,7 +32,18 @@ public class DocumentProperty {
     @Column(name = "sort_order")
     private Integer sortOrder;
 
+    @Column(name = "width", nullable = false)
+    private Integer width = 192;
+
     @OneToMany(mappedBy = "property", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<DocumentPropertyValue> values = new ArrayList<>();
+
+    public Integer getWidth() {
+        return width;
+    }
+
+    public void setWidth(Integer width) {
+        this.width = width;
+    }
 } 

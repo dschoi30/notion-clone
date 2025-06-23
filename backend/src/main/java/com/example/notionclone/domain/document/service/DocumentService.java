@@ -293,4 +293,12 @@ public class DocumentService {
               })
               .collect(Collectors.toList());
   }
+
+  @Transactional
+  public void updateTitleColumnWidth(Long documentId, Integer width) {
+    Document document = documentRepository.findById(documentId)
+            .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId));
+    document.setTitleColumnWidth(width);
+    documentRepository.save(document);
+  }
 }

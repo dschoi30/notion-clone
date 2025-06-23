@@ -42,6 +42,9 @@ public class Document extends BaseEntity {
     @Column(nullable = false)
     private boolean isTrashed = false;
 
+    @Column(name = "title_column_width", nullable = false)
+    private Integer titleColumnWidth = 192;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     private Document parent;
@@ -99,5 +102,13 @@ public class Document extends BaseEntity {
 
     public void setViewType(ViewType viewType) {
         this.viewType = viewType;
+    }
+
+    public Integer getTitleColumnWidth() {
+        return titleColumnWidth;
+    }
+
+    public void setTitleColumnWidth(Integer titleColumnWidth) {
+        this.titleColumnWidth = titleColumnWidth;
     }
 } 
