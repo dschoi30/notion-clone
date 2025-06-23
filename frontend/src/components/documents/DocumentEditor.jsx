@@ -1,14 +1,15 @@
 // src/components/documents/DocumentEditor.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { useDocument } from '../../contexts/DocumentContext';
-import Editor from '../editor/Editor';
-import useDocumentSocket from '../../hooks/useDocumentSocket';
-import DocumentShareModal from './DocumentShareModal';
-import { Button } from '../ui/button';
+import { useDocument } from '@/contexts/DocumentContext';
+import Editor from '@/components/editor/Editor';
+import useDocumentSocket from '@/hooks/useDocumentSocket';
+import DocumentSharePopover from './DocumentSharePopover';
+import { Button } from '@/components/ui/button';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
-import useDocumentPresence from '../../hooks/useDocumentPresence';
+import useDocumentPresence from '@/hooks/useDocumentPresence';
 import DocumentTableView from './DocumentTableView';
+import { getProperties, getChildDocuments, getPropertyValuesByChildDocuments } from '@/services/documentApi';
 
 const DocumentEditor = () => {
   const { currentWorkspace } = useWorkspace();
@@ -25,7 +26,7 @@ const DocumentEditor = () => {
   const contentRef = useRef(content);
   const editorRef = useRef(null);
 
-  // 공유 모달 상태
+  // 공유 팝오버 상태
   const [showShareModal, setShowShareModal] = useState(false);
   const shareButtonRef = useRef(null);
 
@@ -41,10 +42,40 @@ const DocumentEditor = () => {
   const [properties, setProperties] = useState([]); // [{ id, name }]
   const [rows, setRows] = useState([]); // [{ id, values: { [propertyId]: value } }]
 
-  // 속성 추가 모달 상태
-  const [showPropertyModal, setShowPropertyModal] = useState(false);
-  const [newPropertyName, setNewPropertyName] = useState('');
-  const [newPropertyType, setNewPropertyType] = useState('text');
+  // 문서 변경 시 properties/rows fetch
+  useEffect(() => {
+    const loadTableData = async () => {
+      if (currentWorkspace?.id && currentDocument?.id) {
+        // 1. 컬럼(속성) 정보 조회
+        const props = await getProperties(currentWorkspace.id, currentDocument.id);
+        setProperties(props);
+
+        // 2. 자식 문서(행) 조회
+        const children = await getChildDocuments(currentWorkspace.id, currentDocument.id);
+
+        // 3. 자식 문서들의 모든 property value를 한 번에 조회
+        const allValues = await getPropertyValuesByChildDocuments(currentWorkspace.id, currentDocument.id);
+
+        // 4. 자식문서 ID를 key로 값들을 그룹핑
+        const valuesByRowId = allValues.reduce((acc, val) => {
+          if (!acc[val.documentId]) {
+            acc[val.documentId] = {};
+          }
+          acc[val.documentId][val.propertyId] = val.value;
+          return acc;
+        }, {});
+
+        // 5. 최종 테이블 데이터(행) 구성
+        const tableRows = children.map(child => ({
+          id: child.id,
+          title: child.title,
+          values: valuesByRowId[child.id] || {}
+        }));
+        setRows(tableRows);
+      }
+    };
+    loadTableData();
+  }, [currentWorkspace?.id, currentDocument?.id]);
 
   // 최초 진입 시 자식 문서 조회
   useEffect(() => {
@@ -101,7 +132,7 @@ const DocumentEditor = () => {
     try {
       setSaveStatus('saving');
       await updateDocument(currentDocument.id, {
-        title: titleRef.current,
+        title: titleRef.current || '',
         content: contentRef.current,
       });
       setSaveStatus('saved');
@@ -144,6 +175,8 @@ const DocumentEditor = () => {
   // viewType 변경 핸들러
   const handleChangeViewType = async (type) => {
     if (!currentDocument) return;
+    // viewType을 바꾸기 전에 현재 title, content를 먼저 저장합니다.
+    await handleSave();
     await updateDocument(currentDocument.id, { viewType: type });
   };
 
@@ -155,42 +188,8 @@ const DocumentEditor = () => {
     childDocuments.length === 0 &&
     currentDocument.viewType === 'PAGE';
 
-  // '+ 속성 추가' 클릭 시
-  const handleAddProperty = () => {
-    setShowPropertyModal(true);
-    setNewPropertyName('');
-    setNewPropertyType('text');
-  };
-
-  // 모달에서 속성 추가 확인
-  const handleConfirmAddProperty = () => {
-    if (!newPropertyName) return;
-    const newProperty = { id: Date.now().toString(), name: newPropertyName, type: newPropertyType };
-    setProperties(prev => [...prev, newProperty]);
-    setRows(prev => prev.map(row => ({ ...row, values: { ...row.values, [newProperty.id]: '' } })));
-    setShowPropertyModal(false);
-  };
-
-  // '새 페이지' 클릭 시
-  const handleAddRow = () => {
-    const newRow = { id: Date.now().toString(), title: '', values: {} };
-    properties.forEach(p => { newRow.values[p.id] = ''; });
-    setRows(prev => [...prev, newRow]);
-  };
-
-  // 셀 값 변경
-  const handleCellChange = (rowId, propertyId, value) => {
-    setRows(prev => prev.map(row =>
-      row.id === rowId ? { ...row, values: { ...row.values, [propertyId]: value } } : row
-    ));
-  };
-
-  // 이름(title) 변경
-  const handleTitleCellChange = (rowId, value) => {
-    setRows(prev => prev.map(row =>
-      row.id === rowId ? { ...row, title: value } : row
-    ));
-  };
+  // 테이블 컬럼 개수에 따라 minWidth 계산
+  const tableMinWidth = `${(1 + properties.length) * 12}rem`;
 
   if (!currentDocument) {
     return <div className="p-4">선택된 문서가 없습니다.</div>;
@@ -201,8 +200,9 @@ const DocumentEditor = () => {
   }
 
   return (
-    <main className="flex-1 overflow-auto">
-      <div className="p-4 space-y-4">
+    <main className="flex-1 overflow-auto overflow-x-auto">
+      <div className="min-w-0 p-4 space-y-4">
+        {/* 상단 타이틀/공유 등 */}
         <div className="relative flex items-center justify-between">
           <input
             type="text"
@@ -212,25 +212,26 @@ const DocumentEditor = () => {
             placeholder="제목 없음"
             className="w-full text-2xl font-bold bg-transparent border-none outline-none"
           />
-          {/* 권한자 이니셜 아이콘 목록 */}
-          <div className="flex items-center mr-2">
-            {currentDocument?.permissions?.map((p) => {
-              const isPresent = viewers.some(v => String(v.userId) === String(p.userId));
-              return (
-                <div
-                  key={p.userId}
-                  className={
-                    'flex items-center justify-center w-8 h-8 mr-1 text-base font-bold rounded-full select-none bg-blue-500 text-white ring-2 ring-blue-400 ' +
-                    (isPresent ? 'opacity-100' : 'opacity-40')
-                  }
-                  title={p.name || p.email || ''}
-                >
-                  {p.name ? p.name.charAt(0).toUpperCase() : '?'}
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex items-center ml-2 space-x-2">
+          {/* 공유/저장 상태/권한자 이니셜 영역을 fixed로 분리 */}
+          <div className="fixed z-50 flex items-center px-2 py-1 space-x-2 top-2 right-4">
+            {/* 권한자 이니셜 아이콘 목록 */}
+            <div className="flex items-center mr-2">
+              {currentDocument?.permissions?.map((p) => {
+                const isPresent = viewers.some(v => String(v.userId) === String(p.userId));
+                return (
+                  <div
+                    key={p.userId}
+                    className={
+                      'flex items-center justify-center w-8 h-8 mr-1 text-base font-bold rounded-full select-none bg-blue-500 text-white ring-2 ring-blue-400 ' +
+                      (isPresent ? 'opacity-100' : 'opacity-40')
+                    }
+                    title={p.name || p.email || ''}
+                  >
+                    {p.name ? p.name.charAt(0).toUpperCase() : '?'}
+                  </div>
+                );
+              })}
+            </div>
             <span
               style={{ whiteSpace: 'nowrap' }}
               className={
@@ -248,7 +249,7 @@ const DocumentEditor = () => {
               <Button
                 ref={shareButtonRef}
                 size="sm"
-                variant="outline"
+                variant="ghost"
                 className="ml-2"
                 onClick={() => setShowShareModal((v) => !v)}
               >
@@ -256,9 +257,9 @@ const DocumentEditor = () => {
               </Button>
             )}
           </div>
-          {/* 공유 모달 */}
+          {/* 공유 팝오버 */}
           {showShareModal && !isGuest && (
-            <DocumentShareModal
+            <DocumentSharePopover
               open={showShareModal}
               onClose={() => setShowShareModal(false)}
               workspaceId={currentWorkspace.id}
@@ -270,10 +271,13 @@ const DocumentEditor = () => {
         {/* viewType이 TABLE이면 DocumentTableView, 아니면 기존 에디터 */}
         {currentDocument.viewType === 'TABLE' ? (
           <DocumentTableView
+            workspaceId={currentWorkspace.id}
+            documentId={currentDocument.id}
             properties={properties}
             setProperties={setProperties}
             rows={rows}
             setRows={setRows}
+            minWidth={tableMinWidth}
           />
         ) : (
           <Editor 

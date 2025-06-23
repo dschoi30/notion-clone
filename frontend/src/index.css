@@ -3,8 +3,9 @@
 @tailwind utilities;
 
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 10px;
+  height: 10px;
+  background: #f5f5f5;
 }
 
 ::-webkit-scrollbar-track {
@@ -12,11 +13,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  border-radius: 25px;
+  background: #d1d1d1;
+  border-radius: 8px;
+  min-width: 48px;
   transition: all 0.3s;
-  background-color: rgba(106, 115, 125, 0.2);
   &:hover {
-    background-color: rgba(106, 115, 125, 0.27);
+    background: #bdbdbd;
   }
 }
 

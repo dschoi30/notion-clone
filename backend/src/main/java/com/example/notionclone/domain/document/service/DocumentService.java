@@ -13,6 +13,7 @@ import com.example.notionclone.domain.notification.entity.NotificationStatus;
 import com.example.notionclone.domain.permission.repository.PermissionRepository;
 import com.example.notionclone.domain.permission.entity.Permission;
 import com.example.notionclone.domain.permission.entity.PermissionStatus;
+import com.example.notionclone.domain.permission.entity.PermissionType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,12 @@ import java.util.stream.Collectors;
 import java.util.Objects;
 import java.util.ArrayList;
 import com.example.notionclone.domain.document.entity.ViewType;
+import java.util.Optional;
+import com.example.notionclone.domain.document.dto.CreateDocumentRequest;
+import com.example.notionclone.domain.document.dto.UpdateDocumentRequest;
+import com.example.notionclone.domain.permission.service.PermissionService;
+import com.example.notionclone.domain.user.repository.UserRepository;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -33,17 +40,32 @@ public class DocumentService {
   private final WorkspaceRepository workspaceRepository;
   private final NotificationRepository notificationRepository;
   private final PermissionRepository permissionRepository;
+  private final PermissionService permissionService;
+  private final UserRepository userRepository;
 
-  public List<DocumentResponse> getDocumentsByWorkspace(Long workspaceId) {
-    log.debug("Getting documents for workspace: {}", workspaceId);
-    return documentRepository.findByWorkspaceIdAndIsTrashedFalse(workspaceId)
-        .stream()
-        .map(doc -> {
-            List<Permission> permissions = permissionRepository.findByDocument(doc);
-            boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(doc.getId());
-            return DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, permissions, hasChildren);
-        })
-        .collect(Collectors.toList());
+  public List<DocumentResponse> getDocumentsByWorkspace(Long workspaceId, User user) {
+    // 1. 사용자가 소유한 문서 조회
+    List<Document> ownedDocuments = documentRepository.findByWorkspaceIdAndUserIdAndIsTrashedFalse(workspaceId, user.getId());
+
+    // 2. 사용자가 공유받은 문서 ID 조회
+    List<Long> sharedDocumentIds = permissionRepository.findAcceptedDocumentIdsByUserAndWorkspace(user.getId(), PermissionStatus.ACCEPTED, workspaceId);
+
+    // 3. 공유받은 문서 정보 조회 및 휴지통 상태 필터링
+    List<Document> sharedDocuments = documentRepository.findAllById(sharedDocumentIds).stream()
+            .filter(doc -> !doc.isTrashed())
+            .collect(Collectors.toList());
+
+    // 4. 두 목록을 합치고 중복 제거
+    List<Document> allDocuments = Stream.concat(ownedDocuments.stream(), sharedDocuments.stream())
+            .distinct()
+            .collect(Collectors.toList());
+
+    return allDocuments.stream()
+            .map(doc -> {
+                boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(doc.getId());
+                return DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, doc.getPermissions(), hasChildren);
+            })
+            .collect(Collectors.toList());
   }
 
   public DocumentResponse getDocument(Long id, User user) {
@@ -58,12 +80,10 @@ public class DocumentService {
     }
 
     // 2. Permission에서 ACCEPTED 권한 확인
-    boolean hasAcceptedPermission = permissionRepository.findByDocument(document).stream()
-        .anyMatch(p -> p.getUser().getId().equals(user.getId())
-                    && p.getStatus() == PermissionStatus.ACCEPTED);
+    boolean hasAcceptedPermission = permissionRepository.existsByUserAndDocumentAndStatus(user, document, PermissionStatus.ACCEPTED);
 
     if (!hasAcceptedPermission) {
-        throw new ResourceNotFoundException("No permission to view this document.");
+        throw new org.springframework.security.access.AccessDeniedException("No permission to view this document.");
     }
 
     List<Permission> permissions = permissionRepository.findByDocument(document);
@@ -92,55 +112,91 @@ public class DocumentService {
   }
 
   @Transactional
-  public DocumentResponse createDocument(String title, String content, Long workspaceId, User user, Long parentId, String viewTypeStr) {
-    log.debug("Creating document in workspace: {} for user: {}", workspaceId, user.getId());
+  public DocumentResponse createDocument(Long workspaceId, CreateDocumentRequest request, String creatorEmail) {
+    User creator = userRepository.findByEmail(creatorEmail)
+            .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + creatorEmail));
+    permissionService.checkPermission(workspaceId, null, creator.getId(), PermissionType.WRITE);
+
     Workspace workspace = workspaceRepository.findById(workspaceId)
-        .orElseThrow(() -> new ResourceNotFoundException("Workspace not found with id: " + workspaceId));
+            .orElseThrow(() -> new ResourceNotFoundException("Workspace not found with id: " + workspaceId));
+
     Document parent = null;
-    if (parentId != null) {
-        parent = documentRepository.findById(parentId)
-            .orElseThrow(() -> new ResourceNotFoundException("Parent document not found with id: " + parentId));
+    if (request.getParentId() != null) {
+        parent = documentRepository.findById(request.getParentId())
+                .orElseThrow(() -> new ResourceNotFoundException("Parent document not found with id: " + request.getParentId()));
     }
-    ViewType viewType = ViewType.valueOf(viewTypeStr != null ? viewTypeStr : "PAGE");
+
     Document document = Document.builder()
-        .title(title)
-        .content(content)
-        .workspace(workspace)
-        .user(user)
-        .parent(parent)
-        .viewType(viewType)
-        .build();
-    Document saved = documentRepository.save(document);
-    List<Permission> permissions = permissionRepository.findByDocument(saved);
-    boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(saved.getId());
-    return DocumentResponse.fromDocumentWithPermissionsAndChildren(saved, permissions, hasChildren);
+            .title(request.getTitle())
+            .content(request.getContent())
+            .workspace(workspace)
+            .user(creator)
+            .parent(parent)
+            .viewType(request.getViewType() != null ? ViewType.valueOf(request.getViewType()) : ViewType.PAGE)
+            .build();
+
+    Document savedDocument = documentRepository.save(document);
+    boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(savedDocument.getId());
+
+    // 생성자에게 자동으로 OWNER 권한 부여
+    Permission ownerPermission = Permission.builder()
+            .document(savedDocument)
+            .user(creator)
+            .permissionType(PermissionType.OWNER)
+            .status(PermissionStatus.ACCEPTED)
+            .build();
+    permissionRepository.save(ownerPermission);
+
+    return DocumentResponse.fromDocumentWithPermissionsAndChildren(savedDocument, savedDocument.getPermissions(), hasChildren);
   }
 
   @Transactional
-  public DocumentResponse updateDocument(Long id, String title, String content, Long parentId, String viewTypeStr) {
-    log.debug("Updating document: {}", id);
-    Document document = documentRepository.findById(id)
-        .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + id));
-    document.update(title, content);
-    if (parentId != null) {
-        Document parent = documentRepository.findById(parentId)
-            .orElseThrow(() -> new ResourceNotFoundException("Parent document not found with id: " + parentId));
+  public DocumentResponse updateDocument(Long workspaceId, Long documentId, UpdateDocumentRequest request, String updaterEmail) {
+    User updater = userRepository.findByEmail(updaterEmail)
+            .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + updaterEmail));
+    permissionService.checkPermission(workspaceId, documentId, updater.getId(), PermissionType.WRITE);
+
+    Document document = documentRepository.findById(documentId)
+            .orElseThrow(() -> new ResourceNotFoundException("문서를 찾을 수 없습니다."));
+
+    document.update(
+            Optional.ofNullable(request.getTitle()).orElse(""),
+            Optional.ofNullable(request.getContent()).orElse(""),
+            request.getParentId()
+    );
+
+    if (request.getParentId() != null) {
+        Document parent = documentRepository.findById(request.getParentId())
+                .orElseThrow(() -> new ResourceNotFoundException("상위 문서를 찾을 수 없습니다."));
         document.setParent(parent);
+    } else {
+        document.setParent(null);
     }
-    if (viewTypeStr != null) {
-        document.setViewType(ViewType.valueOf(viewTypeStr));
+
+    if (request.getViewType() != null) {
+        document.setViewType(ViewType.valueOf(request.getViewType()));
     }
-    Document updated = documentRepository.save(document);
-    List<Permission> permissions = permissionRepository.findByDocument(updated);
-    boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(updated.getId());
-    return DocumentResponse.fromDocumentWithPermissionsAndChildren(updated, permissions, hasChildren);
+
+    boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(document.getId());
+    return DocumentResponse.fromDocumentWithPermissionsAndChildren(document, document.getPermissions(), hasChildren);
   }
 
   @Transactional
-  public void deleteDocument(Long id) {
+  public void deleteDocument(Long id, User user) {
     log.debug("Soft deleting document: {}", id);
     Document document = documentRepository.findById(id)
         .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + id));
+
+    boolean isOwner = document.getUser().getId().equals(user.getId());
+    boolean hasWritePermission = permissionRepository.findByDocument(document).stream()
+        .anyMatch(p -> p.getUser().getId().equals(user.getId())
+                    && p.getStatus() == PermissionStatus.ACCEPTED
+                    && (p.getPermissionType() == PermissionType.WRITE || p.getPermissionType() == PermissionType.OWNER));
+    
+    if (!isOwner && !hasWritePermission) {
+        throw new org.springframework.security.access.AccessDeniedException("No permission to delete this document.");
+    }
+
     document.setTrashed(true);
     documentRepository.save(document);
   }
@@ -206,7 +262,7 @@ public class DocumentService {
       documentRepository.findAllById(acceptedDocIds)
         .stream()
         .filter(doc -> !doc.getUser().getId().equals(user.getId()))
-        .collect(Collectors.toList());
+        .toList();
     List<Document> allDocs = new ArrayList<>();
     allDocs.addAll(personalDocs);
     allDocs.addAll(sharedDocs);
@@ -218,14 +274,23 @@ public class DocumentService {
   }
 
   @Transactional(readOnly = true)
-  public List<DocumentResponse> getChildDocuments(Long parentId) {
-    return documentRepository.findByParentIdAndIsTrashedFalse(parentId)
-        .stream()
-        .map(doc -> {
-            List<Permission> permissions = permissionRepository.findByDocument(doc);
-            boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(doc.getId());
-            return DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, permissions, hasChildren);
-        })
-        .collect(Collectors.toList());
+  public List<DocumentResponse> getChildDocuments(Long parentId, User user) {
+      List<Document> children = documentRepository.findByParentIdAndIsTrashedFalse(parentId);
+      // 권한에 따라 필터링
+      List<Document> accessibleChildren = children.stream().filter(doc -> {
+          if (doc.getUser().getId().equals(user.getId())) { // 소유자
+              return true;
+          }
+          // 공유받은 문서
+          return permissionRepository.existsByUserAndDocumentAndStatus(user, doc, PermissionStatus.ACCEPTED);
+      }).collect(Collectors.toList());
+
+      return accessibleChildren.stream()
+              .map(doc -> {
+                  List<Permission> permissions = permissionRepository.findByDocument(doc);
+                  boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(doc.getId());
+                  return DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, permissions, hasChildren);
+              })
+              .collect(Collectors.toList());
   }
 }

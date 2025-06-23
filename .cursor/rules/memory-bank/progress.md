@@ -1,3 +1,4 @@
+- 2024-07-14: `DocumentList.jsx`에서 문서의 `viewType`이 `TABLE`일 경우, `FileText` 아이콘 대신 `Table` 아이콘을 표시하도록 수정하여 시각적 구분을 명확히 함.
 - 2024-06-09: DocumentEditor.jsx에 실시간 자동 저장(debounce 500ms) 기능 구현. 저장 버튼 제거, 저장 상태 UI만 표시. title/content 변경 시 자동 저장 트리거. 
 - 2024-06-29: useDocumentSocket.js에서 Stomp 클라이언트 생성 방식을 공식 권장 방식(Client + webSocketFactory)으로 변경하여 자동 재연결 지원 및 경고 해결. 
 - vite.config.js의 WebSocket 프록시 설정을 확인하고 주석을 추가하여 명확히 함. 
@@ -33,3 +34,11 @@
 - [ ] 5. 속성/행 관리 기능 개발
 - [ ] 6. UX/UI 개선 및 테스트, 배포
 - 2024-07-01: DocumentEditor.jsx 최초 생성 상태(제목/내용/자식문서 모두 비어있고 viewType이 PAGE)에서만 하단에 '테이블', '갤러리' 버튼이 나타나도록 UI 구현. '테이블' 클릭 시 viewType을 TABLE로 변경하고, 테이블 기본 UI(헤더: 이름, 빈 1행, 속성 추가/새 페이지 버튼) 렌더링까지 완료.
+- 2024-06-08: DocumentProperty/DocumentPropertyValue 엔티티용 Repository, Service, DTO, Controller(API) 생성 및 CRUD 구현
+  - 속성 추가/조회/삭제, 값 추가/수정/조회 API 구현
+  - 프론트 테이블 뷰와 연동 준비 완료
+- DocumentTableView.jsx: handleConfirmAddProperty 함수에서 새 property 추가 후, 모든 row에 대해 addOrUpdatePropertyValue API를 호출하여 각 row의 새 property 값(초기값 '')이 백엔드에도 반영되도록 수정함.
+- 2024-07-07: 문서 조회/수정/삭제 API에 대한 권한 검증 로직을 추가하여 보안을 강화함.
+  - `DocumentService`의 `getDocument`, `updateDocument`, `deleteDocument` 메서드에 소유자 또는 `Permission` 기반의 권한 검사 로직을 구현함.
+  - 권한이 없는 요청에 대해 404 Not Found 대신 403 Forbidden (`AccessDeniedException`)을 반환하도록 수정하여 API 응답의 명확성을 높임.
+  - `DocumentController`에서 `DocumentService`의 메서드를 호출할 때, 현재 인증된 사용자(`User`) 객체를 전달하도록 수정함.

@@ -6,6 +6,7 @@ import lombok.*;
 @Entity
 @Table(name = "document_property_values")
 @Getter
+@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder

@@ -3,9 +3,13 @@ package com.example.notionclone.domain.document.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "document_properties")
 @Getter
+@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
@@ -27,4 +31,8 @@ public class DocumentProperty {
 
     @Column(name = "sort_order")
     private Integer sortOrder;
+
+    @OneToMany(mappedBy = "property", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<DocumentPropertyValue> values = new ArrayList<>();
 } 

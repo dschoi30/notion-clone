@@ -1,47 +1,48 @@
 package com.example.notionclone.domain.document.dto;
 
+import com.example.notionclone.domain.document.entity.Document;
+import com.example.notionclone.domain.permission.dto.PermissionInfo;
+import com.example.notionclone.domain.permission.entity.Permission;
+import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.example.notionclone.domain.document.entity.Document;
-import com.example.notionclone.domain.permission.entity.Permission;
-import com.example.notionclone.domain.permission.dto.PermissionInfo;
-
 @Getter
-@NoArgsConstructor
+@Builder
 public class DocumentResponse {
     private Long id;
     private String title;
     private String content;
-    private Long workspaceId;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-    private boolean isTrashed;
-    private Long userId;
-    private List<PermissionInfo> permissions;
     private Long parentId;
     private String viewType;
+    private Long userId;
+    private String createdBy;
+    private String updatedBy;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    private List<PermissionInfo> permissions;
+    private List<DocumentPropertyDto> properties;
     private boolean hasChildren;
 
     public static DocumentResponse fromDocumentWithPermissionsAndChildren(Document document, List<Permission> permissions, boolean hasChildren) {
-        DocumentResponse response = new DocumentResponse();
-        response.id = document.getId();
-        response.title = document.getTitle();
-        response.content = document.getContent();
-        response.workspaceId = document.getWorkspace() != null ? document.getWorkspace().getId() : null;
-        response.createdAt = document.getCreatedAt();
-        response.updatedAt = document.getUpdatedAt();
-        response.isTrashed = document.isTrashed();
-        response.userId = document.getUser().getId();
-        response.permissions = permissions != null ? permissions.stream().map(PermissionInfo::new).collect(Collectors.toList()) : null;
-        response.parentId = document.getParent() != null ? document.getParent().getId() : null;
-        response.viewType = document.getViewType() != null ? document.getViewType().name() : null;
-        response.hasChildren = hasChildren;
-        return response;
+        return DocumentResponse.builder()
+                .id(document.getId())
+                .title(document.getTitle())
+                .content(document.getContent())
+                .parentId(document.getParent() != null ? document.getParent().getId() : null)
+                .viewType(document.getViewType().name())
+                .userId(document.getUser().getId())
+                .createdBy(document.getCreatedBy())
+                .updatedBy(document.getUpdatedBy())
+                .createdAt(document.getCreatedAt())
+                .updatedAt(document.getUpdatedAt())
+                .permissions(permissions.stream().map(PermissionInfo::from).collect(Collectors.toList()))
+                .properties(document.getProperties().stream().map(DocumentPropertyDto::from).collect(Collectors.toList()))
+                .hasChildren(hasChildren)
+                .build();
     }
 
     public static DocumentResponse fromDocumentWithPermissions(Document document, List<Permission> permissions) {
