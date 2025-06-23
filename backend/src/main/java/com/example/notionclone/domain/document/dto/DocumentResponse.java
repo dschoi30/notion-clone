@@ -26,6 +26,7 @@ public class DocumentResponse {
     private List<PermissionInfo> permissions;
     private List<DocumentPropertyDto> properties;
     private boolean hasChildren;
+    private Integer titleColumnWidth;
 
     public static DocumentResponse fromDocumentWithPermissionsAndChildren(Document document, List<Permission> permissions, boolean hasChildren) {
         return DocumentResponse.builder()
@@ -39,9 +40,10 @@ public class DocumentResponse {
                 .updatedBy(document.getUpdatedBy())
                 .createdAt(document.getCreatedAt())
                 .updatedAt(document.getUpdatedAt())
-                .permissions(permissions.stream().map(PermissionInfo::from).collect(Collectors.toList()))
+                .permissions(permissions != null ? permissions.stream().map(PermissionInfo::from).collect(Collectors.toList()) : null)
                 .properties(document.getProperties().stream().map(DocumentPropertyDto::from).collect(Collectors.toList()))
                 .hasChildren(hasChildren)
+                .titleColumnWidth(document.getTitleColumnWidth())
                 .build();
     }
 
