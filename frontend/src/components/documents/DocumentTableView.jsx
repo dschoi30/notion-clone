@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '../ui/button';
 import { Text, Hash, Calendar, Tag as TagIcon, User, Clock, Edit3 } from 'lucide-react';
-import { addProperty, deleteProperty, addOrUpdatePropertyValue, updateDocument, createDocument, updateProperty } from '../../services/documentApi';
+import { addProperty, deleteProperty, addOrUpdatePropertyValue, updateDocument, createDocument, updateProperty, updateTitleColumnWidth, updatePropertyWidth } from '../../services/documentApi';
 import AddPropertyPopover from './AddPropertyPopover';
 
 function getPropertyIcon(type) {
@@ -18,26 +18,23 @@ function getPropertyIcon(type) {
   }
 }
 
-export default function DocumentTableView({ workspaceId, documentId, properties, setProperties, rows, setRows }) {
+export default function DocumentTableView({ workspaceId, documentId, properties, setProperties, rows, setRows, titleColumnWidth, propertyWidths }) {
   const [editingCell, setEditingCell] = useState(null);
   const [hoveredCell, setHoveredCell] = useState(null);
   const [editingHeader, setEditingHeader] = useState({ id: null, name: '' });
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const addBtnRef = useRef(null);
   const defaultWidth = 192; // 12rem
-  const [colWidths, setColWidths] = useState(() => [defaultWidth, ...properties.map(() => defaultWidth)]);
+  const [colWidths, setColWidths] = useState(() => [titleColumnWidth || 288, ...(propertyWidths && propertyWidths.length ? propertyWidths : properties.map(() => defaultWidth))]);
+  const liveWidths = useRef(colWidths);
 
   React.useEffect(() => {
-    setColWidths((prev) => {
-      const targetLen = 1 + properties.length;
-      if (prev.length === targetLen) return prev;
-      if (prev.length < targetLen) {
-        return [...prev, ...Array(targetLen - prev.length).fill(defaultWidth)];
-      } else {
-        return prev.slice(0, targetLen);
-      }
-    });
-  }, [properties.length]);
+    console.log('propertyWidths', propertyWidths);
+    const initial = [titleColumnWidth || 288, ...(propertyWidths && propertyWidths.length ? propertyWidths : properties.map(() => defaultWidth))];
+    setColWidths(initial);
+    liveWidths.current = initial;
+    // eslint-disable-next-line
+  }, [titleColumnWidth, propertyWidths && propertyWidths.join(','), properties.length]);
 
   const resizingCol = useRef(null);
   const startX = useRef(0);
@@ -54,13 +51,35 @@ export default function DocumentTableView({ workspaceId, documentId, properties,
   const handleResizeMouseMove = (e) => {
     if (resizingCol.current == null) return;
     const dx = e.clientX - startX.current;
+    const newWidth = Math.max(80, startWidth.current + dx);
     setColWidths((prev) => {
       const next = [...prev];
-      next[resizingCol.current] = Math.max(80, startWidth.current + dx); // 최소 80px
+      next[resizingCol.current] = newWidth;
       return next;
     });
+    liveWidths.current[resizingCol.current] = newWidth;
   };
-  const handleResizeMouseUp = () => {
+  const handleResizeMouseUp = async () => {
+    // 서버에 PATCH
+    if (resizingCol.current != null) {
+      const colIdx = resizingCol.current;
+      const width = liveWidths.current[colIdx]; // 항상 최신값
+      console.log(colIdx, 'width', width);
+      try {
+        if (colIdx === 0) {
+          // title 컬럼
+          await updateTitleColumnWidth(workspaceId, documentId, width);
+        } else {
+          // property 컬럼
+          const property = properties[colIdx - 1];
+          if (property) {
+            await updatePropertyWidth(workspaceId, property.id, width);
+          }
+        }
+      } catch (e) {
+        // 실패해도 UI는 반영
+      }
+    }
     resizingCol.current = null;
     document.body.style.cursor = '';
     window.removeEventListener('mousemove', handleResizeMouseMove);

@@ -29,6 +29,8 @@ import org.springframework.web.bind.annotation.*;
 import com.example.notionclone.domain.document.dto.AddPropertyRequest;
 import com.example.notionclone.domain.document.dto.AddOrUpdateValueRequest;
 import com.example.notionclone.domain.document.dto.UpdatePropertyRequest;
+import com.example.notionclone.domain.document.dto.WidthUpdateRequest;
+
 import org.springframework.web.bind.annotation.CrossOrigin;
 
 import java.util.List;

@@ -18,6 +18,7 @@ logging:
   level:
     org.springframework.security: TRACE
     com.example.notionclone: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
 
 jwt:
   secret: ${JWT_SECRET}

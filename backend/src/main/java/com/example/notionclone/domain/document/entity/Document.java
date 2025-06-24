@@ -42,8 +42,9 @@ public class Document extends BaseEntity {
     @Column(nullable = false)
     private boolean isTrashed = false;
 
+    @Builder.Default
     @Column(name = "title_column_width", nullable = false)
-    private Integer titleColumnWidth = 192;
+    private Integer titleColumnWidth = 288;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
@@ -71,7 +72,7 @@ public class Document extends BaseEntity {
         this.workspace = workspace;
     }
 
-    public void update(String title, String content, Long parentId) {
+    public void update(String title, String content) {
         this.title = title;
         this.content = content;
     }

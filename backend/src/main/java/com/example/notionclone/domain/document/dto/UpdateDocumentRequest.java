@@ -11,6 +11,5 @@ import lombok.Setter;
 public class UpdateDocumentRequest {
     private String title;
     private String content;
-    private Long parentId;
     private String viewType;
 } 

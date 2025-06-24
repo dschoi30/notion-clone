@@ -41,6 +41,21 @@ const DocumentEditor = () => {
   // 테이블 속성(컬럼) 및 값 상태 (mock)
   const [properties, setProperties] = useState([]); // [{ id, name }]
   const [rows, setRows] = useState([]); // [{ id, values: { [propertyId]: value } }]
+  const [parentProperties, setParentProperties] = useState([]);
+
+  // 부모 문서의 properties 조회
+  useEffect(() => {
+    const fetchParentProps = async () => {
+      if (currentWorkspace?.id && currentDocument?.parentId) {
+        const props = await getProperties(currentWorkspace.id, currentDocument.parentId);
+        console.log('parentprops', props);
+        setParentProperties(props);
+      } else {
+        setParentProperties([]);
+      }
+    };
+    fetchParentProps();
+  }, [currentWorkspace?.id, currentDocument?.parentId]);
 
   // 문서 변경 시 properties/rows fetch
   useEffect(() => {
@@ -49,7 +64,7 @@ const DocumentEditor = () => {
         // 1. 컬럼(속성) 정보 조회
         const props = await getProperties(currentWorkspace.id, currentDocument.id);
         setProperties(props);
-
+console.log('props', props);
         // 2. 자식 문서(행) 조회
         const children = await getChildDocuments(currentWorkspace.id, currentDocument.id);
 
@@ -90,7 +105,7 @@ const DocumentEditor = () => {
     fetchChildren();
   }, [currentDocument, fetchChildDocuments]);
 
-  useEffect(() => {
+  useEffect(() => { console.log('currentDocument', currentDocument);
     if (currentDocument) {
       setTitle(currentDocument.title);
       setContent(currentDocument.content || '');
@@ -273,10 +288,12 @@ const DocumentEditor = () => {
           <DocumentTableView
             workspaceId={currentWorkspace.id}
             documentId={currentDocument.id}
-            properties={properties}
+            properties={currentDocument.parentId ? parentProperties : properties}
             setProperties={setProperties}
             rows={rows}
             setRows={setRows}
+            titleColumnWidth={currentDocument.titleColumnWidth}
+            propertyWidths={(currentDocument.hasChildren ? parentProperties : properties).map(p => p.width)}
             minWidth={tableMinWidth}
           />
         ) : (
