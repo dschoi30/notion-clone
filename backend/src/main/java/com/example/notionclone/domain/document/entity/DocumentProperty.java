@@ -32,6 +32,7 @@ public class DocumentProperty {
     @Column(name = "sort_order")
     private Integer sortOrder;
 
+    @Builder.Default
     @Column(name = "width", nullable = false)
     private Integer width = 192;
 

@@ -161,17 +161,8 @@ public class DocumentService {
 
     document.update(
             Optional.ofNullable(request.getTitle()).orElse(""),
-            Optional.ofNullable(request.getContent()).orElse(""),
-            request.getParentId()
+            Optional.ofNullable(request.getContent()).orElse("")
     );
-
-    if (request.getParentId() != null) {
-        Document parent = documentRepository.findById(request.getParentId())
-                .orElseThrow(() -> new ResourceNotFoundException("상위 문서를 찾을 수 없습니다."));
-        document.setParent(parent);
-    } else {
-        document.setParent(null);
-    }
 
     if (request.getViewType() != null) {
         document.setViewType(ViewType.valueOf(request.getViewType()));

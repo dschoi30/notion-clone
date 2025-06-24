@@ -138,3 +138,13 @@ export async function getPropertyValuesByChildDocuments(workspaceId, parentId) {
   const res = await api.get(`/api/workspaces/${workspaceId}/documents/${parentId}/children/property-values`);
   return res.data;
 }
+
+// title 컬럼 width 변경
+export async function updateTitleColumnWidth(workspaceId, documentId, width) {
+  return api.patch(`/api/workspaces/${workspaceId}/documents/${documentId}/title-width`, { width });
+}
+
+// property 컬럼 width 변경
+export async function updatePropertyWidth(workspaceId, propertyId, width) {
+  return api.patch(`/api/workspaces/${workspaceId}/documents/properties/${propertyId}/width`, { width });
+}
