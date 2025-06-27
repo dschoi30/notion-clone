@@ -44,7 +44,8 @@
     "socketjs-client": "^1.0.2",
     "sockjs-client": "^1.6.1",
     "tailwind-merge": "^3.2.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "dayjs": "^1.11.13"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.27.2",

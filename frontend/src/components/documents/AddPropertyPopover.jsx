@@ -2,17 +2,17 @@ import React from 'react';
 import { Text, Hash, Calendar, Tag, User, Clock, Edit3 } from 'lucide-react';
 
 const userPropTypes = [
-    { value: 'text', label: '텍스트', icon: <Text size={16} /> },
-    { value: 'number', label: '숫자', icon: <Hash size={16} /> },
-    { value: 'date', label: '날짜', icon: <Calendar size={16} /> },
-    { value: 'tag', label: '태그', icon: <Tag size={16} /> },
+    { value: 'TEXT', label: '텍스트', icon: <Text size={16} /> },
+    { value: 'NUMBER', label: '숫자', icon: <Hash size={16} /> },
+    { value: 'DATE', label: '날짜', icon: <Calendar size={16} /> },
+    { value: 'TAG', label: '태그', icon: <Tag size={16} /> },
 ];
 
 const systemPropTypes = [
     { value: 'CREATED_BY', label: '생성자', icon: <User size={16} /> },
-    { value: 'LAST_EDITED_BY', label: '최종 편집자', icon: <Edit3 size={16} /> },
-    { value: 'CREATED_TIME', label: '생성 일시', icon: <Clock size={16} /> },
-    { value: 'LAST_EDITED_TIME', label: '최종 편집 일시', icon: <Clock size={16} /> },
+    { value: 'LAST_UPDATED_BY', label: '최종 편집자', icon: <Edit3 size={16} /> },
+    { value: 'CREATED_AT', label: '생성 일시', icon: <Clock size={16} /> },
+    { value: 'LAST_UPDATED_AT', label: '최종 편집 일시', icon: <Clock size={16} /> },
 ];
 
 function PropertyTypeGrid({ onSelect }) {
@@ -23,7 +23,7 @@ function PropertyTypeGrid({ onSelect }) {
           <button
             key={prop.value}
             onClick={() => onSelect(prop)}
-            className="flex items-center w-full p-2 text-sm rounded hover:bg-gray-100"
+            className="flex items-center p-2 w-full text-sm rounded hover:bg-gray-100"
           >
             {React.cloneElement(prop.icon, { className: 'mr-2' })}
             <span>{prop.label}</span>
@@ -35,7 +35,7 @@ function PropertyTypeGrid({ onSelect }) {
           <button
             key={prop.value}
             onClick={() => onSelect(prop)}
-            className="flex items-center w-full p-2 text-sm rounded hover:bg-gray-100"
+            className="flex items-center p-2 w-full text-sm rounded hover:bg-gray-100"
           >
             {React.cloneElement(prop.icon, { className: 'mr-2' })}
             <span>{prop.label}</span>

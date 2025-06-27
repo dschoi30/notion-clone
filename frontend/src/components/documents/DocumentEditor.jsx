@@ -84,7 +84,8 @@ console.log('props', props);
         const tableRows = children.map(child => ({
           id: child.id,
           title: child.title,
-          values: valuesByRowId[child.id] || {}
+          values: valuesByRowId[child.id] || {},
+          document: child // document 전체 포함
         }));
         setRows(tableRows);
       }
@@ -105,7 +106,7 @@ console.log('props', props);
     fetchChildren();
   }, [currentDocument, fetchChildDocuments]);
 
-  useEffect(() => { console.log('currentDocument', currentDocument);
+  useEffect(() => {
     if (currentDocument) {
       setTitle(currentDocument.title);
       setContent(currentDocument.content || '');
@@ -215,10 +216,10 @@ console.log('props', props);
   }
 
   return (
-    <main className="flex-1 overflow-auto overflow-x-auto">
-      <div className="min-w-0 p-4 space-y-4">
+    <main className="overflow-auto overflow-x-auto flex-1">
+      <div className="p-4 space-y-4 min-w-0">
         {/* 상단 타이틀/공유 등 */}
-        <div className="relative flex items-center justify-between">
+        <div className="flex relative justify-between items-center">
           <input
             type="text"
             value={title}
@@ -228,7 +229,7 @@ console.log('props', props);
             className="w-full text-2xl font-bold bg-transparent border-none outline-none"
           />
           {/* 공유/저장 상태/권한자 이니셜 영역을 fixed로 분리 */}
-          <div className="fixed z-50 flex items-center px-2 py-1 space-x-2 top-2 right-4">
+          <div className="flex fixed top-2 right-4 z-50 items-center px-2 py-1 space-x-2">
             {/* 권한자 이니셜 아이콘 목록 */}
             <div className="flex items-center mr-2">
               {currentDocument?.permissions?.map((p) => {

@@ -10,9 +10,9 @@ public enum PropertyType {
 
     // System managed types
     CREATED_BY,
-    LAST_EDITED_BY,
-    CREATED_TIME,
-    LAST_EDITED_TIME;
+    LAST_UPDATED_BY,
+    CREATED_AT,
+    LAST_UPDATED_AT;
 
     @JsonCreator
     public static PropertyType from(String s) {
