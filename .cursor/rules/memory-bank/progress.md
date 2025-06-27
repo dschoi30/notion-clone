@@ -42,3 +42,6 @@
   - `DocumentService`의 `getDocument`, `updateDocument`, `deleteDocument` 메서드에 소유자 또는 `Permission` 기반의 권한 검사 로직을 구현함.
   - 권한이 없는 요청에 대해 404 Not Found 대신 403 Forbidden (`AccessDeniedException`)을 반환하도록 수정하여 API 응답의 명확성을 높임.
   - `DocumentController`에서 `DocumentService`의 메서드를 호출할 때, 현재 인증된 사용자(`User`) 객체를 전달하도록 수정함.
+- systemPropTypes 속성 추가 시 document 메타데이터 기반 자동 값 입력 기능 DocumentTableView.jsx에 구현
+- rows 구조 확장(document 전체 포함) DocumentEditor.jsx에 반영 (2024-06-09)
+- DocumentTableView.jsx에서 각 행의 셀 높이가 다를 때, 한 행의 최대 셀 높이로 모든 셀의 높이를 맞추는 기능을 구현함. (cellRefs 구조 2차원화, useEffect로 최대 높이 계산, renderCell에서 style.height 적용)
