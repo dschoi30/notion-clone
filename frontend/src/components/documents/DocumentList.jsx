@@ -61,7 +61,7 @@ function DocumentTreeItem({ document, currentDocument, onSelect, onDelete, opene
               ? '#F1F1EF'
               : undefined
         }}
-        className="flex items-center h-8 min-w-0 transition-colors group"
+        className="flex items-center min-w-0 h-8 transition-colors group"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
@@ -69,7 +69,7 @@ function DocumentTreeItem({ document, currentDocument, onSelect, onDelete, opene
           hovered ? (
             <button
               onClick={handleToggle}
-              className="flex items-center justify-center w-8 h-8 p-0 mr-1"
+              className="flex justify-center items-center p-0 mr-1 w-8 h-8"
               style={{ minWidth: 32 }}
             >
               {openedIds.has(document.id)
@@ -77,17 +77,17 @@ function DocumentTreeItem({ document, currentDocument, onSelect, onDelete, opene
                 : <ChevronRight className="w-4 h-4" />}
             </button>
           ) : (
-            <span className="flex items-center justify-center w-8 h-8 mr-1">
+            <span className="flex justify-center items-center mr-1 w-8 h-8">
               <Icon className="w-4 h-4 text-gray-400" />
             </span>
           )
         ) : (
-          <span className="flex items-center justify-center w-8 h-8 mr-1">
+          <span className="flex justify-center items-center mr-1 w-8 h-8">
             <Icon className="w-4 h-4 text-gray-400" />
           </span>
         )}
         <span
-          className="flex items-center flex-1 h-8 overflow-hidden cursor-pointer whitespace-nowrap text-ellipsis"
+          className="flex overflow-hidden flex-1 items-center h-8 whitespace-nowrap cursor-pointer text-ellipsis"
           style={{ lineHeight: '2rem', display: 'block' }}
           onClick={() => onSelect(document)}
         >
@@ -100,7 +100,7 @@ function DocumentTreeItem({ document, currentDocument, onSelect, onDelete, opene
             e.stopPropagation();
             onDelete(document.id);
           }}
-          className="items-center justify-center hidden w-8 h-8 p-0 group-hover:flex"
+          className="hidden justify-center items-center p-0 w-8 h-8 group-hover:flex"
           style={{ minWidth: 32 }}
         >
           <TrashIcon className="w-4 h-4 text-red-500" />
@@ -222,14 +222,14 @@ export default function DocumentList() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="overflow-y-auto flex-1">
       <div className="p-4 space-y-8">
         {/* 공유 문서 섹션 */}
         <div>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex justify-between items-center mb-2">
             <h2 className="text-lg font-semibold">공유 문서</h2>
             <Button onClick={handleCreateDocument} size="sm">
-              <PlusIcon className="w-4 h-4 mr-1" /> 새 문서
+              <PlusIcon className="mr-1 w-4 h-4" /> 새 문서
             </Button>
           </div>
           {sharedDocuments.length === 0 ? (
@@ -256,7 +256,7 @@ export default function DocumentList() {
         </div>
         {/* 개인 문서 섹션 */}
         <div>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex justify-between items-center mb-2">
             <h2 className="text-lg font-semibold">개인 문서</h2>
           </div>
           {personalDocuments.length === 0 ? (

@@ -45,3 +45,4 @@
 - systemPropTypes 속성 추가 시 document 메타데이터 기반 자동 값 입력 기능 DocumentTableView.jsx에 구현
 - rows 구조 확장(document 전체 포함) DocumentEditor.jsx에 반영 (2024-06-09)
 - DocumentTableView.jsx에서 각 행의 셀 높이가 다를 때, 한 행의 최대 셀 높이로 모든 셀의 높이를 맞추는 기능을 구현함. (cellRefs 구조 2차원화, useEffect로 최대 높이 계산, renderCell에서 style.height 적용)
+- 2024-06-13: DocumentEditor가 viewType이 PAGE일 때만 속성 fetch/속성 추가/속성 요약 UI를 보여주고, TABLE/GALLERY일 때는 해당 컴포넌트로 분기하도록 리팩토링. 테이블 row/property fetch 등은 DocumentTableView로 완전히 위임.

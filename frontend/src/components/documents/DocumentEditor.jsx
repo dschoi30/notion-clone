@@ -3,20 +3,24 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useDocument } from '@/contexts/DocumentContext';
 import Editor from '@/components/editor/Editor';
 import useDocumentSocket from '@/hooks/useDocumentSocket';
-import DocumentSharePopover from './DocumentSharePopover';
 import { Button } from '@/components/ui/button';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import useDocumentPresence from '@/hooks/useDocumentPresence';
 import DocumentTableView from './DocumentTableView';
-import { getProperties, getChildDocuments, getPropertyValuesByChildDocuments } from '@/services/documentApi';
+import { getProperties, getPropertyValuesByDocument, addProperty, getDocument } from '@/services/documentApi';
+import AddPropertyPopover from './AddPropertyPopover';
+import { getColorObj } from '@/lib/colors';
+import dayjs from 'dayjs';
+import 'dayjs/locale/ko';
+import DocumentHeader from './DocumentHeader';
 
 const DocumentEditor = () => {
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
   const isMyWorkspace = currentWorkspace && currentWorkspace.ownerId === user.id;
   const isGuest = !isMyWorkspace;
-  const { currentDocument, updateDocument, documentLoading, fetchChildDocuments } = useDocument();
+  const { currentDocument, updateDocument, documentLoading, fetchChildDocuments, documents } = useDocument();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
@@ -39,59 +43,40 @@ const DocumentEditor = () => {
   const [childDocuments, setChildDocuments] = useState([]);
 
   // 테이블 속성(컬럼) 및 값 상태 (mock)
-  const [properties, setProperties] = useState([]); // [{ id, name }]
-  const [rows, setRows] = useState([]); // [{ id, values: { [propertyId]: value } }]
-  const [parentProperties, setParentProperties] = useState([]);
+  const [properties, setProperties] = useState([]); // [{ id, name, type }]
+  const [propertyValues, setPropertyValues] = useState({}); // { [propertyId]: value }
+  const [isAddPropOpen, setIsAddPropOpen] = useState(false);
+  const addPropBtnRef = useRef(null);
+
+  // 경로 계산 유틸
+  function getDocumentPath(documentId, documentList) {
+    const path = [];
+    let doc = documentList.find(d => d.id === documentId);
+    while (doc) {
+      path.unshift(doc);
+      doc = doc.parentId ? documentList.find(d => d.id === doc.parentId) : null;
+    }
+    return path;
+  }
+
+  const path = currentDocument && documents ? getDocumentPath(currentDocument.id, documents) : [];
 
   // 부모 문서의 properties 조회
   useEffect(() => {
-    const fetchParentProps = async () => {
-      if (currentWorkspace?.id && currentDocument?.parentId) {
-        const props = await getProperties(currentWorkspace.id, currentDocument.parentId);
-        console.log('parentprops', props);
-        setParentProperties(props);
-      } else {
-        setParentProperties([]);
-      }
-    };
-    fetchParentProps();
-  }, [currentWorkspace?.id, currentDocument?.parentId]);
-
-  // 문서 변경 시 properties/rows fetch
-  useEffect(() => {
-    const loadTableData = async () => {
-      if (currentWorkspace?.id && currentDocument?.id) {
-        // 1. 컬럼(속성) 정보 조회
+    if (currentWorkspace?.id && currentDocument?.id && currentDocument.viewType === 'PAGE') {
+      (async () => {
         const props = await getProperties(currentWorkspace.id, currentDocument.id);
         setProperties(props);
-console.log('props', props);
-        // 2. 자식 문서(행) 조회
-        const children = await getChildDocuments(currentWorkspace.id, currentDocument.id);
-
-        // 3. 자식 문서들의 모든 property value를 한 번에 조회
-        const allValues = await getPropertyValuesByChildDocuments(currentWorkspace.id, currentDocument.id);
-
-        // 4. 자식문서 ID를 key로 값들을 그룹핑
-        const valuesByRowId = allValues.reduce((acc, val) => {
-          if (!acc[val.documentId]) {
-            acc[val.documentId] = {};
-          }
-          acc[val.documentId][val.propertyId] = val.value;
-          return acc;
-        }, {});
-
-        // 5. 최종 테이블 데이터(행) 구성
-        const tableRows = children.map(child => ({
-          id: child.id,
-          title: child.title,
-          values: valuesByRowId[child.id] || {},
-          document: child // document 전체 포함
-        }));
-        setRows(tableRows);
-      }
-    };
-    loadTableData();
-  }, [currentWorkspace?.id, currentDocument?.id]);
+        const valuesArr = await getPropertyValuesByDocument(currentWorkspace.id, currentDocument.id);
+        const valuesObj = {};
+        valuesArr.forEach(v => { valuesObj[v.propertyId] = v.value; });
+        setPropertyValues(valuesObj);
+      })();
+    } else {
+      setProperties([]);
+      setPropertyValues({});
+    }
+  }, [currentWorkspace?.id, currentDocument?.id, currentDocument?.viewType]);
 
   // 최초 진입 시 자식 문서 조회
   useEffect(() => {
@@ -207,6 +192,24 @@ console.log('props', props);
   // 테이블 컬럼 개수에 따라 minWidth 계산
   const tableMinWidth = `${(1 + properties.length) * 12}rem`;
 
+  // 속성 추가 핸들러
+  const handleAddProperty = async (name, type) => {
+    if (!name || !type) return;
+    try {
+      await addProperty(currentWorkspace.id, currentDocument.id, { name, type, sortOrder: properties.length });
+      setIsAddPropOpen(false);
+      // 추가 후 목록/값 재조회
+      const props = await getProperties(currentWorkspace.id, currentDocument.id);
+      setProperties(props);
+      const valuesArr = await getPropertyValuesByDocument(currentWorkspace.id, currentDocument.id);
+      const valuesObj = {};
+      valuesArr.forEach(v => { valuesObj[v.propertyId] = v.value; });
+      setPropertyValues(valuesObj);
+    } catch (e) {
+      alert('속성 추가 실패');
+    }
+  };
+
   if (!currentDocument) {
     return <div className="p-4">선택된 문서가 없습니다.</div>;
   }
@@ -215,96 +218,129 @@ console.log('props', props);
     return <div className="p-4">문서 불러오는 중...</div>;
   }
 
+  // TABLE/GALLERY 분기: 이 뷰에서는 row/property fetch 등 하지 않음
+  if (currentDocument.viewType === 'TABLE') {
+    return (
+      <main className="overflow-x-visible relative bg-white">
+        <div className="p-4 space-y-4 min-w-0">
+          {/* 상단 타이틀/공유/저장 상태/권한자 이니셜 */}
+          <DocumentHeader
+            title={title}
+            onTitleChange={handleTitleChange}
+            onTitleKeyDown={handleTitleKeyDown}
+            saveStatus={saveStatus}
+            isGuest={isGuest}
+            showShareModal={showShareModal}
+            setShowShareModal={setShowShareModal}
+            shareButtonRef={shareButtonRef}
+            currentDocument={currentDocument}
+            viewers={viewers}
+            user={user}
+            currentWorkspace={currentWorkspace}
+            path={path}
+          />
+          <DocumentTableView
+            workspaceId={currentWorkspace.id}
+            documentId={currentDocument.id}
+            title={title}
+            onTitleChange={handleTitleChange}
+            onTitleKeyDown={handleTitleKeyDown}
+            saveStatus={saveStatus}
+            isGuest={isGuest}
+            showShareModal={showShareModal}
+            setShowShareModal={setShowShareModal}
+            shareButtonRef={shareButtonRef}
+            currentDocument={currentDocument}
+            viewers={viewers}
+            user={user}
+            currentWorkspace={currentWorkspace}
+          />
+        </div>
+      </main>
+    );
+  }
+  if (currentDocument.viewType === 'GALLERY') {
+    // (갤러리 뷰 컴포넌트가 있다면 여기에 분기)
+    return <div className="p-4">갤러리 뷰는 아직 구현되지 않았습니다.</div>;
+  }
+
+  // PAGE만 아래 렌더링: 속성 fetch/속성 추가/속성 요약 UI 포함
   return (
     <main className="overflow-auto overflow-x-auto flex-1">
       <div className="p-4 space-y-4 min-w-0">
         {/* 상단 타이틀/공유 등 */}
-        <div className="flex relative justify-between items-center">
-          <input
-            type="text"
-            value={title}
-            onChange={handleTitleChange}
-            onKeyDown={handleTitleKeyDown}
-            placeholder="제목 없음"
-            className="w-full text-2xl font-bold bg-transparent border-none outline-none"
-          />
-          {/* 공유/저장 상태/권한자 이니셜 영역을 fixed로 분리 */}
-          <div className="flex fixed top-2 right-4 z-50 items-center px-2 py-1 space-x-2">
-            {/* 권한자 이니셜 아이콘 목록 */}
-            <div className="flex items-center mr-2">
-              {currentDocument?.permissions?.map((p) => {
-                const isPresent = viewers.some(v => String(v.userId) === String(p.userId));
-                return (
-                  <div
-                    key={p.userId}
-                    className={
-                      'flex items-center justify-center w-8 h-8 mr-1 text-base font-bold rounded-full select-none bg-blue-500 text-white ring-2 ring-blue-400 ' +
-                      (isPresent ? 'opacity-100' : 'opacity-40')
-                    }
-                    title={p.name || p.email || ''}
-                  >
-                    {p.name ? p.name.charAt(0).toUpperCase() : '?'}
+        <DocumentHeader
+          title={title}
+          onTitleChange={handleTitleChange}
+          onTitleKeyDown={handleTitleKeyDown}
+          saveStatus={saveStatus}
+          isGuest={isGuest}
+          showShareModal={showShareModal}
+          setShowShareModal={setShowShareModal}
+          shareButtonRef={shareButtonRef}
+          currentDocument={currentDocument}
+          viewers={viewers}
+          user={user}
+          currentWorkspace={currentWorkspace}
+          path={path}
+        />
+        {/* 속성명/값 목록 + 속성 추가 버튼 (PAGE에서만) */}
+        {properties.length > 0 && (
+          <div className="flex flex-wrap gap-2 items-center mb-2">
+            {properties.map((prop) => {
+              let value = propertyValues[prop.id] || '';
+              let content = null;
+              if (prop.type === 'DATE' || prop.type === 'CREATED_AT' || prop.type === 'LAST_UPDATED_AT') {
+                content = value ? dayjs(value).locale('ko').format('YYYY년 M월 D일') : '';
+              } else if (prop.type === 'TAG') {
+                let tags = [];
+                try { tags = value ? JSON.parse(value) : []; } catch {}
+                content = (
+                  <div className="flex gap-1">
+                    {tags.map(tag => {
+                      const colorObj = getColorObj(tag.color || 'default');
+                      return (
+                        <span
+                          key={tag.label}
+                          className={`inline-flex items-center px-2 py-1 rounded text-xs ${colorObj.bg} border ${colorObj.border}`}
+                          style={{ whiteSpace: 'nowrap', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                        >
+                          {tag.label}
+                        </span>
+                      );
+                    })}
                   </div>
                 );
-              })}
-            </div>
-            <span
-              style={{ whiteSpace: 'nowrap' }}
-              className={
-                (saveStatus === 'saving' ? 'text-blue-500' :
-                saveStatus === 'error' ? 'text-red-500' :
-                'text-gray-400') + ' ml-2'
+              } else {
+                content = value;
               }
-            >
-              {saveStatus === 'saving' ? '저장 중...' :
-              saveStatus === 'error' ? '저장 실패' :
-              saveStatus === 'unsaved' ? '저장 대기' : '저장됨'}
-            </span>
-            {/* 게스트가 아닐 때만 공유 버튼 노출 */}
-            {!isGuest && (
-              <Button
-                ref={shareButtonRef}
-                size="sm"
-                variant="ghost"
-                className="ml-2"
-                onClick={() => setShowShareModal((v) => !v)}
-              >
-                공유
+              return (
+                <div key={prop.id} className="flex flex-col items-start min-w-[120px]">
+                  <span className="text-xs text-gray-500 font-medium mb-0.5">{prop.name}</span>
+                  <span className="text-sm text-gray-900">{content}</span>
+                </div>
+              );
+            })}
+            {/* 속성 추가 버튼 */}
+            <div className="relative">
+              <Button ref={addPropBtnRef} size="sm" variant="ghost" className="ml-2" onClick={() => setIsAddPropOpen(v => !v)}>
+                + 속성 추가
               </Button>
-            )}
+              {isAddPropOpen && (
+                <div className="absolute left-0 top-full z-10 mt-1" >
+                  <AddPropertyPopover onAddProperty={handleAddProperty} />
+                </div>
+              )}
+            </div>
           </div>
-          {/* 공유 팝오버 */}
-          {showShareModal && !isGuest && (
-            <DocumentSharePopover
-              open={showShareModal}
-              onClose={() => setShowShareModal(false)}
-              workspaceId={currentWorkspace.id}
-              documentId={currentDocument.id}
-              anchorRef={shareButtonRef}
-            />
-          )}
-        </div>
-        {/* viewType이 TABLE이면 DocumentTableView, 아니면 기존 에디터 */}
-        {currentDocument.viewType === 'TABLE' ? (
-          <DocumentTableView
-            workspaceId={currentWorkspace.id}
-            documentId={currentDocument.id}
-            properties={currentDocument.parentId ? parentProperties : properties}
-            setProperties={setProperties}
-            rows={rows}
-            setRows={setRows}
-            titleColumnWidth={currentDocument.titleColumnWidth}
-            propertyWidths={(currentDocument.hasChildren ? parentProperties : properties).map(p => p.width)}
-            minWidth={tableMinWidth}
-          />
-        ) : (
-          <Editor 
-            content={content} 
-            onUpdate={handleContentChange}
-            ref={editorRef}
-            editable={!isReadOnly}
-          />
         )}
+        {/* 에디터 */}
+        <Editor 
+          content={content} 
+          onUpdate={handleContentChange}
+          ref={editorRef}
+          editable={!isReadOnly}
+        />
         {/* 최초 생성 상태에서만 하단 버튼 노출 */}
         {isInitial && (
           <div className="flex gap-2 mt-4">

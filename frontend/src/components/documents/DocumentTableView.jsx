@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useRef, createRef } from 'react';
-import { Button } from '../ui/button';
-import { Text, Hash, Calendar, Tag as TagIcon, User, Clock, Edit3 } from 'lucide-react';
-import { addProperty, deleteProperty, addOrUpdatePropertyValue, updateDocument, createDocument, updateProperty, updateTitleColumnWidth, updatePropertyWidth } from '../../services/documentApi';
-import AddPropertyPopover from './AddPropertyPopover';
+import { Navigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ko';
+import { Text, Hash, Calendar, Tag as TagIcon, User, Clock, Edit3 } from 'lucide-react';
+import { useDocument } from '@/contexts/DocumentContext';
+import { getProperties, addProperty, updateProperty, deleteProperty, addOrUpdatePropertyValue, updatePropertyWidth, getPropertyValuesByChildDocuments,
+  updateDocument, createDocument, updateTitleColumnWidth, getChildDocuments } from '@/services/documentApi';
+import { Button } from '@/components/ui/button';
+import AddPropertyPopover from './AddPropertyPopover';
 import DatePopover from './DatePopover';
 import TagPopover from './TagPopover';
 import { TAG_COLORS as COLORS, getColorObj } from '@/lib/colors';
+import DocumentHeader from './DocumentHeader';
 
 function getPropertyIcon(type) {
   switch (type) {
@@ -32,7 +36,9 @@ function formatKoreanDateTime(dt) {
   return `${d.year()}년 ${d.month() + 1}월 ${d.date()}일 ${ampm} ${hour12}:${d.format('mm')}`;
 }
 
-export default function DocumentTableView({ workspaceId, documentId, properties, setProperties, rows, setRows, titleColumnWidth, propertyWidths }) {
+export default function DocumentTableView({ workspaceId, documentId, titleColumnWidth, propertyWidths }) {
+  const [properties, setProperties] = useState([]); // [{ id, name, type }]
+  const [rows, setRows] = useState([]); // [{ id, title, values: { [propertyId]: value }, document }]
   const [editingCell, setEditingCell] = useState(null);
   const [hoveredCell, setHoveredCell] = useState(null);
   const [editingHeader, setEditingHeader] = useState({ id: null, name: '' });
@@ -253,6 +259,42 @@ export default function DocumentTableView({ workspaceId, documentId, properties,
 
   const cellRefs = useRef({}); // {rowId_propertyId: ref}
 
+  const { selectDocument } = useDocument();
+
+  // TABLE 문서의 자식(PAGE) 문서들의 property/row/value fetch
+  useEffect(() => {
+    async function fetchTableData() {
+      // 1. 컬럼 정보 조회
+      const props = await getProperties(workspaceId, documentId);
+      setProperties(props);
+      // 2. 자식 문서(PAGE) 목록 fetch
+      const children = await getChildDocuments(workspaceId, documentId);
+      setRows([]); // 초기화
+      if (!children || children.length === 0) {
+        setProperties([]);
+        setRows([]);
+        return;
+      }
+      // 3. 모든 자식(PAGE) 문서의 property value fetch
+      const allValues = await getPropertyValuesByChildDocuments(workspaceId, documentId);
+      // 4. 자식문서 ID를 key로 값들을 그룹핑
+      const valuesByRowId = allValues.reduce((acc, val) => {
+        if (!acc[val.documentId]) acc[val.documentId] = {};
+        acc[val.documentId][val.propertyId] = val.value;
+        return acc;
+      }, {});
+      // 5. 최종 테이블 데이터(행) 구성
+      const tableRows = children.map(child => ({
+        id: child.id,
+        title: child.title,
+        values: valuesByRowId[child.id] || {},
+        document: child // document 전체 포함
+      }));
+      setRows(tableRows);
+    }
+    fetchTableData();
+  }, [workspaceId, documentId]);
+
   const renderCell = (row, property, idx, isNameCell = false, rowIdx = 0) => {
     const rowId = row.id;
     const propertyId = isNameCell ? null : property?.id;
@@ -305,7 +347,24 @@ export default function DocumentTableView({ workspaceId, documentId, properties,
               onKeyDown={e => { if (e.key === 'Enter') setEditingCell(null); }}
             />
           ) : (
-            <span style={{ width: '100%', minHeight: 20, overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', paddingBottom: 2, whiteSpace: 'nowrap' }}>{value}</span>
+            <>
+              <span style={{ width: '100%', minHeight: 20, overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', paddingBottom: 2, whiteSpace: 'nowrap' }}>{value}</span>
+              {isHovered && (
+                <button
+                  type="button"
+                  onClick={async e => {
+                    e.stopPropagation();
+                    await selectDocument({ id: rowId });
+                    <Navigate to={`/document/${rowId}`} />;
+                  }}
+                  className="absolute right-2 top-1/2 px-2 py-1 text-xs rounded border border-gray-300 transition -translate-y-1/2 hover:bg-gray-200"
+                  style={{ zIndex: 20 }}
+                  title="문서 열기"
+                >
+                  열기
+                </button>
+              )}
+            </>
           )}
         </div>
       );
@@ -508,9 +567,10 @@ export default function DocumentTableView({ workspaceId, documentId, properties,
   };
 
   return (
-    <div className="overflow-x-visible relative bg-white">
+<div className="px-20 space-y-4 min-w-0">
+      {/* 테이블 UI */}
       <div style={{ minWidth: 'max-content' }}>
-        <div className="flex items-center px-4">
+        <div className="flex items-center">
           {/* 이름 컬럼 */}
           <div className="flex relative items-center font-semibold" style={{ minWidth: colWidths[0], width: colWidths[0], padding: '8px', borderLeft: 'none', borderRight: properties.length === 0 ? 'none' : '1px solid #e9e9e7' }}>
             <Text className="inline mr-1" size={16} />이름
@@ -580,7 +640,7 @@ export default function DocumentTableView({ workspaceId, documentId, properties,
             )}
           </div>
         </div>
-        <div className="px-4">
+        <div>
           {rows.length === 0 ? (
             <div className="flex items-center h-10 text-gray-400">빈 행</div>
           ) : (
@@ -594,10 +654,9 @@ export default function DocumentTableView({ workspaceId, documentId, properties,
             ))
           )}
         </div>
-        <div className="px-4 py-2">
+        <div className="py-2">
           <Button size="sm" variant="ghost" onClick={handleAddRow}>+ 새 페이지</Button>
         </div>
-      </div>
-    </div>
+      </div></div>
   );
 } 
