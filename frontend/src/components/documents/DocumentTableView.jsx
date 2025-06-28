@@ -11,7 +11,6 @@ import AddPropertyPopover from './AddPropertyPopover';
 import DatePopover from './DatePopover';
 import TagPopover from './TagPopover';
 import { TAG_COLORS as COLORS, getColorObj } from '@/lib/colors';
-import DocumentHeader from './DocumentHeader';
 
 function getPropertyIcon(type) {
   switch (type) {
