@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Fragment } from 'react';
 import { Button } from '@/components/ui/button';
 import DocumentSharePopover from './DocumentSharePopover';
 
@@ -15,18 +15,21 @@ export default function DocumentHeader({
   viewers,
   user,
   currentWorkspace,
-  path
+  path,
+  onPathClick
 }) {
   return (
     <div className="flex flex-col w-full">
       {/* 경로 표시 */}
       {path && path.length >= 1 && (
-        <div className="mb-1 text-xs text-gray-500">
+        <div className="mb-1 text-sm text-gray-700">
           {path.map((doc, idx) => (
-            <span key={doc.id}>
-              {doc.title}
-              {idx < path.length - 1 && <span className="mx-1">/</span>}
-            </span>
+            <Fragment key={doc.id}>
+              <span onClick={() => onPathClick(doc.id)} className="p-1 rounded-md cursor-pointer hover:bg-gray-100">
+                {doc.title}
+              </span>
+              {idx < path.length - 1 && <span className="mx-1 select-none">/</span>}
+            </Fragment>
           ))}
         </div>
       )}
@@ -65,7 +68,7 @@ export default function DocumentHeader({
             className={
               (saveStatus === 'saving' ? 'text-blue-500' :
               saveStatus === 'error' ? 'text-red-500' :
-              'text-gray-400') + ' ml-2'
+              'text-gray-700') + ' ml-2 text-sm'
             }
           >
             {saveStatus === 'saving' ? '저장 중...' :

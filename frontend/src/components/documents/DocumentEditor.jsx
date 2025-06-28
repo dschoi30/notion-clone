@@ -1,26 +1,21 @@
 // src/components/documents/DocumentEditor.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useDocument } from '@/contexts/DocumentContext';
-import Editor from '@/components/editor/Editor';
 import useDocumentSocket from '@/hooks/useDocumentSocket';
-import { Button } from '@/components/ui/button';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import useDocumentPresence from '@/hooks/useDocumentPresence';
 import DocumentTableView from './DocumentTableView';
 import { getProperties, getPropertyValuesByDocument, addProperty, getDocument } from '@/services/documentApi';
-import AddPropertyPopover from './AddPropertyPopover';
-import { getColorObj } from '@/lib/colors';
-import dayjs from 'dayjs';
-import 'dayjs/locale/ko';
 import DocumentHeader from './DocumentHeader';
+import DocumentPageView from './DocumentPageView';
 
 const DocumentEditor = () => {
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
   const isMyWorkspace = currentWorkspace && currentWorkspace.ownerId === user.id;
   const isGuest = !isMyWorkspace;
-  const { currentDocument, updateDocument, documentLoading, fetchChildDocuments, documents } = useDocument();
+  const { currentDocument, updateDocument, documentLoading, fetchChildDocuments, documents, selectDocument } = useDocument();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
@@ -210,35 +205,62 @@ const DocumentEditor = () => {
     }
   };
 
+  // 경로 타이틀 클릭 시 해당 문서로 이동
+  const handlePathClick = async (docId) => {
+    if (!docId) return;
+    // 문서 목록에서 해당 문서 객체 찾기
+    const targetDoc = documents.find(d => d.id === docId);
+    if (targetDoc) {
+      selectDocument(targetDoc);
+      await fetchChildDocuments(docId); // 자식 문서도 갱신
+    }
+  };
+
   if (!currentDocument) {
-    return <div className="p-4">선택된 문서가 없습니다.</div>;
+    return <div className="p-4 text-sm">선택된 문서가 없습니다.</div>;
   }
 
   if (documentLoading) {
-    return <div className="p-4">문서 불러오는 중...</div>;
+    return <div className="p-4 text-sm">문서 불러오는 중...</div>;
   }
 
-  // TABLE/GALLERY 분기: 이 뷰에서는 row/property fetch 등 하지 않음
-  if (currentDocument.viewType === 'TABLE') {
-    return (
-      <main className="overflow-x-visible relative bg-white">
-        <div className="p-4 space-y-4 min-w-0">
-          {/* 상단 타이틀/공유/저장 상태/권한자 이니셜 */}
-          <DocumentHeader
-            title={title}
-            onTitleChange={handleTitleChange}
-            onTitleKeyDown={handleTitleKeyDown}
-            saveStatus={saveStatus}
-            isGuest={isGuest}
-            showShareModal={showShareModal}
-            setShowShareModal={setShowShareModal}
-            shareButtonRef={shareButtonRef}
-            currentDocument={currentDocument}
-            viewers={viewers}
-            user={user}
-            currentWorkspace={currentWorkspace}
-            path={path}
+  return (
+    <main className="overflow-x-visible relative bg-white">
+      <div className="p-4 space-y-4 min-w-0">
+        {/* 상단 타이틀/공유/저장 상태/권한자 이니셜 */}
+        <DocumentHeader
+          title={title}
+          onTitleChange={handleTitleChange}
+          onTitleKeyDown={handleTitleKeyDown}
+          saveStatus={saveStatus}
+          isGuest={isGuest}
+          showShareModal={showShareModal}
+          setShowShareModal={setShowShareModal}
+          shareButtonRef={shareButtonRef}
+          currentDocument={currentDocument}
+          viewers={viewers}
+          user={user}
+          currentWorkspace={currentWorkspace}
+          path={path}
+          onPathClick={handlePathClick}
+        />
+        {currentDocument.viewType === 'PAGE' && (
+          <DocumentPageView
+            properties={properties}
+            propertyValues={propertyValues}
+            addPropBtnRef={addPropBtnRef}
+            isAddPropOpen={isAddPropOpen}
+            setIsAddPropOpen={setIsAddPropOpen}
+            handleAddProperty={handleAddProperty}
+            content={content}
+            handleContentChange={handleContentChange}
+            editorRef={editorRef}
+            isReadOnly={isReadOnly}
+            isInitial={isInitial}
+            handleChangeViewType={handleChangeViewType}
           />
+        )}
+        {currentDocument.viewType === 'TABLE' && (
           <DocumentTableView
             workspaceId={currentWorkspace.id}
             documentId={currentDocument.id}
@@ -255,98 +277,9 @@ const DocumentEditor = () => {
             user={user}
             currentWorkspace={currentWorkspace}
           />
-        </div>
-      </main>
-    );
-  }
-  if (currentDocument.viewType === 'GALLERY') {
-    // (갤러리 뷰 컴포넌트가 있다면 여기에 분기)
-    return <div className="p-4">갤러리 뷰는 아직 구현되지 않았습니다.</div>;
-  }
-
-  // PAGE만 아래 렌더링: 속성 fetch/속성 추가/속성 요약 UI 포함
-  return (
-    <main className="overflow-auto overflow-x-auto flex-1">
-      <div className="p-4 space-y-4 min-w-0">
-        {/* 상단 타이틀/공유 등 */}
-        <DocumentHeader
-          title={title}
-          onTitleChange={handleTitleChange}
-          onTitleKeyDown={handleTitleKeyDown}
-          saveStatus={saveStatus}
-          isGuest={isGuest}
-          showShareModal={showShareModal}
-          setShowShareModal={setShowShareModal}
-          shareButtonRef={shareButtonRef}
-          currentDocument={currentDocument}
-          viewers={viewers}
-          user={user}
-          currentWorkspace={currentWorkspace}
-          path={path}
-        />
-        {/* 속성명/값 목록 + 속성 추가 버튼 (PAGE에서만) */}
-        {properties.length > 0 && (
-          <div className="flex flex-wrap gap-2 items-center mb-2">
-            {properties.map((prop) => {
-              let value = propertyValues[prop.id] || '';
-              let content = null;
-              if (prop.type === 'DATE' || prop.type === 'CREATED_AT' || prop.type === 'LAST_UPDATED_AT') {
-                content = value ? dayjs(value).locale('ko').format('YYYY년 M월 D일') : '';
-              } else if (prop.type === 'TAG') {
-                let tags = [];
-                try { tags = value ? JSON.parse(value) : []; } catch {}
-                content = (
-                  <div className="flex gap-1">
-                    {tags.map(tag => {
-                      const colorObj = getColorObj(tag.color || 'default');
-                      return (
-                        <span
-                          key={tag.label}
-                          className={`inline-flex items-center px-2 py-1 rounded text-xs ${colorObj.bg} border ${colorObj.border}`}
-                          style={{ whiteSpace: 'nowrap', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}
-                        >
-                          {tag.label}
-                        </span>
-                      );
-                    })}
-                  </div>
-                );
-              } else {
-                content = value;
-              }
-              return (
-                <div key={prop.id} className="flex flex-col items-start min-w-[120px]">
-                  <span className="text-xs text-gray-500 font-medium mb-0.5">{prop.name}</span>
-                  <span className="text-sm text-gray-900">{content}</span>
-                </div>
-              );
-            })}
-            {/* 속성 추가 버튼 */}
-            <div className="relative">
-              <Button ref={addPropBtnRef} size="sm" variant="ghost" className="ml-2" onClick={() => setIsAddPropOpen(v => !v)}>
-                + 속성 추가
-              </Button>
-              {isAddPropOpen && (
-                <div className="absolute left-0 top-full z-10 mt-1" >
-                  <AddPropertyPopover onAddProperty={handleAddProperty} />
-                </div>
-              )}
-            </div>
-          </div>
         )}
-        {/* 에디터 */}
-        <Editor 
-          content={content} 
-          onUpdate={handleContentChange}
-          ref={editorRef}
-          editable={!isReadOnly}
-        />
-        {/* 최초 생성 상태에서만 하단 버튼 노출 */}
-        {isInitial && (
-          <div className="flex gap-2 mt-4">
-            <Button onClick={() => handleChangeViewType('TABLE')} variant="outline">테이블</Button>
-            <Button onClick={() => handleChangeViewType('GALLERY')} variant="outline">갤러리</Button>
-          </div>
+        {currentDocument.viewType === 'GALLERY' && (
+          <div className="p-4">갤러리 뷰는 아직 구현되지 않았습니다.</div>
         )}
       </div>
     </main>
