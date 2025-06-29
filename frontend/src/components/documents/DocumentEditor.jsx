@@ -122,7 +122,6 @@ const DocumentEditor = () => {
     setContent(newContent);
     setSaveStatus('unsaved');
     triggerAutoSave();
-    console.log('sendEdit 호출', newContent);
     sendEdit({ content: newContent, userId: currentDocument.userId });
   };
 
@@ -191,24 +190,6 @@ const DocumentEditor = () => {
     (!currentDocument.content || currentDocument.content.trim() === '') &&
     currentDocument.viewType === 'PAGE';
 
-  // 속성 추가 핸들러
-  const handleAddProperty = async (name, type) => {
-    if (!name || !type) return;
-    try {
-      await addProperty(currentWorkspace.id, currentDocument.id, { name, type, sortOrder: properties.length });
-      setIsAddPropOpen(false);
-      // 추가 후 목록/값 재조회
-      const props = await getProperties(currentWorkspace.id, currentDocument.id);
-      setProperties(props);
-      const valuesArr = await getPropertyValuesByDocument(currentWorkspace.id, currentDocument.id);
-      const valuesObj = {};
-      valuesArr.forEach(v => { valuesObj[v.propertyId] = v.value; });
-      setPropertyValues(valuesObj);
-    } catch (e) {
-      alert('속성 추가 실패');
-    }
-  };
-
   // 경로 타이틀 클릭 시 해당 문서로 이동
   const handlePathClick = async (docId) => {
     if (!docId) return;
@@ -255,7 +236,6 @@ const DocumentEditor = () => {
             addPropBtnRef={addPropBtnRef}
             isAddPropOpen={isAddPropOpen}
             setIsAddPropOpen={setIsAddPropOpen}
-            handleAddProperty={handleAddProperty}
             content={content}
             handleContentChange={handleContentChange}
             editorRef={editorRef}

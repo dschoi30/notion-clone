@@ -27,8 +27,11 @@ public class DocumentPropertyService {
     public DocumentProperty addProperty(Long documentId, String name, PropertyType type, Integer sortOrder) {
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId));
+        Long targetId = (document.getParent() != null) ? document.getParent().getId() : document.getId();
+        Document targetDoc = documentRepository.findById(targetId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + targetId));
         DocumentProperty property = DocumentProperty.builder()
-                .document(document)
+                .document(targetDoc)
                 .name(name)
                 .type(type)
                 .sortOrder(sortOrder)
@@ -38,7 +41,10 @@ public class DocumentPropertyService {
 
     @Transactional(readOnly = true)
     public List<DocumentProperty> getPropertiesByDocument(Long documentId) {
-        return propertyRepository.findByDocumentId(documentId);
+        Document doc = documentRepository.findById(documentId)
+            .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId));
+        Long targetId = (doc.getParent() != null) ? doc.getParent().getId() : doc.getId();
+        return propertyRepository.findByDocumentId(targetId);
     }
 
     @Transactional

@@ -81,7 +81,7 @@ export default function DocumentHeader({
               ref={shareButtonRef}
               size="sm"
               variant="ghost"
-              className="ml-2"
+              className="ml-2 text-sm text-gray-700"
               onClick={() => setShowShareModal((v) => !v)}
             >
               공유

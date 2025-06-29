@@ -56,3 +56,5 @@
 - Provider를 App에서 감싸도록 구조 변경
 - DocumentPageView.jsx에서 속성명/값 목록을 한 줄에 하나씩 세로로 정렬하고, 각 속성 행에 호버 시 bg-gray-100 배경색이 적용되도록 스타일을 개선했습니다. 기본 배경색은 없습니다.
 - Sidebar.jsx에서 사이드바가 항상 화면에 고정되어 보이도록 position: fixed, top: 0, left: 0, height: 100vh, zIndex: 30 스타일을 적용했습니다.
+- DocumentPropertyService.java에서 parentId가 있으면 부모 id로, 없으면 자신의 id로 속성 추가/조회하도록 리팩토링 완료.
+- DocumentPageView(PAGE 뷰)에서 system property type 속성 추가 시, 즉시 property value가 저장되고 화면에 반영되도록 DocumentEditor.jsx의 handleAddProperty를 개선함
