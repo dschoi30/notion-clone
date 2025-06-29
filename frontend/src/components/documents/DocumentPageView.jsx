@@ -19,6 +19,8 @@ const DocumentPageView = ({
   isInitial,
   handleChangeViewType
 }) => {
+  console.log('properties', properties);
+  console.log('propertyValues', propertyValues);
   return (
     <>
       {/* 속성명/값 목록 + 속성 추가 버튼 (PAGE에서만) */}

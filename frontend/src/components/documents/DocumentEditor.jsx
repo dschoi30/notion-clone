@@ -9,6 +9,8 @@ import DocumentTableView from './DocumentTableView';
 import { getProperties, getPropertyValuesByDocument, addProperty, getDocument } from '@/services/documentApi';
 import DocumentHeader from './DocumentHeader';
 import DocumentPageView from './DocumentPageView';
+import { useParams } from 'react-router-dom';
+import { slugify } from '@/lib/utils';
 
 const DocumentEditor = () => {
   const { currentWorkspace } = useWorkspace();
@@ -34,14 +36,33 @@ const DocumentEditor = () => {
 
   const viewers = useDocumentPresence(currentDocument?.id, user);
 
-  // 자식 문서 목록 상태 추가 (최초 진입 시 판별용)
-  const [childDocuments, setChildDocuments] = useState([]);
-
   // 테이블 속성(컬럼) 및 값 상태 (mock)
   const [properties, setProperties] = useState([]); // [{ id, name, type }]
   const [propertyValues, setPropertyValues] = useState({}); // { [propertyId]: value }
   const [isAddPropOpen, setIsAddPropOpen] = useState(false);
   const addPropBtnRef = useRef(null);
+
+  const { idSlug } = useParams();
+
+  // idSlug에서 id와 slug 분리
+  let docId = null;
+  if (idSlug) {
+    const match = idSlug.match(/^(\d+)-(.+)$/);
+    if (match) {
+      docId = match[1];
+    } else if (/^\d+$/.test(idSlug)) {
+      docId = idSlug;
+    }
+  }
+
+  // idSlug가 바뀔 때마다 해당 id의 문서를 선택
+  useEffect(() => {
+    if (!docId || !documents.length) return;
+    const found = documents.find(doc => String(doc.id) === String(docId));
+    if (found && (!currentDocument || String(currentDocument.id) !== String(docId))) {
+      selectDocument(found);
+    }
+  }, [docId, documents]);
 
   // 경로 계산 유틸
   function getDocumentPath(documentId, documentList) {
@@ -61,6 +82,7 @@ const DocumentEditor = () => {
     if (currentWorkspace?.id && currentDocument?.id && currentDocument.viewType === 'PAGE') {
       (async () => {
         const props = await getProperties(currentWorkspace.id, currentDocument.id);
+        console.log('props', props);
         setProperties(props);
         const valuesArr = await getPropertyValuesByDocument(currentWorkspace.id, currentDocument.id);
         const valuesObj = {};
@@ -72,19 +94,6 @@ const DocumentEditor = () => {
       setPropertyValues({});
     }
   }, [currentWorkspace?.id, currentDocument?.id, currentDocument?.viewType]);
-
-  // 최초 진입 시 자식 문서 조회
-  useEffect(() => {
-    async function fetchChildren() {
-      if (currentDocument) {
-        const children = await fetchChildDocuments(currentDocument.id);
-        setChildDocuments(children);
-      } else {
-        setChildDocuments([]);
-      }
-    }
-    fetchChildren();
-  }, [currentDocument, fetchChildDocuments]);
 
   useEffect(() => {
     if (currentDocument) {
@@ -181,11 +190,7 @@ const DocumentEditor = () => {
     currentDocument &&
     (!currentDocument.title || currentDocument.title.trim() === '') &&
     (!currentDocument.content || currentDocument.content.trim() === '') &&
-    childDocuments.length === 0 &&
     currentDocument.viewType === 'PAGE';
-
-  // 테이블 컬럼 개수에 따라 minWidth 계산
-  const tableMinWidth = `${(1 + properties.length) * 12}rem`;
 
   // 속성 추가 핸들러
   const handleAddProperty = async (name, type) => {
@@ -264,18 +269,8 @@ const DocumentEditor = () => {
           <DocumentTableView
             workspaceId={currentWorkspace.id}
             documentId={currentDocument.id}
-            title={title}
-            onTitleChange={handleTitleChange}
-            onTitleKeyDown={handleTitleKeyDown}
-            saveStatus={saveStatus}
-            isGuest={isGuest}
-            showShareModal={showShareModal}
-            setShowShareModal={setShowShareModal}
-            shareButtonRef={shareButtonRef}
-            currentDocument={currentDocument}
-            viewers={viewers}
-            user={user}
-            currentWorkspace={currentWorkspace}
+            properties={properties}
+            propertyValues={propertyValues}
           />
         )}
         {currentDocument.viewType === 'GALLERY' && (
