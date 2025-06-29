@@ -28,7 +28,7 @@ const AppLayout = () => {
   return (
     <div className="flex h-screen">
       <Sidebar />
-      <div className="flex-1">
+      <div className="flex-1 pl-64">
         <Routes>
           <Route path="/" element={getDefaultDocPath() ? <Navigate to={getDefaultDocPath()} replace /> : <div className="p-4">문서가 없습니다.</div>} />
           <Route path="/:idSlug" element={<DocumentEditor />} />

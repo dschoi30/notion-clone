@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef, createRef } from 'react';
 import { Navigate } from 'react-router-dom';
-import dayjs from 'dayjs';
-import 'dayjs/locale/ko';
 import { Text, Hash, Calendar, Tag as TagIcon, User, Clock, Edit3 } from 'lucide-react';
 import { useDocument } from '@/contexts/DocumentContext';
 import { getProperties, addProperty, updateProperty, deleteProperty, addOrUpdatePropertyValue, updatePropertyWidth, getPropertyValuesByChildDocuments,
@@ -10,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import AddPropertyPopover from './AddPropertyPopover';
 import DatePopover from './DatePopover';
 import TagPopover from './TagPopover';
+import { formatKoreanDateTime } from '@/lib/utils';
 import { TAG_COLORS as COLORS, getColorObj } from '@/lib/colors';
 
 function getPropertyIcon(type) {
@@ -26,14 +25,7 @@ function getPropertyIcon(type) {
   }
 }
 
-function formatKoreanDateTime(dt) {
-  if (!dt) return '';
-  const d = dayjs(dt).locale('ko');
-  const hour = d.hour();
-  const ampm = hour < 12 ? '오전' : '오후';
-  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
-  return `${d.year()}년 ${d.month() + 1}월 ${d.date()}일 ${ampm} ${hour12}:${d.format('mm')}`;
-}
+
 
 export default function DocumentTableView({ workspaceId, documentId, titleColumnWidth, propertyWidths }) {
   const [properties, setProperties] = useState([]); // [{ id, name, type }]
@@ -419,8 +411,6 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
       );
     }
     const isSystemProp = SYSTEM_PROP_TYPES.includes(property.type);
-    const borderTop = rowIdx === 0 ? '1px solid #e9e9e7' : 'none';
-    const colIdx = isNameCell ? 0 : 1 + idx;
     // ref 생성 및 저장
     const cellKey = `${rowId}_${propertyId}`;
     if (!cellRefs.current[cellKey]) cellRefs.current[cellKey] = createRef();
@@ -538,7 +528,7 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
                       return (
                         <span
                           key={tag.label}
-                          className={`inline-flex items-center px-2 py-1 rounded text-xs ${colorObj.bg} border ${colorObj.border}`}
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs ${colorObj.bg} border ${colorObj.border}`}
                           style={{
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
