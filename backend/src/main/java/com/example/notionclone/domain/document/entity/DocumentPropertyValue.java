@@ -1,5 +1,6 @@
 package com.example.notionclone.domain.document.entity;
 
+import com.example.notionclone.domain.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -10,7 +11,7 @@ import lombok.*;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-public class DocumentPropertyValue {
+public class DocumentPropertyValue extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

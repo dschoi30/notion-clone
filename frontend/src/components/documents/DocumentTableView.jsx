@@ -440,8 +440,8 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
             ? '#f5f5f5'
             : 'transparent',
           cursor: (editingCell && editingCell.rowId === rowId && editingCell.propertyId === propertyId)
-            ? (SYSTEM_PROP_TYPES.includes(property?.type) ? 'not-allowed' : 'text')
-            : 'pointer',
+            ? (SYSTEM_PROP_TYPES.includes(property?.type) ? 'default' : 'text')
+            : (SYSTEM_PROP_TYPES.includes(property?.type) ? 'default' : 'pointer'),
           position: 'relative',
         }}
         onClick={() => {
