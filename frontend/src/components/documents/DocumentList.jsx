@@ -22,6 +22,8 @@ import {
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useNavigate } from 'react-router-dom';
+import { slugify } from '@/lib/utils';
 
 function DocumentTreeItem({ document, currentDocument, onSelect, onDelete, openedIds, setOpenedIds, childrenMap, setChildrenMap, fetchChildDocuments, level = 0, idPath = [] }) {
   const [hovered, setHovered] = useState(false);
@@ -144,6 +146,7 @@ export default function DocumentList() {
   } = useDocument();
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (currentWorkspace) {
@@ -205,6 +208,12 @@ export default function DocumentList() {
     }
   };
 
+  // 문서 클릭 시 라우팅
+  const handleSelectDocument = (document) => {
+    selectDocument(document);
+    navigate(`/${document.id}-${slugify(document.title)}`);
+  };
+
   if (!currentWorkspace) {
     return (
       <div className="p-4 text-center text-gray-500">
@@ -241,7 +250,7 @@ export default function DocumentList() {
                   key={document.id}
                   document={document}
                   currentDocument={currentDocument}
-                  onSelect={selectDocument}
+                  onSelect={handleSelectDocument}
                   onDelete={handleDeleteDocument}
                   openedIds={openedIds}
                   setOpenedIds={setOpenedIds}
@@ -268,7 +277,7 @@ export default function DocumentList() {
                   key={document.id}
                   document={document}
                   currentDocument={currentDocument}
-                  onSelect={selectDocument}
+                  onSelect={handleSelectDocument}
                   onDelete={handleDeleteDocument}
                   openedIds={openedIds}
                   setOpenedIds={setOpenedIds}

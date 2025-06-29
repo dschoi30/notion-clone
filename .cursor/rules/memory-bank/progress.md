@@ -46,3 +46,11 @@
 - rows 구조 확장(document 전체 포함) DocumentEditor.jsx에 반영 (2024-06-09)
 - DocumentTableView.jsx에서 각 행의 셀 높이가 다를 때, 한 행의 최대 셀 높이로 모든 셀의 높이를 맞추는 기능을 구현함. (cellRefs 구조 2차원화, useEffect로 최대 높이 계산, renderCell에서 style.height 적용)
 - 2024-06-13: DocumentEditor가 viewType이 PAGE일 때만 속성 fetch/속성 추가/속성 요약 UI를 보여주고, TABLE/GALLERY일 때는 해당 컴포넌트로 분기하도록 리팩토링. 테이블 row/property fetch 등은 DocumentTableView로 완전히 위임.
+- App.jsx 라우팅 구조를 /document/:id 경로에서만 DocumentEditor가 렌더링되도록 변경
+- 문서 상세 URL을 /:id-:slug 형태로 변경
+- DocumentEditor에서 idSlug 파싱 및 문서 선택
+- DocumentList에서 문서 클릭 시 해당 경로로 이동하도록 수정
+- slugify 유틸 추가
+- 최초 로그인 또는 / 경로 접근 시 lastId 값으로 문서로 리다이렉트하는 로직 App.jsx에 추가
+- lastId 없으면 documents[0]로 이동
+- Provider를 App에서 감싸도록 구조 변경
