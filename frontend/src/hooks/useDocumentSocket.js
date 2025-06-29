@@ -25,7 +25,7 @@ export default function useDocumentSocket(documentId, onRemoteEdit) {
     // console.log('WebSocket 연결 URL:', wsUrl);
     const stompClient = new Client({
       webSocketFactory: () => new SockJS(wsUrl),
-      debug: (str) => console.log(str),
+      // debug: (str) => console.log(str),
       reconnectDelay: 5000,
       onConnect: () => {
         stompClient.subscribe(`/topic/document/${documentId}`, (msg) => {

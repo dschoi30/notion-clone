@@ -59,7 +59,7 @@ export default function TagPopover({ value, options = [], onAddOption, onEditOpt
         {tags.map(tag => {
           const colorObj = getColorObj(tag.color);
           return (
-            <span key={tag.label} className={`inline-flex items-center px-2 py-1 rounded text-xs mr-1 ${colorObj.bg} border ${colorObj.border} relative`}>
+            <span key={tag.label} className={`inline-flex items-center px-2 py-0.5 rounded text-xs mr-1 ${colorObj.bg} border ${colorObj.border} relative`}>
               {tag.label}
               <button className="ml-1 text-gray-400 hover:text-red-500" onClick={() => removeTag(tag.label)}>
                 <X size={14} />

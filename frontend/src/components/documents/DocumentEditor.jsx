@@ -79,10 +79,9 @@ const DocumentEditor = () => {
 
   // 부모 문서의 properties 조회
   useEffect(() => {
-    if (currentWorkspace?.id && currentDocument?.id && currentDocument.viewType === 'PAGE') {
+    if (currentWorkspace?.id && currentDocument?.parentId && currentDocument.viewType === 'PAGE') {
       (async () => {
-        const props = await getProperties(currentWorkspace.id, currentDocument.id);
-        console.log('props', props);
+        const props = await getProperties(currentWorkspace.id, currentDocument.parentId);
         setProperties(props);
         const valuesArr = await getPropertyValuesByDocument(currentWorkspace.id, currentDocument.id);
         const valuesObj = {};
