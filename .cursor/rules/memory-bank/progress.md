@@ -1,8 +1,8 @@
-- 2024-07-14: `DocumentList.jsx`에서 문서의 `viewType`이 `TABLE`일 경우, `FileText` 아이콘 대신 `Table` 아이콘을 표시하도록 수정하여 시각적 구분을 명확히 함.
-- 2024-06-09: DocumentEditor.jsx에 실시간 자동 저장(debounce 500ms) 기능 구현. 저장 버튼 제거, 저장 상태 UI만 표시. title/content 변경 시 자동 저장 트리거. 
-- 2024-06-29: useDocumentSocket.js에서 Stomp 클라이언트 생성 방식을 공식 권장 방식(Client + webSocketFactory)으로 변경하여 자동 재연결 지원 및 경고 해결. 
+- `DocumentList.jsx`에서 문서의 `viewType`이 `TABLE`일 경우, `FileText` 아이콘 대신 `Table` 아이콘을 표시하도록 수정하여 시각적 구분을 명확히 함.
+- DocumentEditor.jsx에 실시간 자동 저장(debounce 500ms) 기능 구현. 저장 버튼 제거, 저장 상태 UI만 표시. title/content 변경 시 자동 저장 트리거. 
+- useDocumentSocket.js에서 Stomp 클라이언트 생성 방식을 공식 권장 방식(Client + webSocketFactory)으로 변경하여 자동 재연결 지원 및 경고 해결. 
 - vite.config.js의 WebSocket 프록시 설정을 확인하고 주석을 추가하여 명확히 함. 
-- 2024-06-29: WebSocket 연결 시 JWT 인증을 위해 프론트엔드에서 토큰을 쿼리 파라미터로 전달하고, 백엔드에서 JwtHandshakeInterceptor로 검증하는 기능 추가. 
+- WebSocket 연결 시 JWT 인증을 위해 프론트엔드에서 토큰을 쿼리 파라미터로 전달하고, 백엔드에서 JwtHandshakeInterceptor로 검증하는 기능 추가. 
 - [x] WorkspaceList 컴포넌트 단위테스트 파일(WorkspaceList.test.jsx) 작성 완료
   - 주요 동작(목록 렌더링, 로딩/에러, 워크스페이스 선택, 추가/설정/로그아웃 버튼, 모달 표시 등) 테스트 포함
   - useWorkspace, useAuth 등 context hook mocking 적용
@@ -15,37 +15,37 @@
 - TrashModal 모달 위치 계산을 anchor 아래로 열었을 때 화면을 벗어나면 위로 열고, 위로 열어도 화면을 벗어나면 top을 0으로 고정하는 방식으로 개선함. 
 - TrashModal 위치 계산 시 dialogHeight를 고정값(320)으로 사용하고, 모달 전체가 아니라 ul(문서 리스트)에만 maxHeight, overflowY를 적용하도록 수정함. 
 - TrashModal 위치 계산 시 useLayoutEffect를 사용해 실제 모달 높이(dialogRef.current.offsetHeight)로 위치를 2차 보정하는 로직을 추가함. 위치 계산 함수는 updateDialogPosition으로 분리하고, open/anchorRef/workspaceId/trashedDocuments 변경 시마다 위치를 재계산하도록 개선함. 
-- 2024-06-09: 깃허브 이슈 등록 및 브랜치 생성
+- 깃허브 이슈 등록 및 브랜치 생성
   - [#1 사이드바에 검색 메뉴 및 모달 기반 실시간 문서 검색 기능 추가](https://github.com/dschoi30/notion-clone/issues/1)
   - 브랜치명: feature/sidebar-search-modal
-- TrashModal 위치 계산 useLayoutEffect에 anchorRef, dialogRef, getBoundingClientRect 예외 및 경고 추가 (2024-06-12)
-- TrashModal 위치 계산에서 dialogRef.current가 null일 때 setTimeout으로 1프레임 뒤에 위치 계산을 재시도하도록 개선 (2024-06-12)
-- TrashModal 위치 계산 로직을 calculateDialogPosition 함수로 분리하고, useLayoutEffect 내 중복 코드를 제거해 리팩토링 (2024-06-12)
+- TrashModal 위치 계산 useLayoutEffect에 anchorRef, dialogRef, getBoundingClientRect 예외 및 경고 추가
+- TrashModal 위치 계산에서 dialogRef.current가 null일 때 setTimeout으로 1프레임 뒤에 위치 계산을 재시도하도록 개선
+- TrashModal 위치 계산 로직을 calculateDialogPosition 함수로 분리하고, useLayoutEffect 내 중복 코드를 제거해 리팩토링
 - 작성자 필터 모달이 드롭다운처럼 버튼(anchorRef) 아래에 자연스럽게 위치하도록 수정. SearchFilters의 작성자 버튼에 ref를 부여해 AuthorFilterModal에 anchorRef로 전달, absolute 위치 계산 및 오버레이 제거까지 완료.
 - 날짜 필터(DateFilterModal) 드롭다운 모달 컴포넌트 생성 및 SearchFilters, SearchModal과 연동. 날짜 버튼 클릭 시 모달 오픈, 오늘/이번 주/이번 달/직접 선택 등 프리셋 선택 가능. 선택 시 버튼에 라벨 표시. (직접 선택은 미구현)
-- DateFilterModal에서 '직접 선택' 버튼 제거 및 showCalendar를 항상 true로 고정하여, 모달이 열리면 바로 캘린더가 보이도록 개선 (2024-06-09)
-- 2024-06-09: DocumentEditor.jsx 상단에 문서 권한자 이니셜 아이콘 목록을 표시하고, 현재 로그인한 사용자는 강조 스타일로 보여주는 기능을 추가함.
-- 2024-06-09: useDocumentPresence.js 커스텀 훅 생성(문서별 실시간 접속자 목록 관리, 소켓 연결)
-- 2024-06-09: DocumentEditor.jsx에서 권한자 이니셜 아이콘에 presence(접속자) 강조(초록색 테두리) 적용
+- DateFilterModal에서 '직접 선택' 버튼 제거 및 showCalendar를 항상 true로 고정하여, 모달이 열리면 바로 캘린더가 보이도록 개선
+- DocumentEditor.jsx 상단에 문서 권한자 이니셜 아이콘 목록을 표시하고, 현재 로그인한 사용자는 강조 스타일로 보여주는 기능을 추가함.
+- useDocumentPresence.js 커스텀 훅 생성(문서별 실시간 접속자 목록 관리, 소켓 연결)
+- DocumentEditor.jsx에서 권한자 이니셜 아이콘에 presence(접속자) 강조(초록색 테두리) 적용
 - [x] 1. ERD/DB 및 모델 구조 확정 및 반영 (Document parent/viewType, Property/Value, Enum 생성)
 - [x] 2. API(백엔드) 확장 및 구현 (Document parent/viewType 반영, 하위 문서 조회, 생성/수정 API 확장 등)
 - [ ] 3. 프론트엔드 DocumentList/Editor 구조 개편
 - [ ] 4. TableView, GalleryView 등 뷰 타입별 컴포넌트 구현
 - [ ] 5. 속성/행 관리 기능 개발
 - [ ] 6. UX/UI 개선 및 테스트, 배포
-- 2024-07-01: DocumentEditor.jsx 최초 생성 상태(제목/내용/자식문서 모두 비어있고 viewType이 PAGE)에서만 하단에 '테이블', '갤러리' 버튼이 나타나도록 UI 구현. '테이블' 클릭 시 viewType을 TABLE로 변경하고, 테이블 기본 UI(헤더: 이름, 빈 1행, 속성 추가/새 페이지 버튼) 렌더링까지 완료.
-- 2024-06-08: DocumentProperty/DocumentPropertyValue 엔티티용 Repository, Service, DTO, Controller(API) 생성 및 CRUD 구현
+- DocumentEditor.jsx 최초 생성 상태(제목/내용/자식문서 모두 비어있고 viewType이 PAGE)에서만 하단에 '테이블', '갤러리' 버튼이 나타나도록 UI 구현. '테이블' 클릭 시 viewType을 TABLE로 변경하고, 테이블 기본 UI(헤더: 이름, 빈 1행, 속성 추가/새 페이지 버튼) 렌더링까지 완료.
+- DocumentProperty/DocumentPropertyValue 엔티티용 Repository, Service, DTO, Controller(API) 생성 및 CRUD 구현
   - 속성 추가/조회/삭제, 값 추가/수정/조회 API 구현
   - 프론트 테이블 뷰와 연동 준비 완료
 - DocumentTableView.jsx: handleConfirmAddProperty 함수에서 새 property 추가 후, 모든 row에 대해 addOrUpdatePropertyValue API를 호출하여 각 row의 새 property 값(초기값 '')이 백엔드에도 반영되도록 수정함.
-- 2024-07-07: 문서 조회/수정/삭제 API에 대한 권한 검증 로직을 추가하여 보안을 강화함.
+- 문서 조회/수정/삭제 API에 대한 권한 검증 로직을 추가하여 보안을 강화함.
   - `DocumentService`의 `getDocument`, `updateDocument`, `deleteDocument` 메서드에 소유자 또는 `Permission` 기반의 권한 검사 로직을 구현함.
   - 권한이 없는 요청에 대해 404 Not Found 대신 403 Forbidden (`AccessDeniedException`)을 반환하도록 수정하여 API 응답의 명확성을 높임.
   - `DocumentController`에서 `DocumentService`의 메서드를 호출할 때, 현재 인증된 사용자(`User`) 객체를 전달하도록 수정함.
 - systemPropTypes 속성 추가 시 document 메타데이터 기반 자동 값 입력 기능 DocumentTableView.jsx에 구현
-- rows 구조 확장(document 전체 포함) DocumentEditor.jsx에 반영 (2024-06-09)
+- rows 구조 확장(document 전체 포함) DocumentEditor.jsx에 반영
 - DocumentTableView.jsx에서 각 행의 셀 높이가 다를 때, 한 행의 최대 셀 높이로 모든 셀의 높이를 맞추는 기능을 구현함. (cellRefs 구조 2차원화, useEffect로 최대 높이 계산, renderCell에서 style.height 적용)
-- 2024-06-13: DocumentEditor가 viewType이 PAGE일 때만 속성 fetch/속성 추가/속성 요약 UI를 보여주고, TABLE/GALLERY일 때는 해당 컴포넌트로 분기하도록 리팩토링. 테이블 row/property fetch 등은 DocumentTableView로 완전히 위임.
+- DocumentEditor가 viewType이 PAGE일 때만 속성 fetch/속성 추가/속성 요약 UI를 보여주고, TABLE/GALLERY일 때는 해당 컴포넌트로 분기하도록 리팩토링. 테이블 row/property fetch 등은 DocumentTableView로 완전히 위임.
 - App.jsx 라우팅 구조를 /document/:id 경로에서만 DocumentEditor가 렌더링되도록 변경
 - 문서 상세 URL을 /:id-:slug 형태로 변경
 - DocumentEditor에서 idSlug 파싱 및 문서 선택

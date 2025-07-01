@@ -117,7 +117,7 @@ const DocumentPageView = ({
     <div className="px-20">
       {/* 속성명/값 목록 + 속성 추가 버튼 (PAGE에서만) */}
       {properties.length > 0 && (
-        <div className="flex flex-col gap-1 mb-2">
+        <div className="flex flex-col">
           {properties.map((prop) => {
             let value = propertyValues[prop.id] || '';
             let content = null;
@@ -238,7 +238,7 @@ const DocumentPageView = ({
                   </span>
                 )}
                 <span
-                  className="flex-1 text-sm text-gray-900 break-all transition-colors"
+                  className="relative flex-1 text-sm text-gray-900 break-all transition-colors"
                   onClick={() => {
                     if (!SYSTEM_PROP_TYPES.includes(prop.type)) {
                       setEditingValueId(prop.id);

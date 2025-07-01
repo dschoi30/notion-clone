@@ -25,8 +25,6 @@ function getPropertyIcon(type) {
   }
 }
 
-
-
 export default function DocumentTableView({ workspaceId, documentId, titleColumnWidth, propertyWidths }) {
   const [properties, setProperties] = useState([]); // [{ id, name, type }]
   const [rows, setRows] = useState([]); // [{ id, title, values: { [propertyId]: value }, document }]
@@ -339,7 +337,7 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
             />
           ) : (
             <>
-              <span style={{ width: '100%', minHeight: 20, overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', paddingBottom: 2, whiteSpace: 'nowrap' }}>{value}</span>
+              <span className="text-gray-700" style={{ width: '100%', minHeight: 20, overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', paddingBottom: 2, whiteSpace: 'nowrap', fontWeight: 600 }}>{value}</span>
               {isHovered && (
                 <button
                   type="button"
@@ -561,7 +559,7 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
       <div style={{ minWidth: 'max-content' }}>
         <div className="flex items-center">
           {/* 이름 컬럼 */}
-          <div className="flex relative items-center font-semibold" style={{ minWidth: colWidths[0], width: colWidths[0], padding: '8px', borderLeft: 'none', borderRight: properties.length === 0 ? 'none' : '1px solid #e9e9e7' }}>
+          <div className="flex relative items-center text-gray-500" style={{ minWidth: colWidths[0], width: colWidths[0], padding: '8px', borderLeft: 'none', borderRight: properties.length === 0 ? 'none' : '1px solid #e9e9e7' }}>
             <Text className="inline mr-1" size={16} />이름
             <div
               style={{ position: 'absolute', right: 0, top: 0, width: 6, height: '100%', cursor: 'col-resize', zIndex: 10 }}
@@ -572,7 +570,7 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
           {properties.map((p, idx) => (
             <div
               key={p.id}
-              className="flex relative items-center font-semibold group"
+              className="flex relative items-center text-gray-500 group"
               style={{
                 minWidth: colWidths[1 + idx],
                 width: colWidths[1 + idx],
@@ -593,7 +591,7 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
                 />
               ) : (
                 <div
-                  className="flex items-center w-full"
+                  className="flex items-center w-full text-gray-500"
                   onClick={() => setEditingHeader({ id: p.id, name: p.name })}
                 >
                   {getPropertyIcon(p.type)}{p.name}

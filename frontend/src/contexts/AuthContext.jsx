@@ -25,13 +25,11 @@ export function AuthProvider({ children }) {
       setLoading(true);
       setError(null);
       const data = await auth.login(email, password);
-      console.log('로그인 데이터:', data);
       const userData = {
         id: data.user.id,
         email: data.user.email,
         name: data.user.name
       };
-      console.log('변환된 사용자 데이터:', userData);
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
       localStorage.setItem('userId', userData.id);
@@ -49,13 +47,11 @@ export function AuthProvider({ children }) {
       setLoading(true);
       setError(null);
       const data = await auth.register(email, password, name);
-      console.log('회원가입 데이터:', data);
       const userData = {
         id: data.user.id,
         email: data.user.email,
         name: data.user.name
       };
-      console.log('변환된 사용자 데이터:', userData);
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
       localStorage.setItem('userId', userData.id);
@@ -73,13 +69,11 @@ export function AuthProvider({ children }) {
       setLoading(true);
       setError(null);
       const data = await auth.loginWithGoogle(credential);
-      console.log('구글 로그인 데이터:', data);
       const userData = {
         id: data.user.id,
         email: data.user.email,
         name: data.user.name
       };
-      console.log('변환된 사용자 데이터:', userData);
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
       localStorage.setItem('userId', userData.id);
