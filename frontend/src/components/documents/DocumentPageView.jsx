@@ -112,7 +112,6 @@ const DocumentPageView = ({
 
   // 속성값 저장
   const handleValueChange = async (propertyId, value) => {
-    console.log('handleValueChange', propertyId, value);
     setEditingValue(value);
   };
   const handleValueSave = async (propertyId, value) => {
@@ -189,9 +188,8 @@ const DocumentPageView = ({
               let tags = [];
               try { tags = value ? JSON.parse(value) : []; } catch {}
               const tagOptions = properties.find(p => p.id === prop.id)?.tagOptions || [];
-              console.log('tags',tags)
               content = (
-                <div className="flex gap-1">
+                <div className="flex gap-1" style={{ minWidth: 0 }}>
                   {tags.map(tagId => {
                     // tagId가 id(숫자/문자열)이면 tagOptions에서 찾아오기
                     const tagObj = tagOptions.find(opt => opt.id === tagId);
@@ -201,7 +199,15 @@ const DocumentPageView = ({
                       <span
                         key={tagObj.id}
                         className={`inline-flex items-center px-2 py-0.5 rounded text-sm ${colorObj.bg} border ${colorObj.border}`}
-                        style={{ whiteSpace: 'nowrap', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                        style={{
+                          whiteSpace: 'nowrap',
+                          maxWidth: 360,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: 'inline-table',
+                          width: 'auto',
+                          minWidth: 0
+                        }}
                       >
                         {tagObj.label}
                       </span>
