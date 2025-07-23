@@ -1,19 +1,23 @@
 package com.example.notionclone.domain.document.service;
 
+import com.example.notionclone.domain.document.dto.DocumentPropertyDto;
 import com.example.notionclone.domain.document.entity.Document;
 import com.example.notionclone.domain.document.entity.DocumentProperty;
 import com.example.notionclone.domain.document.entity.PropertyType;
 import com.example.notionclone.domain.document.repository.DocumentPropertyRepository;
 import com.example.notionclone.domain.document.repository.DocumentRepository;
+import com.example.notionclone.domain.document.entity.DocumentPropertyTagOption;
+import com.example.notionclone.domain.document.repository.DocumentPropertyTagOptionRepository;
 import com.example.notionclone.exception.ResourceNotFoundException;
 import com.example.notionclone.domain.user.entity.User;
 import com.example.notionclone.domain.user.repository.UserRepository;
 import com.example.notionclone.domain.permission.service.PermissionService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +26,7 @@ public class DocumentPropertyService {
     private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
     private final PermissionService permissionService;
+    private final DocumentPropertyTagOptionRepository tagOptionRepository;
 
     @Transactional
     public DocumentProperty addProperty(Long documentId, String name, PropertyType type, Integer sortOrder) {
@@ -40,11 +45,24 @@ public class DocumentPropertyService {
     }
 
     @Transactional(readOnly = true)
-    public List<DocumentProperty> getPropertiesByDocument(Long documentId) {
+    public List<DocumentPropertyDto> getPropertiesByDocument(Long documentId) {
         Document doc = documentRepository.findById(documentId)
             .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId));
         Long targetId = (doc.getParent() != null) ? doc.getParent().getId() : doc.getId();
-        return propertyRepository.findByDocumentId(targetId);
+        List<DocumentProperty> properties = propertyRepository.findByDocumentId(targetId);
+        return properties.stream()
+                .map(property -> {
+                    DocumentPropertyDto dto = DocumentPropertyDto.from(property);
+                    if ("TAG".equals(property.getType().name())) {
+                        List<DocumentPropertyTagOption> tagOptions = tagOptionRepository
+                                .findByPropertyId(property.getId());
+                        List<DocumentPropertyDto.TagOptionDto> tagOptionDtos = tagOptions.stream()
+                                .map(DocumentPropertyDto.TagOptionDto::new).collect(Collectors.toList());
+                        dto.setTagOptions(tagOptionDtos);
+                    }
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 
     @Transactional
@@ -79,5 +97,38 @@ public class DocumentPropertyService {
                 .orElseThrow(() -> new ResourceNotFoundException("Property not found: " + propertyId));
         property.setWidth(width);
         propertyRepository.save(property);
+    }
+
+    @Transactional
+    public DocumentPropertyTagOption addTagOption(Long propertyId, String label, String color, Integer sortOrder) {
+        DocumentProperty property = propertyRepository.findById(propertyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Property not found: " + propertyId));
+        DocumentPropertyTagOption option = DocumentPropertyTagOption.builder()
+                .property(property)
+                .label(label)
+                .color(color)
+                .sortOrder(sortOrder)
+                .build();
+        return tagOptionRepository.save(option);
+    }
+
+    @Transactional
+    public DocumentPropertyTagOption updateTagOption(Long optionId, String label, String color, Integer sortOrder) {
+        DocumentPropertyTagOption option = tagOptionRepository.findById(optionId)
+                .orElseThrow(() -> new ResourceNotFoundException("TagOption not found: " + optionId));
+        option.setLabel(label);
+        option.setColor(color);
+        option.setSortOrder(sortOrder);
+        return tagOptionRepository.save(option);
+    }
+
+    @Transactional
+    public void deleteTagOption(Long optionId) {
+        tagOptionRepository.deleteById(optionId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DocumentPropertyTagOption> getTagOptionsByProperty(Long propertyId) {
+        return tagOptionRepository.findByPropertyId(propertyId);
     }
 } 

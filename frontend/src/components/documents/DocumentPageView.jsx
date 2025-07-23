@@ -1,18 +1,17 @@
-import { React, useState, useEffect } from 'react';
+import { React, useState, useEffect, useRef } from 'react';
 import AddPropertyPopover from './AddPropertyPopover';
 import { Button } from '@/components/ui/button';
 import Editor from '@/components/editor/Editor';
 import { formatKoreanDateTime } from '@/lib/utils';
 import { getColorObj } from '@/lib/colors';
-import { getProperties, getPropertyValuesByDocument, addProperty, addOrUpdatePropertyValue, updateProperty } from '@/services/documentApi';
+import { getProperties, getPropertyValuesByDocument, addProperty, addOrUpdatePropertyValue, updateProperty, getDocument } from '@/services/documentApi';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useDocument } from '@/contexts/DocumentContext';
 import DatePopover from './DatePopover';
 import TagPopover from './TagPopover';
+import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
 
 const DocumentPageView = ({
-  properties: initialProperties,
-  propertyValues: initialPropertyValues,
   addPropBtnRef,
   isAddPropOpen,
   setIsAddPropOpen,
@@ -25,15 +24,17 @@ const DocumentPageView = ({
 }) => {
   const { currentWorkspace } = useWorkspace();
   const { currentDocument } = useDocument();
-  const [properties, setProperties] = useState(initialProperties || []);
-  const [propertyValues, setPropertyValues] = useState(initialPropertyValues || {});
+  const properties = useDocumentPropertiesStore(state => state.properties);
+  const setProperties = useDocumentPropertiesStore(state => state.setProperties);
+  const [propertyValues, setPropertyValues] = useState({});
   const [editingHeaderId, setEditingHeaderId] = useState(null);
   const [editingHeaderName, setEditingHeaderName] = useState('');
   const [editingValueId, setEditingValueId] = useState(null);
   const [editingValue, setEditingValue] = useState('');
   const [hoveredHeaderId, setHoveredHeaderId] = useState(null);
   const [hoveredValueId, setHoveredValueId] = useState(null);
-
+  const [tagPopoverRect, setTagPopoverRect] = useState(null);
+  const tagCellRefs = useRef({});
   // 속성 목록/값 조회 함수 분리
   const fetchAndSetProperties = async () => {
     if (!currentWorkspace?.id || !currentDocument?.id) return;
@@ -45,12 +46,25 @@ const DocumentPageView = ({
     setPropertyValues(valuesObj);
   };
 
-  useEffect(() => { setProperties(initialProperties || []); }, [initialProperties]);
-  useEffect(() => { setPropertyValues(initialPropertyValues || {}); }, [initialPropertyValues]);
-
-  // 최초 마운트 시에도 속성 목록/값 조회
   useEffect(() => {
     fetchAndSetProperties();
+  }, [currentWorkspace?.id, currentDocument?.id]);
+
+  useEffect(() => {
+    if (!isInitial) return;
+    async function fetchInitialData() {
+      if (!currentWorkspace?.id || !currentDocument?.id) return;
+      const doc = await getDocument(currentWorkspace.id, currentDocument.id);
+      if (doc.properties) setProperties(doc.properties);
+    }
+    fetchInitialData();
+    isInitial = false;
+  }, [currentWorkspace?.id, currentDocument?.id, setProperties]);
+
+  useEffect(() => {
+    // 문서나 워크스페이스가 바뀌면 태그 팝오버 상태 초기화
+    // setEditingValueId(null);
+    setTagPopoverRect(null);
   }, [currentWorkspace?.id, currentDocument?.id]);
 
   const handleAddProperty = async (name, type) => {
@@ -71,6 +85,7 @@ const DocumentPageView = ({
       } else {
         await addOrUpdatePropertyValue(currentWorkspace.id, currentDocument.id, newProperty.id, '');
       }
+      // 값(propertyValues)도 갱신
       await fetchAndSetProperties();
     } catch (e) {
       alert('속성 추가 실패');
@@ -97,17 +112,22 @@ const DocumentPageView = ({
 
   // 속성값 저장
   const handleValueChange = async (propertyId, value) => {
+    console.log('handleValueChange', propertyId, value);
     setEditingValue(value);
   };
-  const handleValueSave = async (propertyId) => {
+  const handleValueSave = async (propertyId, value) => {
+    if (!propertyId) {
+      alert('propertyId가 없습니다!');
+      return;
+    }
     try {
-      await addOrUpdatePropertyValue(currentWorkspace.id, currentDocument.id, propertyId, editingValue);
+      await addOrUpdatePropertyValue(currentWorkspace.id, currentDocument.id, propertyId, value);
       await fetchAndSetProperties();
     } catch (e) {
       alert('값 저장 실패');
     } finally {
-      setEditingValueId(null);
-      setEditingValue('');
+      // setEditingValueId(null);
+      // setEditingValue('');
     }
   };
 
@@ -132,8 +152,8 @@ const DocumentPageView = ({
                     style={{ background: '#fff', border: '1.5px solid #bdbdbd' }}
                     value={editingValue}
                     onChange={e => handleValueChange(prop.id, e.target.value)}
-                    onBlur={() => handleValueSave(prop.id)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleValueSave(prop.id); }}
+                    onBlur={() => handleValueSave(prop.id, editingValue)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleValueSave(prop.id, editingValue); }}
                   />
                 );
               } else if (prop.type === 'NUMBER') {
@@ -145,49 +165,45 @@ const DocumentPageView = ({
                     style={{ background: '#fff', border: '1.5px solid #bdbdbd' }}
                     value={editingValue}
                     onChange={e => handleValueChange(prop.id, e.target.value)}
-                    onBlur={() => handleValueSave(prop.id)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleValueSave(prop.id); }}
+                    onBlur={() => handleValueSave(prop.id, editingValue)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleValueSave(prop.id, editingValue); }}
                   />
                 );
               } else if (prop.type === 'DATE') {
                 content = (
                   <DatePopover
                     value={editingValue}
-                    onChange={val => { setEditingValue(val); handleValueSave(prop.id); }}
-                    onClose={() => handleValueSave(prop.id)}
+                    onChange={val => {
+                      setEditingValue(val);
+                      handleValueSave(prop.id, val);
+                    }}
+                    onClose={() => handleValueSave(prop.id, editingValue)}
                   />
                 );
               } else if (prop.type === 'TAG') {
-                let tags = [];
-                try { tags = value ? JSON.parse(value) : []; } catch {}
-                content = (
-                  <TagPopover
-                    value={editingValue}
-                    options={tags}
-                    onAddOption={() => {}}
-                    onEditOption={() => {}}
-                    onRemoveOption={() => {}}
-                    onChange={val => { setEditingValue(val); handleValueSave(prop.id); }}
-                    onClose={() => handleValueSave(prop.id)}
-                  />
-                );
+                content = null;
               }
             } else if (prop.type === 'DATE' || prop.type === 'CREATED_AT' || prop.type === 'LAST_UPDATED_AT') {
               content = value ? formatKoreanDateTime(value) : '';
             } else if (prop.type === 'TAG') {
               let tags = [];
               try { tags = value ? JSON.parse(value) : []; } catch {}
+              const tagOptions = properties.find(p => p.id === prop.id)?.tagOptions || [];
+              console.log('tags',tags)
               content = (
                 <div className="flex gap-1">
-                  {tags.map(tag => {
-                    const colorObj = getColorObj(tag.color || 'default');
+                  {tags.map(tagId => {
+                    // tagId가 id(숫자/문자열)이면 tagOptions에서 찾아오기
+                    const tagObj = tagOptions.find(opt => opt.id === tagId);
+                    if (!tagObj) return null;
+                    const colorObj = getColorObj(tagObj.color || 'default');
                     return (
                       <span
-                        key={tag.label}
+                        key={tagObj.id}
                         className={`inline-flex items-center px-2 py-0.5 rounded text-sm ${colorObj.bg} border ${colorObj.border}`}
                         style={{ whiteSpace: 'nowrap', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}
                       >
-                        {tag.label}
+                        {tagObj.label}
                       </span>
                     );
                   })}
@@ -238,11 +254,30 @@ const DocumentPageView = ({
                   </span>
                 )}
                 <span
+                  ref={el => { if (prop.type === 'TAG') tagCellRefs.current[prop.id] = el; }}
                   className="relative flex-1 text-sm text-gray-900 break-all transition-colors"
-                  onClick={() => {
+                  onClick={e => {
                     if (!SYSTEM_PROP_TYPES.includes(prop.type)) {
-                      setEditingValueId(prop.id);
-                      setEditingValue(value);
+                      if (prop.type === 'TAG') {
+                        const rect = tagCellRefs.current[prop.id]?.getBoundingClientRect();
+                        if (rect && rect.width > 0 && rect.height > 0) {
+                          // setTimeout(() => {
+                          if (editingValueId !== prop.id || editingValue !== value) {
+                            setEditingValueId(prop.id);
+                            setEditingValue(value);
+                            setTagPopoverRect({
+                              top: rect.top + window.scrollY,
+                              left: rect.left + window.scrollX,
+                              width: rect.width,
+                              height: rect.height,
+                            });
+                          }
+                          // }, 0);
+                        }
+                      } else {
+                        setEditingValueId(prop.id);
+                        setEditingValue(value);
+                      }
                     }
                   }}
                   onMouseEnter={() => setHoveredValueId(prop.id)}
@@ -288,6 +323,22 @@ const DocumentPageView = ({
           <Button onClick={() => handleChangeViewType('TABLE')} variant="outline">테이블</Button>
           <Button onClick={() => handleChangeViewType('GALLERY')} variant="outline">갤러리</Button>
         </div>
+      )}
+      {/* map 루프 밖에서 단일 TagPopover만 렌더링 */}
+      {editingValueId && tagPopoverRect && tagPopoverRect.width > 0 && tagPopoverRect.height > 0 && (
+        <TagPopover
+          propertyId={editingValueId}
+          value={editingValue}
+          tagOptions={properties.find(p => p.id === editingValueId)?.tagOptions}
+          onChange={val => { setEditingValue(val); handleValueSave(editingValueId, val); }}
+          onClose={() => {
+            // handleValueSave(editingValueId, editingValue);
+            setTagPopoverRect(null);
+            setEditingValueId(null);
+            fetchAndSetProperties();
+          }}
+          position={tagPopoverRect}
+        />
       )}
     </div>
   );

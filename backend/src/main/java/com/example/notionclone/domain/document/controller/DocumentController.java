@@ -22,17 +22,16 @@ import com.example.notionclone.domain.document.dto.DocumentPropertyDto;
 import com.example.notionclone.domain.document.dto.DocumentPropertyValueDto;
 import com.example.notionclone.domain.document.service.DocumentPropertyService;
 import com.example.notionclone.domain.document.service.DocumentPropertyValueService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import com.example.notionclone.domain.document.entity.DocumentPropertyTagOption;
 import com.example.notionclone.domain.document.dto.AddPropertyRequest;
 import com.example.notionclone.domain.document.dto.AddOrUpdateValueRequest;
 import com.example.notionclone.domain.document.dto.UpdatePropertyRequest;
 import com.example.notionclone.domain.document.dto.WidthUpdateRequest;
 
-import org.springframework.web.bind.annotation.CrossOrigin;
-
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -233,14 +232,7 @@ public class DocumentController {
     // 문서 속성 목록 조회
     @GetMapping("/{documentId}/properties")
     public List<DocumentPropertyDto> getProperties(@PathVariable Long documentId) {
-        return documentPropertyService.getPropertiesByDocument(documentId).stream()
-                .map(p -> DocumentPropertyDto.builder()
-                        .id(p.getId())
-                        .name(p.getName())
-                        .type(p.getType())
-                        .sortOrder(p.getSortOrder())
-                        .build())
-                .collect(Collectors.toList());
+        return documentPropertyService.getPropertiesByDocument(documentId);
     }
 
     // 문서 속성 삭제
@@ -327,5 +319,30 @@ public class DocumentController {
             @RequestBody WidthUpdateRequest request) {
         documentPropertyService.updatePropertyWidth(propertyId, request.getWidth());
         return ResponseEntity.ok().build();
+    }
+
+    // --- Tag Option API ---
+    @PostMapping("/properties/{propertyId}/tag-options")
+    public DocumentPropertyDto.TagOptionDto addTagOption(@PathVariable Long propertyId, @RequestBody DocumentPropertyDto.TagOptionDto request) {
+        DocumentPropertyTagOption option = documentPropertyService.addTagOption(propertyId, request.getLabel(), request.getColor(), request.getSortOrder());
+        return DocumentPropertyDto.TagOptionDto.from(option);
+    }
+
+    @PatchMapping("/tag-options/{optionId}")
+    public DocumentPropertyDto.TagOptionDto updateTagOption(@PathVariable Long optionId, @RequestBody DocumentPropertyDto.TagOptionDto request) {
+        DocumentPropertyTagOption option = documentPropertyService.updateTagOption(optionId, request.getLabel(), request.getColor(), request.getSortOrder());
+        return DocumentPropertyDto.TagOptionDto.from(option);
+    }
+
+    @DeleteMapping("/tag-options/{optionId}")
+    public void deleteTagOption(@PathVariable Long optionId) {
+        documentPropertyService.deleteTagOption(optionId);
+    }
+
+    @GetMapping("/properties/{propertyId}/tag-options")
+    public List<DocumentPropertyDto.TagOptionDto> getTagOptionsByProperty(@PathVariable Long propertyId) {
+        return documentPropertyService.getTagOptionsByProperty(propertyId).stream()
+            .map(DocumentPropertyDto.TagOptionDto::from)
+            .collect(Collectors.toList());
     }
 } 

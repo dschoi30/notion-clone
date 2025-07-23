@@ -6,11 +6,10 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import useDocumentPresence from '@/hooks/useDocumentPresence';
 import DocumentTableView from './DocumentTableView';
-import { getProperties, getPropertyValuesByDocument, addProperty, getDocument } from '@/services/documentApi';
+import { getProperties } from '@/services/documentApi';
 import DocumentHeader from './DocumentHeader';
 import DocumentPageView from './DocumentPageView';
 import { useParams } from 'react-router-dom';
-import { slugify } from '@/lib/utils';
 
 const DocumentEditor = () => {
   const { currentWorkspace } = useWorkspace();
@@ -38,7 +37,7 @@ const DocumentEditor = () => {
 
   // 테이블 속성(컬럼) 및 값 상태 (mock)
   const [properties, setProperties] = useState([]); // [{ id, name, type }]
-  const [propertyValues, setPropertyValues] = useState({}); // { [propertyId]: value }
+  // const [propertyValues, setPropertyValues] = useState({}); // { [propertyId]: value }
   const [isAddPropOpen, setIsAddPropOpen] = useState(false);
   const addPropBtnRef = useRef(null);
 
@@ -83,14 +82,9 @@ const DocumentEditor = () => {
       (async () => {
         const props = await getProperties(currentWorkspace.id, currentDocument.parentId);
         setProperties(props);
-        const valuesArr = await getPropertyValuesByDocument(currentWorkspace.id, currentDocument.id);
-        const valuesObj = {};
-        valuesArr.forEach(v => { valuesObj[v.propertyId] = v.value; });
-        setPropertyValues(valuesObj);
       })();
     } else {
       setProperties([]);
-      setPropertyValues({});
     }
   }, [currentWorkspace?.id, currentDocument?.id, currentDocument?.viewType]);
 
@@ -186,7 +180,6 @@ const DocumentEditor = () => {
   // 최초 생성 상태 판별: 제목, 내용, 자식 문서 모두 비어있고 viewType이 PAGE
   const isInitial =
     currentDocument &&
-    (!currentDocument.title || currentDocument.title.trim() === '') &&
     (!currentDocument.content || currentDocument.content.trim() === '') &&
     currentDocument.viewType === 'PAGE';
 
@@ -231,8 +224,6 @@ const DocumentEditor = () => {
         />
         {currentDocument.viewType === 'PAGE' && (
           <DocumentPageView
-            properties={properties}
-            propertyValues={propertyValues}
             addPropBtnRef={addPropBtnRef}
             isAddPropOpen={isAddPropOpen}
             setIsAddPropOpen={setIsAddPropOpen}
@@ -249,7 +240,6 @@ const DocumentEditor = () => {
             workspaceId={currentWorkspace.id}
             documentId={currentDocument.id}
             properties={properties}
-            propertyValues={propertyValues}
           />
         )}
         {currentDocument.viewType === 'GALLERY' && (

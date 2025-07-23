@@ -9,7 +9,9 @@ import AddPropertyPopover from './AddPropertyPopover';
 import DatePopover from './DatePopover';
 import TagPopover from './TagPopover';
 import { formatKoreanDateTime } from '@/lib/utils';
-import { TAG_COLORS as COLORS, getColorObj } from '@/lib/colors';
+import { getColorObj } from '@/lib/colors';
+import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 function getPropertyIcon(type) {
   switch (type) {
@@ -25,73 +27,38 @@ function getPropertyIcon(type) {
   }
 }
 
-export default function DocumentTableView({ workspaceId, documentId, titleColumnWidth, propertyWidths }) {
-  const [properties, setProperties] = useState([]); // [{ id, name, type }]
+const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
+  const [properties, setProperties] = useState(parentProps || []); // [{ id, name, type }]
   const [rows, setRows] = useState([]); // [{ id, title, values: { [propertyId]: value }, document }]
   const [editingCell, setEditingCell] = useState(null);
   const [hoveredCell, setHoveredCell] = useState(null);
   const [editingHeader, setEditingHeader] = useState({ id: null, name: '' });
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const addBtnRef = useRef(null);
+  const tagCellRefs = useRef({}); // {rowId_propertyId: ref}
+  const [tagPopoverRect, setTagPopoverRect] = useState(null);
   const defaultWidth = 192; // 12rem
-  const [colWidths, setColWidths] = useState(() => [titleColumnWidth || 288, ...(propertyWidths && propertyWidths.length ? propertyWidths : properties.map(() => defaultWidth))]);
+  // zustand store에서 width 정보 가져오기
+  const storeProperties = useDocumentPropertiesStore(state => state.properties);
+  const storeDocumentId = useDocumentPropertiesStore(state => state.documentId);
+  const titleColumnWidth = (() => {
+    // properties가 아니라 document에서 가져와야 함. (storeDocumentId가 바뀔 때마다 갱신)
+    // store에서 titleColumnWidth를 별도로 관리하지 않으므로, properties fetch 후 setProperties에서 받아온 document에서 추출 필요
+    // 일단 properties에 없으므로, props로 받은 documentId가 바뀔 때마다 getDocument로 받아와야 함
+    // 하지만 기존 구조상 properties만 zustand에 있으므로, 일단 288로 fallback
+    // 추후 store에 titleColumnWidth 추가 필요
+    return 288;
+  })();
+  const propertyWidths = storeProperties.map(p => p.width ?? defaultWidth);
+  const [colWidths, setColWidths] = useState(() => [titleColumnWidth, ...propertyWidths]);
   const liveWidths = useRef(colWidths);
 
-  // property별 태그 옵션 목록 관리
-  const [tagOptions, setTagOptions] = useState({}); // { [propertyId]: [{label, color}] }
-  const handleAddTagOption = (propertyId, tag) => {
-    setTagOptions(prev => ({
-      ...prev,
-      [propertyId]: prev[propertyId]?.some(t => t.label === tag.label)
-        ? prev[propertyId]
-        : [...(prev[propertyId] || []), tag]
-    }));
-  };
-
-  // 태그 옵션(이름/색상) 변경 시 tagOptions와 모든 행(tags) 동기화
-  const handleEditTagOption = (propertyId, oldTag, newTag) => {
-    setTagOptions(prev => ({
-      ...prev,
-      [propertyId]: prev[propertyId].map(t =>
-        (t.label === oldTag.label) ? newTag : t
-      )
-    }));
-    setRows(prevRows => prevRows.map(row => {
-      const tagsVal = row.values[propertyId];
-      if (!tagsVal) return row;
-      let tags = [];
-      try { tags = JSON.parse(tagsVal); } catch {}
-      let changed = false;
-      const newTags = tags.map(t => {
-        if (t.label === oldTag.label) { changed = true; return { ...newTag }; }
-        if (!t.color) return { ...t, color: 'default' };
-        return t;
-      });
-      return changed ? { ...row, values: { ...row.values, [propertyId]: JSON.stringify(newTags) } } : row;
-    }));
-  };
-
-  const handleRemoveTagOption = (propertyId, tag) => {
-    setTagOptions(prev => ({
-      ...prev,
-      [propertyId]: prev[propertyId].filter(t => t.label !== tag.label)
-    }));
-    setRows(prevRows => prevRows.map(row => {
-      const tagsVal = row.values[propertyId];
-      if (!tagsVal) return row;
-      let tags = [];
-      try { tags = JSON.parse(tagsVal); } catch {}
-      const newTags = tags.filter(t => t.label !== tag.label);
-      return { ...row, values: { ...row.values, [propertyId]: JSON.stringify(newTags) } };
-    }));
-  };
-
   useEffect(() => {
-    const initial = [titleColumnWidth || 288, ...(propertyWidths && propertyWidths.length ? propertyWidths : properties.map(() => defaultWidth))];
+    const initial = [titleColumnWidth, ...propertyWidths];
     setColWidths(initial);
     liveWidths.current = initial;
     // eslint-disable-next-line
-  }, [titleColumnWidth, propertyWidths && propertyWidths.join(','), properties.length]);
+  }, [titleColumnWidth, propertyWidths.join(","), storeProperties.length]);
 
   const resizingCol = useRef(null);
   const startX = useRef(0);
@@ -108,7 +75,7 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
   const handleResizeMouseMove = (e) => {
     if (resizingCol.current == null) return;
     const dx = e.clientX - startX.current;
-    const newWidth = Math.max(80, startWidth.current + dx);
+    const newWidth = Math.max(100, startWidth.current + dx);
     setColWidths((prev) => {
       const next = [...prev];
       next[resizingCol.current] = newWidth;
@@ -198,7 +165,26 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
         viewType: 'PAGE',
       });
       const newRow = { id: newDoc.id, title: '', values: {} };
-      properties.forEach(p => { newRow.values[p.id] = ''; });
+      properties.forEach(p => {
+        if (systemPropTypeMap[p.type]) {
+          switch (p.type) {
+            case 'CREATED_BY':
+              newRow.values[p.id] = newDoc.createdBy;
+              break;
+            case 'LAST_UPDATED_BY':
+              newRow.values[p.id] = newDoc.updatedBy;
+              break;
+            case 'CREATED_AT':
+              newRow.values[p.id] = newDoc.createdAt;
+              break;
+            case 'LAST_UPDATED_AT':
+              newRow.values[p.id] = newDoc.updatedAt;
+              break;
+          }
+        } else {
+          newRow.values[p.id] = '';
+        }
+      });
       setRows(prev => [...prev, newRow]);
     } catch (e) {
       alert('페이지 생성 실패');
@@ -248,39 +234,49 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
 
   const cellRefs = useRef({}); // {rowId_propertyId: ref}
 
-  const { selectDocument } = useDocument();
+  const { currentDocument, selectDocument } = useDocument();
+  const { currentWorkspace } = useWorkspace();
+  const fetchProperties = useDocumentPropertiesStore(state => state.fetchProperties);
+  const setDocumentId = useDocumentPropertiesStore(state => state.setDocumentId);
 
-  // TABLE 문서의 자식(PAGE) 문서들의 property/row/value fetch
   useEffect(() => {
-    async function fetchTableData() {
-      // 1. 컬럼 정보 조회
-      const props = await getProperties(workspaceId, documentId);
-      setProperties(props);
-      // 2. 자식 문서(PAGE) 목록 fetch
-      const children = await getChildDocuments(workspaceId, documentId);
-      setRows([]); // 초기화
-      if (!children || children.length === 0) {
-        setProperties([]);
-        setRows([]);
-        return;
-      }
-      // 3. 모든 자식(PAGE) 문서의 property value fetch
-      const allValues = await getPropertyValuesByChildDocuments(workspaceId, documentId);
-      // 4. 자식문서 ID를 key로 값들을 그룹핑
-      const valuesByRowId = allValues.reduce((acc, val) => {
-        if (!acc[val.documentId]) acc[val.documentId] = {};
-        acc[val.documentId][val.propertyId] = val.value;
-        return acc;
-      }, {});
-      // 5. 최종 테이블 데이터(행) 구성
-      const tableRows = children.map(child => ({
-        id: child.id,
-        title: child.title,
-        values: valuesByRowId[child.id] || {},
-        document: child // document 전체 포함
-      }));
-      setRows(tableRows);
+    if (currentWorkspace && currentDocument) {
+      fetchProperties(currentWorkspace.id, currentDocument.id);
+      setDocumentId(currentDocument.id);
     }
+  }, [currentWorkspace, currentDocument, fetchProperties, setDocumentId]);
+
+  async function fetchTableData() {
+    // 1. 컬럼 정보 조회
+    const props = await getProperties(workspaceId, documentId);
+    setProperties(props);
+    // 2. 자식 문서(PAGE) 목록 fetch
+    const children = await getChildDocuments(workspaceId, documentId);
+    setRows([]); // 초기화
+    if (!children || children.length === 0) {
+      setProperties([]);
+      setRows([]);
+      return;
+    }
+    // 3. 모든 자식(PAGE) 문서의 property value fetch
+    const allValues = await getPropertyValuesByChildDocuments(workspaceId, documentId);
+    // 4. 자식문서 ID를 key로 값들을 그룹핑
+    const valuesByRowId = allValues.reduce((acc, val) => {
+      if (!acc[val.documentId]) acc[val.documentId] = {};
+      acc[val.documentId][val.propertyId] = val.value;
+      return acc;
+    }, {});
+    // 5. 최종 테이블 데이터(행) 구성
+    const tableRows = children.map(child => ({
+      id: child.id,
+      title: child.title,
+      values: valuesByRowId[child.id] || {},
+      document: child // document 전체 포함
+    }));
+    setRows(tableRows);
+  }
+
+  useEffect(() => {
     fetchTableData();
   }, [workspaceId, documentId]);
 
@@ -290,21 +286,18 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
     const isEditing = editingCell && editingCell.rowId === rowId && editingCell.propertyId === propertyId;
     const isHovered = hoveredCell && hoveredCell.rowId === rowId && hoveredCell.propertyId === propertyId;
     let value = isNameCell ? row.title : (property ? row.values[property.id] || '' : '');
+    let content = value;
     // 이름 셀(타이틀 셀) 처리
     if (isNameCell) {
       return (
         <div
           key={'name'}
-          className="notion-table-view-cell"
+          className="flex relative items-center h-full notion-table-view-cell"
           style={{
-            display: 'flex',
             width: colWidths[0],
             minWidth: 80,
             minHeight: '36px',
-            height: '100%',
-            alignItems: 'flex-start',
             fontSize: '14px',
-            padding: '8px',
             borderTop: rowIdx === 0 ? '1px solid #e9e9e7' : 'none',
             borderBottom: '1px solid #e9e9e7',
             borderRight: '1px solid #e9e9e7',
@@ -317,7 +310,6 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
               ? '#f5f5f5'
               : 'transparent',
             cursor: isEditing ? 'text' : 'pointer',
-            position: 'relative',
           }}
           onClick={() => {
             setEditingCell({ rowId, propertyId: null });
@@ -328,7 +320,7 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
           {isEditing ? (
             <input
               autoFocus
-              className="px-2 py-1 w-full rounded border outline-none"
+              className="px-2 w-full h-full rounded border outline-none"
               style={{ background: '#fff', border: '1.5px solid #bdbdbd' }}
               value={value}
               onChange={e => handleCellValueChange(rowId, null, e.target.value)}
@@ -337,7 +329,7 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
             />
           ) : (
             <>
-              <span className="text-gray-700" style={{ width: '100%', minHeight: 20, overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', paddingBottom: 2, whiteSpace: 'nowrap', fontWeight: 600 }}>{value}</span>
+              <span className="px-2 text-gray-700" style={{ width: '100%', minHeight: 20, overflow: 'hidden', textOverflow: 'ellipsis', display: 'block',  whiteSpace: 'nowrap', fontWeight: 600 }}>{value}</span>
               {isHovered && (
                 <button
                   type="button"
@@ -362,46 +354,48 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
     if (!property) return null;
     // 날짜/시간 포맷 적용
     if (property.type === 'CREATED_AT' || property.type === 'LAST_UPDATED_AT') {
-      value = formatKoreanDateTime(value);
+      content = formatKoreanDateTime(value);
     }
     // TAG 타입은 pill로 렌더링
     if (property.type === 'TAG') {
       let tags = [];
-      try {
-        tags = value ? JSON.parse(value) : [];
-      } catch {}
-      // 태그 옵션 목록에 없는 태그가 있으면 추가
-      tags.forEach(tag => {
-        if (!((tagOptions[property.id] || []).some(t => t.label === tag.label))) {
-          handleAddTagOption(property.id, tag);
-        }
-      });
-      value = (
+      try { tags = value ? JSON.parse(value) : []; } catch {}
+      const tagOptions = property.tagOptions || [];
+      const cellKey = `${rowId}_${property.id}`;
+      content = (
         <div
-          className="flex gap-1"
-          style={{
-            minWidth: 0,
-            overflowX: 'hidden',
-            whiteSpace: 'nowrap',
-            flexWrap: 'nowrap',
-            alignItems: 'center'
+          ref={el => { if (property.type === 'TAG'){
+            tagCellRefs.current[cellKey] = el;
+          }
+        }}
+          className="flex gap-1 items-center px-2"
+          style={{ minWidth: 0, minHeight: 32, overflow: 'hidden', whiteSpace: 'nowrap', flexWrap: 'nowrap' }}
+          onClick={e => {
+            if (!SYSTEM_PROP_TYPES.includes(property.type)) {
+              const rect = tagCellRefs.current[cellKey]?.getBoundingClientRect();
+              if (rect && rect.width > 0 && rect.height > 0) {
+                setTagPopoverRect({
+                  top: rect.top,
+                  left: rect.left,
+                  width: rect.width,
+                  height: rect.height,
+                });
+                setEditingCell({ rowId, propertyId });
+              }
+            }
           }}
         >
-          {tags.map(tag => {
-            const colorObj = getColorObj(tag.color || 'default');
+          {tags.map(tagId => {
+            const tagObj = tagOptions.find(opt => opt.id === tagId);
+            if (!tagObj) return null;
+            const colorObj = getColorObj(tagObj.color || 'default');
             return (
               <span
-                key={tag.label}
-                className={`inline-flex items-center px-2 py-1 rounded text-xs ${colorObj.bg} border ${colorObj.border}`}
-                style={{
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  flexShrink: 0,
-                  maxWidth: 120
-                }}
+                key={tagObj.id}
+                className={`inline-flex items-center px-2 py-0.5 rounded text-sm ${colorObj.bg} border ${colorObj.border}`}
+                style={{ whiteSpace: 'nowrap', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}
               >
-                {tag.label}
+                {tagObj.label}
               </span>
             );
           })}
@@ -416,17 +410,13 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
       <div
         key={isNameCell ? 'name' : property.id}
         ref={cellRefs.current[cellKey]}
-        className="notion-table-view-cell"
+        className="flex relative items-center h-full notion-table-view-cell"
         style={{
-          display: 'flex',
           width: colWidths[isNameCell ? 0 : 1 + idx],
           minWidth: 80,
           minHeight: '36px',
-          height: '100%',
-          alignItems: 'flex-start',
           fontSize: '14px',
-          padding: '8px',
-          borderTop: isNameCell ? (rowIdx === 0 ? '1px solid #e9e9e7' : 'none') : (rowIdx === 0 ? '1px solid #e9e9e7' : 'none'),
+          borderTop: rowIdx === 0 ? '1px solid #e9e9e7' : 'none',
           borderBottom: '1px solid #e9e9e7',
           borderRight: '1px solid #e9e9e7',
           borderLeft: 'none',
@@ -440,7 +430,6 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
           cursor: (editingCell && editingCell.rowId === rowId && editingCell.propertyId === propertyId)
             ? (SYSTEM_PROP_TYPES.includes(property?.type) ? 'default' : 'text')
             : (SYSTEM_PROP_TYPES.includes(property?.type) ? 'default' : 'pointer'),
-          position: 'relative',
         }}
         onClick={() => {
           if (isNameCell) {
@@ -456,7 +445,7 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
           property.type === 'TEXT' ? (
             <input
               autoFocus
-              className="px-2 py-1 w-full rounded border outline-none"
+              className="px-2 w-full h-full rounded border outline-none"
               style={{ background: '#fff', border: '1.5px solid #bdbdbd' }}
               value={value}
               onChange={e => handleCellValueChange(rowId, propertyId, e.target.value)}
@@ -467,7 +456,7 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
             <input
               type="number"
               autoFocus
-              className="px-2 py-1 w-full rounded border outline-none"
+              className="px-2 py-1 w-full h-full rounded border outline-none"
               style={{ background: '#fff', border: '1.5px solid #bdbdbd' }}
               value={value}
               onChange={e => handleCellValueChange(rowId, propertyId, e.target.value)}
@@ -482,71 +471,21 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
             />
           ) : property.type === 'TAG' ? (
             <TagPopover
-              value={row.values[property.id] || ''}
-              options={(tagOptions[property.id] || []).map(opt => {
-                let color = opt.color;
-                if (!color && opt.label) {
-                  const found = COLORS.find(c => c.name === opt.label);
-                  color = found ? found.value : 'default';
-                }
-                return { label: opt.label, color: color || 'default' };
-              })}
-              onAddOption={tag => handleAddTagOption(property.id, tag)}
-              onEditOption={(oldTag, newTag) => handleEditTagOption(property.id, oldTag, newTag)}
-              onRemoveOption={tag => handleRemoveTagOption(property.id, tag)}
+              propertyId={property.id}
+              value={value}
+              tagOptions={property.tagOptions}
               onChange={val => handleCellValueChange(rowId, property.id, val)}
-              onClose={() => setEditingCell(null)}
+              onClose={() => {
+                handleCellValueChange(rowId, property.id, value);
+                setEditingCell(null); 
+                setTagPopoverRect(null);
+              }}
+              position={tagPopoverRect}
             />
           ) : null
         ) : (
-          <span style={{ width: '100%', minHeight: 20, overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', paddingBottom: 2, whiteSpace: 'nowrap' }}>
-            {property.type === 'TAG' ? (
-              (() => {
-                let tags = [];
-                try { tags = row.values[property.id] ? JSON.parse(row.values[property.id]) : []; } catch {}
-                tags = tags.map(t => ({ ...t, color: t.color || 'default' }));
-                tags.forEach(tag => {
-                  if (!((tagOptions[property.id] || []).some(t => t.label === tag.label))) {
-                    handleAddTagOption(property.id, tag);
-                  }
-                });
-                return (
-                  <div
-                    className="flex gap-1"
-                    style={{
-                      minWidth: 0,
-                      overflow: 'hidden',
-                      whiteSpace: 'nowrap',
-                      flexWrap: 'nowrap',
-                      alignItems: 'center'
-                    }}
-                  >
-                    {tags.map(tag => {
-                      const colorObj = getColorObj(tag.color || 'default');
-                      return (
-                        <span
-                          key={tag.label}
-                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs ${colorObj.bg} border ${colorObj.border}`}
-                          style={{
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            flexShrink: 0,
-                            maxWidth: 120
-                          }}
-                        >
-                          {tag.label}
-                        </span>
-                      );
-                    })}
-                  </div>
-                );
-              })()
-            ) : property.type === 'CREATED_AT' || property.type === 'LAST_UPDATED_AT' ? (
-              formatKoreanDateTime(row.values[property.id])
-            ) : (
-              row.values[property.id] || ''
-            )}
+          <span style={{ width: '100%', minHeight: 20, overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', whiteSpace: 'nowrap' }}>
+            {content}
           </span>
         )}
       </div>
@@ -554,7 +493,7 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
   };
 
   return (
-<div className="px-20 space-y-4 min-w-0">
+    <div className="px-20 space-y-4 min-w-0">
       {/* 테이블 UI */}
       <div style={{ minWidth: 'max-content' }}>
         <div className="flex items-center">
@@ -644,6 +583,9 @@ export default function DocumentTableView({ workspaceId, documentId, titleColumn
         <div className="py-2">
           <Button size="sm" variant="ghost" onClick={handleAddRow}>+ 새 페이지</Button>
         </div>
-      </div></div>
+      </div>
+    </div>
   );
 } 
+
+export default DocumentTableView;
