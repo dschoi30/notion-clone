@@ -393,7 +393,15 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
               <span
                 key={tagObj.id}
                 className={`inline-flex items-center px-2 py-0.5 rounded text-sm ${colorObj.bg} border ${colorObj.border}`}
-                style={{ whiteSpace: 'nowrap', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                style={{
+                  whiteSpace: 'nowrap',
+                  maxWidth: 120,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  display: 'inline-table',
+                  width: 'auto',
+                  minWidth: 0
+                }}
               >
                 {tagObj.label}
               </span>
