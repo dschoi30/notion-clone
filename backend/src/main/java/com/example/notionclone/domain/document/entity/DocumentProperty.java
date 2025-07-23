@@ -41,6 +41,10 @@ public class DocumentProperty extends BaseEntity {
     @Builder.Default
     private List<DocumentPropertyValue> values = new ArrayList<>();
 
+    @OneToMany(mappedBy = "property", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<DocumentPropertyTagOption> tagOptions = new ArrayList<>();
+
     public Integer getWidth() {
         return width;
     }

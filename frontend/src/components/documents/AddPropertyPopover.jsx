@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { cloneElement } from 'react';
 import { Text, Hash, Calendar, Tag, User, Clock, Edit3 } from 'lucide-react';
 
 const userPropTypes = [
@@ -25,7 +25,7 @@ function PropertyTypeGrid({ onSelect }) {
             onClick={() => onSelect(prop)}
             className="flex items-center p-2 w-full text-sm rounded hover:bg-gray-100"
           >
-            {React.cloneElement(prop.icon, { className: 'mr-2' })}
+            {cloneElement(prop.icon, { className: 'mr-2' })}
             <span>{prop.label}</span>
           </button>
         ))}
@@ -37,7 +37,7 @@ function PropertyTypeGrid({ onSelect }) {
             onClick={() => onSelect(prop)}
             className="flex items-center p-2 w-full text-sm rounded hover:bg-gray-100"
           >
-            {React.cloneElement(prop.icon, { className: 'mr-2' })}
+            {cloneElement(prop.icon, { className: 'mr-2' })}
             <span>{prop.label}</span>
           </button>
         ))}

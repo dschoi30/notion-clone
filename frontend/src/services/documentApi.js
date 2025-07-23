@@ -148,3 +148,24 @@ export async function updateTitleColumnWidth(workspaceId, documentId, width) {
 export async function updatePropertyWidth(workspaceId, propertyId, width) {
   return api.patch(`/api/workspaces/${workspaceId}/documents/properties/${propertyId}/width`, { width });
 }
+
+// 태그 옵션 추가
+export async function addTagOption(workspaceId, propertyId, tag) {
+  await api.post(`/api/workspaces/${workspaceId}/documents/properties/${propertyId}/tag-options`, tag);
+}
+
+// 태그 옵션 수정
+export async function editTagOption(workspaceId, optionId, tag) {
+  await api.patch(`/api/workspaces/${workspaceId}/documents/tag-options/${optionId}`, tag);
+}
+
+// 태그 옵션 삭제
+export async function removeTagOption(workspaceId, optionId) {
+  await api.delete(`/api/workspaces/${workspaceId}/documents/tag-options/${optionId}`);
+}
+
+// 태그 옵션 목록 조회 (propertyId 기준)
+export async function getTagOptionsByProperty(workspaceId, propertyId) {
+  const res = await api.get(`/api/workspaces/${workspaceId}/documents/properties/${propertyId}/tag-options`);
+  return res.data;
+}

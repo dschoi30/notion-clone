@@ -58,3 +58,11 @@
 - Sidebar.jsx에서 사이드바가 항상 화면에 고정되어 보이도록 position: fixed, top: 0, left: 0, height: 100vh, zIndex: 30 스타일을 적용했습니다.
 - DocumentPropertyService.java에서 parentId가 있으면 부모 id로, 없으면 자신의 id로 속성 추가/조회하도록 리팩토링 완료.
 - DocumentPageView(PAGE 뷰)에서 system property type 속성 추가 시, 즉시 property value가 저장되고 화면에 반영되도록 DocumentEditor.jsx의 handleAddProperty를 개선함
+- DocumentProperty의 태그 옵션(tagOptions) 목록을 백엔드에서 관리하도록 DB/엔티티/서비스/컨트롤러/API를 모두 구현함
+- frontend/src/hooks/useDocumentPropertiesStore.js: zustand 기반 문서 속성 및 태그 옵션 전역 관리 store 생성 (fetchProperties, add/edit/removeTagOption 등)
+- TagPopover.jsx: props 대신 zustand store에서 tagOptions를 직접 조회/수정하도록 리팩터링
+- DocumentPageView.jsx, DocumentTableView.jsx: 문서 진입 시 zustand store에서 properties/tagOptions 패치, TagPopover에 propertyId만 전달하도록 변경
+- DocumentTableView에서 titleColumnWidth, propertyWidths를 props로 받지 않고 zustand store(useDocumentPropertiesStore)에서 가져오도록 리팩토링함
+- propertyWidths는 store의 properties의 width 필드를 활용
+- titleColumnWidth는 store에 별도 관리 필요(현재는 288로 fallback)
+- 상위 컴포넌트(DocumentEditor)에서는 더 이상 해당 props를 넘기지 않음

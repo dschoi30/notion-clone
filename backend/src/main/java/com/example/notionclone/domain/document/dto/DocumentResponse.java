@@ -54,4 +54,16 @@ public class DocumentResponse {
     public static DocumentResponse fromDocument(Document document) {
         return fromDocumentWithPermissionsAndChildren(document, null, false);
     }
+
+    public static DocumentResponse fromDocumentWithPermissionsAndChildren(
+        Document document, List<Permission> permissions, boolean hasChildren, List<DocumentPropertyDto> properties
+    ) {
+        DocumentResponse response = fromDocumentWithPermissionsAndChildren(document, permissions, hasChildren);
+        response.setProperties(properties);
+        return response;
+    }
+
+    public void setProperties(List<DocumentPropertyDto> properties) {
+        this.properties = properties;
+    }
 } 
