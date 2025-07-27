@@ -5,7 +5,7 @@ import { TAG_COLORS as COLORS, getColorObj } from '@/lib/colors';
 import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 
-export default function TagPopover({ propertyId, value, onChange, onClose, position, tagOptions: propTagOptions }) {
+export default function TagPopover({ propertyId, tagOptions: propTagOptions, value, position, onChange, onTagOptionsUpdate, onClose }) {
   const ref = useRef();
   const { currentWorkspace } = useWorkspace();
   const [tagOptions, setTagOptions] = useState(propTagOptions || []);
@@ -77,10 +77,12 @@ export default function TagPopover({ propertyId, value, onChange, onClose, posit
     if (currentWorkspace?.id && propertyId) {
       const newOption = await addTagOption(currentWorkspace.id, propertyId, { label: label.trim(), color: 'default' });
       if (newOption) {
-        setTagOptions(prev => [...prev, newOption]);
+        const updatedTagOptions = [...tagOptions, newOption];
+        setTagOptions(updatedTagOptions);
         const newIds = [...selectedIds, newOption.id];
         setSelectedIds(newIds);
-        if (onChange) onChange(JSON.stringify)
+        if (onChange) onChange(JSON.stringify(newIds));
+        if (onTagOptionsUpdate) onTagOptionsUpdate(updatedTagOptions);
       }
     }
     setInput('');
@@ -90,8 +92,12 @@ export default function TagPopover({ propertyId, value, onChange, onClose, posit
   const handleEditTag = async (origin, updated) => {
     if (currentWorkspace?.id && updated?.id) {
       const updatedOption = await editTagOption(currentWorkspace.id, updated.id, updated);
+      console.log('updatedOption', updatedOption);
       if (updatedOption) {
-        setTagOptions(prev => prev.map(opt => opt.id === updatedOption.id ? updatedOption : opt));
+        const updatedTagOptions = tagOptions.map(opt => opt.id === updatedOption.id ? updatedOption : opt);
+        console.log('updatedTagOptions', updatedTagOptions);
+        setTagOptions(updatedTagOptions);
+        if (onTagOptionsUpdate) onTagOptionsUpdate(updatedTagOptions);
       }
     }
   };
@@ -99,6 +105,9 @@ export default function TagPopover({ propertyId, value, onChange, onClose, posit
   const handleRemoveTagOption = (origin) => {
     if (currentWorkspace?.id && origin?.id) {
       removeTagOption(currentWorkspace.id, origin.id);
+      const updatedTagOptions = tagOptions.filter(opt => opt.id !== origin.id);
+      setTagOptions(updatedTagOptions);
+      if (onTagOptionsUpdate) onTagOptionsUpdate(updatedTagOptions);
     }
   };
 
