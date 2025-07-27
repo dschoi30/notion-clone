@@ -8,7 +8,6 @@ export const useDocumentPropertiesStore = create((set, get) => ({
 
   // 문서 속성 및 태그 옵션 전체 패치
   fetchProperties: async (workspaceId, documentId) => {
-    console.log('fetchProperties', workspaceId, documentId);
     set({ loading: true, error: null });
     try {
       const properties = await documentApi.getProperties(workspaceId, documentId);
@@ -26,8 +25,9 @@ export const useDocumentPropertiesStore = create((set, get) => ({
       console.warn('addTagOption: workspaceId 또는 propertyId가 올바르지 않습니다', workspaceId, propertyId);
       return;
     }
-    await documentApi.addTagOption(workspaceId, propertyId, tag);
+    const result = await documentApi.addTagOption(workspaceId, propertyId, tag);
     await get().fetchProperties(workspaceId, get().documentId);
+    return result;
   },
 
   // 태그 옵션 수정
@@ -36,8 +36,9 @@ export const useDocumentPropertiesStore = create((set, get) => ({
       console.warn('editTagOption: workspaceId 또는 optionId가 올바르지 않습니다', workspaceId, optionId);
       return;
     }
-    await documentApi.editTagOption(workspaceId, optionId, tag);
+    const result = await documentApi.editTagOption(workspaceId, optionId, tag);
     await get().fetchProperties(workspaceId, get().documentId);
+    return result;
   },
 
   // 태그 옵션 삭제
@@ -46,15 +47,15 @@ export const useDocumentPropertiesStore = create((set, get) => ({
       console.warn('removeTagOption: workspaceId 또는 optionId가 올바르지 않습니다', workspaceId, optionId);
       return;
     }
-    await documentApi.removeTagOption(workspaceId, optionId);
+    const result = await documentApi.removeTagOption(workspaceId, optionId);
     await get().fetchProperties(workspaceId, get().documentId);
+    return result;
   },
 
   // 현재 문서 ID 저장 (뷰 전환 등에서 활용)
   setDocumentId: (documentId) => set({ documentId }),
   documentId: null,
   setProperties: (properties) => {
-    console.log('setProperties', properties);
     set({ properties });
   },
 })); 

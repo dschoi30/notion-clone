@@ -208,6 +208,7 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
       if (propertyId) {
         try {
           await addOrUpdatePropertyValue(workspaceId, rowId, propertyId, value);
+          setProperties(prev => prev.map(p => p.id === editingHeader.id ? { ...p, name: editingHeader.name } : p));
         } catch (e) {
           alert('값 저장 실패');
         }
@@ -482,7 +483,22 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
               propertyId={property.id}
               value={value}
               tagOptions={property.tagOptions}
-              onChange={val => handleCellValueChange(rowId, property.id, val)}
+              onChange={val => {
+                handleCellValueChange(rowId, property.id, val);
+              }}
+              onTagOptionsUpdate={async (updatedTagOptions) => {
+                setProperties(prev => prev.map(p => 
+                  p.id === property.id ? { ...p, tagOptions: updatedTagOptions } : p
+                ));
+                
+                // 모든 행에 해당 property의 빈 값 추가 (없는 경우에만)
+                setRows(prev => prev.map(row => {
+                  if (!(property.id in row.values)) {
+                    return { ...row, values: { ...row.values, [property.id]: '' } };
+                  }
+                  return row;
+                }));
+              }}
               onClose={() => {
                 handleCellValueChange(rowId, property.id, value);
                 setEditingCell(null); 

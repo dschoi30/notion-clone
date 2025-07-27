@@ -151,17 +151,20 @@ export async function updatePropertyWidth(workspaceId, propertyId, width) {
 
 // 태그 옵션 추가
 export async function addTagOption(workspaceId, propertyId, tag) {
-  await api.post(`/api/workspaces/${workspaceId}/documents/properties/${propertyId}/tag-options`, tag);
+  const res = await api.post(`/api/workspaces/${workspaceId}/documents/properties/${propertyId}/tag-options`, tag);
+  return res.data;
 }
 
 // 태그 옵션 수정
 export async function editTagOption(workspaceId, optionId, tag) {
-  await api.patch(`/api/workspaces/${workspaceId}/documents/tag-options/${optionId}`, tag);
+  const res = await api.patch(`/api/workspaces/${workspaceId}/documents/tag-options/${optionId}`, tag);
+  return res.data;
 }
 
 // 태그 옵션 삭제
 export async function removeTagOption(workspaceId, optionId) {
-  await api.delete(`/api/workspaces/${workspaceId}/documents/tag-options/${optionId}`);
+  const res = await api.delete(`/api/workspaces/${workspaceId}/documents/tag-options/${optionId}`);
+  return res.data;
 }
 
 // 태그 옵션 목록 조회 (propertyId 기준)
