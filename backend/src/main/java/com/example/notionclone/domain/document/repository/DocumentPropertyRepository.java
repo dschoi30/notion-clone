@@ -8,4 +8,5 @@ import java.util.List;
 public interface DocumentPropertyRepository extends JpaRepository<DocumentProperty, Long> {
     List<DocumentProperty> findByDocument(Document document);
     List<DocumentProperty> findByDocumentId(Long documentId);
+    List<DocumentProperty> findByDocumentIdOrderBySortOrderAsc(Long documentId);
 } 

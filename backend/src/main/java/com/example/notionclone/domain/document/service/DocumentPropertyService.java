@@ -49,7 +49,7 @@ public class DocumentPropertyService {
         Document doc = documentRepository.findById(documentId)
             .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId));
         Long targetId = (doc.getParent() != null) ? doc.getParent().getId() : doc.getId();
-        List<DocumentProperty> properties = propertyRepository.findByDocumentId(targetId);
+        List<DocumentProperty> properties = propertyRepository.findByDocumentIdOrderBySortOrderAsc(targetId);
         return properties.stream()
                 .map(property -> {
                     DocumentPropertyDto dto = DocumentPropertyDto.from(property);
