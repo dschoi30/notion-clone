@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { Text, Hash, Calendar, Tag as TagIcon, User, Clock, Edit3 } from 'lucide-react';
 import { useDocument } from '@/contexts/DocumentContext';
 import { getProperties, addProperty, updateProperty, deleteProperty, addOrUpdatePropertyValue, updatePropertyWidth, getPropertyValuesByChildDocuments,
-  updateDocument, createDocument, updateTitleColumnWidth, getChildDocuments } from '@/services/documentApi';
+  updateDocument, createDocument, updateTitleColumnWidth, getChildDocuments, updatePropertyOrder } from '@/services/documentApi';
 import { Button } from '@/components/ui/button';
 import AddPropertyPopover from './AddPropertyPopover';
 import DatePopover from './DatePopover';
@@ -12,6 +12,22 @@ import { formatKoreanDateTime } from '@/lib/utils';
 import { getColorObj } from '@/lib/colors';
 import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import {
+  DndContext,
+  closestCenter,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  KeyboardSensor,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  horizontalListSortingStrategy,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 function getPropertyIcon(type) {
   switch (type) {
@@ -27,6 +43,79 @@ function getPropertyIcon(type) {
   }
 }
 
+function SortablePropertyHeader({ property, index, onDelete, onEdit, onResize, editingHeader, setEditingHeader, colWidths }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: property.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    minWidth: colWidths[1 + index],
+    width: colWidths[1 + index],
+    zIndex: isDragging ? 1000 : 'auto',
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex relative items-center text-gray-500 group"
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="flex items-center w-full transition-colors cursor-move hover:bg-gray-50"
+        style={{ 
+          padding: '8px', 
+          borderRight: '1px solid #e9e9e7', 
+          borderLeft: 'none',
+          background: isDragging ? '#f0f0f0' : 'transparent'
+        }}
+      >
+        {editingHeader.id === property.id ? (
+          <input
+            value={editingHeader.name}
+            onChange={e => setEditingHeader(prev => ({...prev, name: e.target.value}))}
+            onBlur={onEdit}
+            onKeyDown={e => e.key === 'Enter' && onEdit()}
+            autoFocus
+            className="px-1 py-0 w-full text-sm bg-gray-200 rounded border border-blue-400 outline-none"
+          />
+        ) : (
+          <div
+            className="flex items-center w-full text-gray-500"
+            onClick={() => setEditingHeader({ id: property.id, name: property.name })}
+          >
+            {getPropertyIcon(property.type)}{property.name}
+          </div>
+        )}
+        <button
+          className="ml-2 text-gray-400 opacity-0 transition hover:text-red-500 group-hover:opacity-100"
+          style={{ fontSize: 14 }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(property.id);
+          }}
+          title="컬럼 삭제"
+        >
+          ×
+        </button>
+      </div>
+      <div
+        style={{ position: 'absolute', right: 0, top: 0, width: 6, height: '100%', cursor: 'col-resize', zIndex: 10 }}
+        onMouseDown={e => onResize(e, 1 + index)}
+      />
+    </div>
+  );
+}
+
 const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
   const [properties, setProperties] = useState(parentProps || []); // [{ id, name, type }]
   const [rows, setRows] = useState([]); // [{ id, title, values: { [propertyId]: value }, document }]
@@ -34,10 +123,45 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
   const [hoveredCell, setHoveredCell] = useState(null);
   const [editingHeader, setEditingHeader] = useState({ id: null, name: '' });
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const addBtnRef = useRef(null);
   const tagCellRefs = useRef({}); // {rowId_propertyId: ref}
   const [tagPopoverRect, setTagPopoverRect] = useState(null);
   const defaultWidth = 192; // 12rem
+  
+  // dnd-kit 센서 설정
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // 드래그 앤 드롭 핸들러
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    
+    if (active.id !== over.id) {
+      const oldIndex = properties.findIndex(p => p.id === active.id);
+      const newIndex = properties.findIndex(p => p.id === over.id);
+      
+      const newProperties = arrayMove(properties, oldIndex, newIndex);
+      setProperties(newProperties);
+      
+      // 백엔드에 순서 업데이트
+      try {
+        const propertyIds = newProperties.map(p => p.id);
+        await updatePropertyOrder(workspaceId, documentId, propertyIds);
+      } catch (err) {
+        console.error('속성 순서 업데이트 실패:', err);
+        // 실패 시 원래 순서로 복원
+        setProperties(properties);
+        alert('속성 순서 변경에 실패했습니다. 다시 시도해주세요.');
+      }
+    }
+  };
+  
   // zustand store에서 width 정보 가져오기
   const storeProperties = useDocumentPropertiesStore(state => state.properties);
   const storeDocumentId = useDocumentPropertiesStore(state => state.documentId);
@@ -248,33 +372,42 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
   }, [currentWorkspace, currentDocument, fetchProperties, setDocumentId]);
 
   async function fetchTableData() {
-    // 1. 컬럼 정보 조회
-    const props = await getProperties(workspaceId, documentId);
-    setProperties(props);
-    // 2. 자식 문서(PAGE) 목록 fetch
-    const children = await getChildDocuments(workspaceId, documentId);
-    setRows([]); // 초기화
-    if (!children || children.length === 0) {
-      setProperties([]);
-      setRows([]);
-      return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      // 1. 컬럼 정보 조회
+      const props = await getProperties(workspaceId, documentId);
+      setProperties(props);
+      // 2. 자식 문서(PAGE) 목록 fetch
+      const children = await getChildDocuments(workspaceId, documentId);
+      setRows([]); // 초기화
+      if (!children || children.length === 0) {
+        setProperties([]);
+        setRows([]);
+        return;
+      }
+      // 3. 모든 자식(PAGE) 문서의 property value fetch
+      const allValues = await getPropertyValuesByChildDocuments(workspaceId, documentId);
+      // 4. 자식문서 ID를 key로 값들을 그룹핑
+      const valuesByRowId = allValues.reduce((acc, val) => {
+        if (!acc[val.documentId]) acc[val.documentId] = {};
+        acc[val.documentId][val.propertyId] = val.value;
+        return acc;
+      }, {});
+      // 5. 최종 테이블 데이터(행) 구성
+      const tableRows = children.map(child => ({
+        id: child.id,
+        title: child.title,
+        values: valuesByRowId[child.id] || {},
+        document: child // document 전체 포함
+      }));
+      setRows(tableRows);
+    } catch (err) {
+      setError(err);
+      console.error('테이블 데이터 로딩 실패:', err);
+    } finally {
+      setIsLoading(false);
     }
-    // 3. 모든 자식(PAGE) 문서의 property value fetch
-    const allValues = await getPropertyValuesByChildDocuments(workspaceId, documentId);
-    // 4. 자식문서 ID를 key로 값들을 그룹핑
-    const valuesByRowId = allValues.reduce((acc, val) => {
-      if (!acc[val.documentId]) acc[val.documentId] = {};
-      acc[val.documentId][val.propertyId] = val.value;
-      return acc;
-    }, {});
-    // 5. 최종 테이블 데이터(행) 구성
-    const tableRows = children.map(child => ({
-      id: child.id,
-      title: child.title,
-      values: valuesByRowId[child.id] || {},
-      document: child // document 전체 포함
-    }));
-    setRows(tableRows);
   }
 
   useEffect(() => {
@@ -369,7 +502,7 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
             tagCellRefs.current[cellKey] = el;
           }
         }}
-          className="flex gap-1 items-center px-2"
+          className="flex gap-1 items-center"
           style={{ minWidth: 0, minHeight: 32, overflow: 'hidden', whiteSpace: 'nowrap', flexWrap: 'nowrap' }}
           onClick={e => {
             if (!SYSTEM_PROP_TYPES.includes(property.type)) {
@@ -508,7 +641,7 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
             />
           ) : null
         ) : (
-          <span style={{ width: '100%', minHeight: 20, overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', whiteSpace: 'nowrap' }}>
+          <span className="block overflow-hidden px-2 w-full whitespace-nowrap min-h-5 text-ellipsis">
             {content}
           </span>
         )}
@@ -520,78 +653,57 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
     <div className="px-20 space-y-4 min-w-0">
       {/* 테이블 UI */}
       <div style={{ minWidth: 'max-content' }}>
-        <div className="flex items-center">
-          {/* 이름 컬럼 */}
-          <div className="flex relative items-center text-gray-500" style={{ minWidth: colWidths[0], width: colWidths[0], padding: '8px', borderLeft: 'none', borderRight: properties.length === 0 ? 'none' : '1px solid #e9e9e7' }}>
-            <Text className="inline mr-1" size={16} />이름
-            <div
-              style={{ position: 'absolute', right: 0, top: 0, width: 6, height: '100%', cursor: 'col-resize', zIndex: 10 }}
-              onMouseDown={e => handleResizeMouseDown(e, 0)}
-            />
-          </div>
-          {/* property 컬럼 */}
-          {properties.map((p, idx) => (
-            <div
-              key={p.id}
-              className="flex relative items-center text-gray-500 group"
-              style={{
-                minWidth: colWidths[1 + idx],
-                width: colWidths[1 + idx],
-                padding: '8px',
-                borderRight: '1px solid #e9e9e7',
-                borderLeft: 'none',
-                position: 'relative',
-              }}
-            >
-              {editingHeader.id === p.id ? (
-                <input
-                  value={editingHeader.name}
-                  onChange={e => setEditingHeader(prev => ({...prev, name: e.target.value}))}
-                  onBlur={handleHeaderNameChange}
-                  onKeyDown={e => e.key === 'Enter' && handleHeaderNameChange()}
-                  autoFocus
-                  className="px-1 py-0 w-full text-sm bg-gray-200 rounded border border-blue-400 outline-none"
-                />
-              ) : (
-                <div
-                  className="flex items-center w-full text-gray-500"
-                  onClick={() => setEditingHeader({ id: p.id, name: p.name })}
-                >
-                  {getPropertyIcon(p.type)}{p.name}
-                </div>
-              )}
-              <button
-                className="ml-2 text-gray-400 opacity-0 transition hover:text-red-500 group-hover:opacity-100"
-                style={{ fontSize: 14 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteProperty(p.id);
-                }}
-                title="컬럼 삭제"
-              >
-                ×
-              </button>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="flex items-center">
+            {/* 이름 컬럼 */}
+            <div className="flex relative items-center text-gray-500" style={{ minWidth: colWidths[0], width: colWidths[0], padding: '8px', borderLeft: 'none', borderRight: properties.length === 0 ? 'none' : '1px solid #e9e9e7' }}>
+              <Text className="inline mr-1" size={16} />이름
               <div
                 style={{ position: 'absolute', right: 0, top: 0, width: 6, height: '100%', cursor: 'col-resize', zIndex: 10 }}
-                onMouseDown={e => handleResizeMouseDown(e, 1 + idx)}
+                onMouseDown={e => handleResizeMouseDown(e, 0)}
               />
             </div>
-          ))}
-          <div className="relative">
-            <Button ref={addBtnRef} size="sm" variant="ghost" className="ml-2" onClick={() => setIsPopoverOpen(prev => !prev)}>
-              + 속성 추가
-            </Button>
-            {isPopoverOpen && (
-              <div className="absolute left-0 top-full z-10 mt-1" >
-                <AddPropertyPopover 
-                  onAddProperty={handleAddProperty} 
+            {/* property 컬럼들 (드래그 가능) */}
+            <SortableContext
+              items={properties.map(p => p.id)}
+              strategy={horizontalListSortingStrategy}
+            >
+              {properties.map((p, idx) => (
+                <SortablePropertyHeader
+                  key={p.id}
+                  property={p}
+                  index={idx}
+                  onDelete={handleDeleteProperty}
+                  onEdit={handleHeaderNameChange}
+                  onResize={handleResizeMouseDown}
+                  editingHeader={editingHeader}
+                  setEditingHeader={setEditingHeader}
+                  colWidths={colWidths}
                 />
-              </div>
-            )}
+              ))}
+            </SortableContext>
+            <div className="relative">
+              <Button ref={addBtnRef} size="sm" variant="ghost" className="ml-2" onClick={() => setIsPopoverOpen(prev => !prev)}>
+                + 속성 추가
+              </Button>
+              {isPopoverOpen && (
+                <div className="absolute left-0 top-full z-10 mt-1" >
+                  <AddPropertyPopover 
+                    onAddProperty={handleAddProperty} 
+                  />
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </DndContext>
         <div>
-          {rows.length === 0 ? (
+          {isLoading && <div className="flex justify-center items-center h-10 text-gray-400">로딩 중...</div>}
+          {error && <div className="flex justify-center items-center h-10 text-red-500">데이터 로딩 중 오류 발생: {error.message}</div>}
+          {rows.length === 0 && !isLoading && !error ? (
             <div className="flex items-center h-10 text-gray-400">빈 행</div>
           ) : (
             rows.map((row, rowIdx) => (

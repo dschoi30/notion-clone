@@ -131,4 +131,25 @@ public class DocumentPropertyService {
     public List<DocumentPropertyTagOption> getTagOptionsByProperty(Long propertyId) {
         return tagOptionRepository.findByPropertyId(propertyId);
     }
+
+    @Transactional
+    public void updatePropertyOrder(Long documentId, List<Long> propertyIds) {
+        Document doc = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId));
+        Long targetId = (doc.getParent() != null) ? doc.getParent().getId() : doc.getId();
+        
+        for (int i = 0; i < propertyIds.size(); i++) {
+            Long propertyId = propertyIds.get(i);
+            DocumentProperty property = propertyRepository.findById(propertyId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Property not found: " + propertyId));
+            
+            // 속성이 해당 문서에 속하는지 확인
+            if (!property.getDocument().getId().equals(targetId)) {
+                throw new IllegalArgumentException("Property does not belong to the specified document");
+            }
+            
+            property.setSortOrder(i);
+            propertyRepository.save(property);
+        }
+    }
 } 
