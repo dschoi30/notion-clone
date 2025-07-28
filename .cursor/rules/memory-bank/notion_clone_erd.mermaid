@@ -1,29 +1,43 @@
 classDiagram
 direction BT
-class AbstractAuditable {
-    Date  createdDate
-    Date  lastModifiedDate
-}
-class AbstractPersistable {
-    PK  id
-}
-class BaseTimeEntity {
+class BaseEntity {
+    String  createdBy
+    String  updatedBy
     LocalDateTime  createdAt
     LocalDateTime  updatedAt
 }
 class Document {
     Long  id
-    String  content
-    boolean  isTrashed
-    Integer  sortOrder
     String  title
+    String  content
+    Integer  sortOrder
+    boolean  isTrashed
+    Integer  titleColumnWidth
+    ViewType  viewType
+}
+class DocumentProperty {
+    Long  id
+    String  name
+    PropertyType  type
+    Integer  sortOrder
+    Integer  width
+}
+class DocumentPropertyTagOption {
+    Long  id
+    String  label
+    String  color
+    Integer  sortOrder
+}
+class DocumentPropertyValue {
+    Long  id
+    String  value
 }
 class Notification {
     Long  id
+    NotificationType  type
     String  message
     String  payload
     NotificationStatus  status
-    NotificationType  type
 }
 class Permission {
     Long  id
@@ -33,25 +47,82 @@ class Permission {
 class User {
     Long  id
     String  email
-    String  name
     String  password
+    String  name
     String  profileImageUrl
 }
 class Workspace {
     Long  id
     String  name
 }
+class ViewType {
+    <<enumeration>>
+    PAGE
+    TABLE
+    GALLERY
+}
+class PropertyType {
+    <<enumeration>>
+    TEXT
+    NUMBER
+    TAG
+    DATE
+    CREATED_BY
+    LAST_UPDATED_BY
+    CREATED_AT
+    LAST_UPDATED_AT
+}
+class PermissionType {
+    <<enumeration>>
+    READ
+    WRITE
+    OWNER
+}
+class PermissionStatus {
+    <<enumeration>>
+    PENDING
+    ACCEPTED
+    REJECTED
+}
+class NotificationType {
+    <<enumeration>>
+    INVITE
+    COMMENT
+    MENTION
+    SYSTEM
+}
+class NotificationStatus {
+    <<enumeration>>
+    UNREAD
+    READ
+    ACCEPTED
+    REJECTED
+}
 
-AbstractAuditable  --|>  AbstractPersistable 
-Document  --|>  BaseTimeEntity 
+BaseEntity  --|>  Document 
+BaseEntity  --|>  DocumentProperty 
+BaseEntity  --|>  DocumentPropertyTagOption 
+BaseEntity  --|>  DocumentPropertyValue 
+BaseEntity  --|>  Notification 
+BaseEntity  --|>  Permission 
+BaseEntity  --|>  User 
+BaseEntity  --|>  Workspace 
+
 Document "0..*" --> "0..1" User 
 Document "0..*" <--> "0..1" Workspace 
-Notification  --|>  BaseTimeEntity 
+Document "0..*" --> "0..1" Document 
+Document "0..*" --> "0..1" ViewType 
+DocumentProperty "0..*" --> "0..1" Document 
+DocumentProperty "0..*" --> "0..1" PropertyType 
+DocumentPropertyTagOption "0..*" --> "0..1" DocumentProperty 
+DocumentPropertyValue "0..*" --> "0..1" Document 
+DocumentPropertyValue "0..*" --> "0..1" DocumentProperty 
 Notification "0..*" --> "0..1" User 
-Permission  --|>  BaseTimeEntity 
+Notification "0..*" --> "0..1" NotificationType 
+Notification "0..*" --> "0..1" NotificationStatus 
 Permission "0..*" --> "0..1" Document 
 Permission "0..*" --> "0..1" User 
-User  --|>  BaseTimeEntity 
-Workspace  --|>  BaseTimeEntity 
+Permission "0..*" --> "0..1" PermissionType 
+Permission "0..*" --> "0..1" PermissionStatus 
 Workspace "0..*" --> "0..1" User 
 Workspace "0..1" <--> "0..*" Workspace 

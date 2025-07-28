@@ -66,3 +66,13 @@
 - propertyWidths는 store의 properties의 width 필드를 활용
 - titleColumnWidth는 store에 별도 관리 필요(현재는 288로 fallback)
 - 상위 컴포넌트(DocumentEditor)에서는 더 이상 해당 props를 넘기지 않음
+- DocumentPropertyService의 getPropertiesByDocument 메서드에서 sort_order 순으로 오름차순 정렬하여 반환하도록 수정
+- DocumentPropertyRepository에 findByDocumentIdOrderBySortOrderAsc 메서드 추가
+- [x] 현재 백엔드 엔티티 클래스들을 기반으로 클래스 다이어그램과 ERD 업데이트 완료
+  - BaseEntity 추상 클래스와 상속 관계 반영
+  - Document, DocumentProperty, DocumentPropertyValue, DocumentPropertyTagOption 엔티티 추가
+  - Permission, Notification 엔티티 상세 정보 반영
+  - ViewType, PropertyType, PermissionType, PermissionStatus, NotificationType, NotificationStatus enum 추가
+  - Workspace의 계층 구조(parent-child) 관계 반영
+  - Document의 계층 구조(parent-child) 관계 반영
+  - 모든 엔티티 간의 관계를 정확히 매핑
