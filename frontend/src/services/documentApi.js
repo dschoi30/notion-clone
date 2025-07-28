@@ -149,6 +149,11 @@ export async function updatePropertyWidth(workspaceId, propertyId, width) {
   return api.patch(`/api/workspaces/${workspaceId}/documents/properties/${propertyId}/width`, { width });
 }
 
+// 속성 순서 업데이트
+export async function updatePropertyOrder(workspaceId, documentId, propertyIds) {
+  return api.patch(`/api/workspaces/${workspaceId}/documents/${documentId}/properties/order`, propertyIds);
+}
+
 // 태그 옵션 추가
 export async function addTagOption(workspaceId, propertyId, tag) {
   const res = await api.post(`/api/workspaces/${workspaceId}/documents/properties/${propertyId}/tag-options`, tag);

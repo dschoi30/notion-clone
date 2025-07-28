@@ -29,7 +29,7 @@
 - DocumentEditor.jsx에서 권한자 이니셜 아이콘에 presence(접속자) 강조(초록색 테두리) 적용
 - [x] 1. ERD/DB 및 모델 구조 확정 및 반영 (Document parent/viewType, Property/Value, Enum 생성)
 - [x] 2. API(백엔드) 확장 및 구현 (Document parent/viewType 반영, 하위 문서 조회, 생성/수정 API 확장 등)
-- [ ] 3. 프론트엔드 DocumentList/Editor 구조 개편
+- [x] 3. 프론트엔드 DocumentList/Editor 구조 개편
 - [ ] 4. TableView, GalleryView 등 뷰 타입별 컴포넌트 구현
 - [ ] 5. 속성/행 관리 기능 개발
 - [ ] 6. UX/UI 개선 및 테스트, 배포
@@ -76,3 +76,12 @@
   - Workspace의 계층 구조(parent-child) 관계 반영
   - Document의 계층 구조(parent-child) 관계 반영
   - 모든 엔티티 간의 관계를 정확히 매핑
+
+- [x] DocumentTableView.jsx 테이블 헤더 드래그 앤 드롭 기능 구현 완료
+  - 백엔드: DocumentPropertyService에 updatePropertyOrder 메서드 추가, DocumentController에 PATCH /{documentId}/properties/order 엔드포인트 추가
+  - 프론트엔드: documentApi.js에 updatePropertyOrder 함수 추가
+  - dnd-kit 라이브러리 활용하여 SortablePropertyHeader 컴포넌트 생성
+  - DndContext, SortableContext로 테이블 헤더 감싸기
+  - 드래그 앤 드롭 시 백엔드 API 호출하여 sortOrder 업데이트
+  - 에러 처리 및 로딩 상태 관리 개선
+  - 시각적 피드백(드래그 중 투명도, 호버 효과, z-index) 추가

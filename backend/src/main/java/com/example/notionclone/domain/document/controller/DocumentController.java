@@ -345,4 +345,31 @@ public class DocumentController {
             .map(DocumentPropertyDto.TagOptionDto::from)
             .collect(Collectors.toList());
     }
+
+    // 속성 순서 업데이트
+    @PatchMapping("/{documentId}/properties/order")
+    public ResponseEntity<Void> updatePropertyOrder(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId,
+            @PathVariable Long documentId,
+            @RequestBody List<Long> propertyIds) {
+        
+        // 사용자 정보 조회
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
+        
+        // 문서 정보 조회
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId));
+        
+        // 권한 체크 (소유자 또는 ACCEPTED 권한)
+        boolean isOwner = document.getUser().getId().equals(user.getId());
+        boolean hasAcceptedPermission = permissionService.hasAcceptedPermission(user, document);
+        if (!isOwner && !hasAcceptedPermission) {
+            throw new org.springframework.security.access.AccessDeniedException("No permission to update property order for this document.");
+        }
+        
+        documentPropertyService.updatePropertyOrder(documentId, propertyIds);
+        return ResponseEntity.ok().build();
+    }
 } 
