@@ -27,6 +27,7 @@ public class DocumentResponse {
     private List<DocumentPropertyDto> properties;
     private boolean hasChildren;
     private Integer titleColumnWidth;
+    private Integer sortOrder;
 
     public static DocumentResponse fromDocumentWithPermissionsAndChildren(Document document, List<Permission> permissions, boolean hasChildren) {
         return DocumentResponse.builder()
@@ -44,6 +45,7 @@ public class DocumentResponse {
                 .properties(document.getProperties().stream().map(DocumentPropertyDto::from).collect(Collectors.toList()))
                 .hasChildren(hasChildren)
                 .titleColumnWidth(document.getTitleColumnWidth())
+                .sortOrder(document.getSortOrder())
                 .build();
     }
 

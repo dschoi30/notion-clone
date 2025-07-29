@@ -127,8 +127,23 @@ export function DocumentProvider({ children }) {
 
   const updateDocumentOrder = useCallback(async (documentIds) => {
     if (!currentWorkspace) return;
-    await documentApi.updateDocumentOrder(currentWorkspace.id, documentIds);
-    // 서버 반영 후 fetchDocuments()로 최신화 가능
+    try {
+      await documentApi.updateDocumentOrder(currentWorkspace.id, documentIds);
+      // 로컬 상태를 직접 업데이트하여 화면 깜빡임 방지
+      setDocuments(prev => {
+        return prev.map(doc => {
+          // documentIds에 포함된 문서들만 sortOrder 업데이트
+          const newIndex = documentIds.indexOf(doc.id);
+          if (newIndex !== -1) {
+            return { ...doc, sortOrder: newIndex };
+          }
+          return doc;
+        });
+      });
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
   }, [currentWorkspace]);
 
   // 단일 문서 정보 갱신용 fetchDocument 함수 추가

@@ -1,12 +1,10 @@
 // src/components/documents/DocumentList.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { PlusIcon, TrashIcon, GripVertical, ArrowLeft, ChevronRight, ChevronDown, FileText, Table } from 'lucide-react';
+import { PlusIcon, TrashIcon, GripVertical, ChevronRight, ChevronDown, FileText, Table } from 'lucide-react';
 import { useDocument } from '@/contexts/DocumentContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { updateDocumentOrder } from '@/services/documentApi';
 import {
   DndContext,
   closestCenter,
@@ -39,12 +37,16 @@ function SortableDocumentTreeItem({ document, currentDocument, onSelect, onDelet
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: document.id });
+  } = useSortable({ 
+    id: document.id,
+    animateLayoutChanges: () => true, // 레이아웃 변경 시 애니메이션 활성화
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
+    transition: isDragging ? 'none' : transition,
+    opacity: isDragging ? 0.4 : 1, // 노션 스타일로 더 연하게
+    zIndex: isDragging ? 1000 : 'auto',
   };
 
   const handleToggle = async (e) => {
@@ -117,9 +119,15 @@ function SortableDocumentTreeItem({ document, currentDocument, onSelect, onDelet
           </span>
         )}
         <span
-          className="flex overflow-hidden flex-1 items-center h-8 whitespace-nowrap cursor-pointer text-ellipsis"
-          style={{ lineHeight: '2rem', display: 'block' }}
+          className="flex-1 items-center px-1 h-8 truncate whitespace-nowrap rounded cursor-pointer hover:bg-gray-50"
+          style={{ 
+            lineHeight: '2rem', 
+            display: 'flex',
+            alignItems: 'center',
+            minWidth: 0, // flex item이 축소될 수 있도록 함
+          }}
           onClick={() => onSelect(document)}
+          title={document.title} // 호버 시 전체 제목 표시
         >
           {document.title}
         </span>
@@ -168,6 +176,7 @@ export default function DocumentList() {
     createDocument,
     deleteDocument,
     selectDocument,
+    updateDocumentOrder,
     documentsLoading,
     currentDocument,
     error,
@@ -178,33 +187,61 @@ export default function DocumentList() {
 
   // dnd-kit 센서 설정
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px 이동 후 드래그 시작
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-
+  
   // 드래그 앤 드롭 핸들러
   const handleDragEnd = async (event) => {
     const { active, over } = event;
     
     if (active.id !== over.id) {
       try {
-        // 현재 문서 목록에서 순서 변경
-        const oldIndex = documents.findIndex(doc => doc.id === active.id);
-        const newIndex = documents.findIndex(doc => doc.id === over.id);
+        console.log('드래그 앤 드롭 시작:', active.id, '->', over.id);
         
-        // 최상위 문서만 순서 변경 가능 (parentId가 null인 문서들)
-        const topLevelDocuments = documents.filter(doc => doc.parentId === null);
-        const oldTopIndex = topLevelDocuments.findIndex(doc => doc.id === active.id);
-        const newTopIndex = topLevelDocuments.findIndex(doc => doc.id === over.id);
+        // 드래그된 문서가 개인 문서인지 공유 문서인지 확인
+        const draggedDoc = documents.find(doc => doc.id === active.id);
+        const targetDoc = documents.find(doc => doc.id === over.id);
         
-        if (oldTopIndex !== -1 && newTopIndex !== -1) {
-          const newOrder = arrayMove(topLevelDocuments, oldTopIndex, newTopIndex);
+        if (!draggedDoc || !targetDoc) return;
+        
+        // 개인 문서와 공유 문서를 구분
+        const isPersonalDrag = draggedDoc.userId === user.id && 
+          (!draggedDoc.permissions || !draggedDoc.permissions.some(p => p.userId !== user.id));
+        const isPersonalTarget = targetDoc.userId === user.id && 
+          (!targetDoc.permissions || !targetDoc.permissions.some(p => p.userId !== user.id));
+        
+        console.log('드래그 문서 타입:', isPersonalDrag ? '개인' : '공유');
+        console.log('타겟 문서 타입:', isPersonalTarget ? '개인' : '공유');
+        
+        // 같은 카테고리 내에서만 이동 가능
+        if (isPersonalDrag !== isPersonalTarget) {
+          console.log('개인 문서와 공유 문서 간 이동은 불가능합니다.');
+          return;
+        }
+        
+        // 해당 카테고리의 문서들만 가져오기
+        const categoryDocuments = isPersonalDrag ? personalDocuments : sharedDocuments;
+        const oldIndex = categoryDocuments.findIndex(doc => doc.id === active.id);
+        const newIndex = categoryDocuments.findIndex(doc => doc.id === over.id);
+        
+        console.log('카테고리 문서 수:', categoryDocuments.length);
+        console.log('이전 인덱스:', oldIndex, '새 인덱스:', newIndex);
+        
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const newOrder = arrayMove(categoryDocuments, oldIndex, newIndex);
           const documentIds = newOrder.map(doc => doc.id);
           
-          // 백엔드에 순서 업데이트
-          await updateDocumentOrder(currentWorkspace.id, documentIds);
+          console.log('새로운 순서:', documentIds);
+          
+          // DocumentContext의 updateDocumentOrder 사용
+          await updateDocumentOrder(documentIds);
         }
       } catch (err) {
         console.error('문서 순서 변경 실패:', err);
@@ -221,15 +258,43 @@ export default function DocumentList() {
 
   // 공유/개인 문서 분류 (최상위 문서만)
   // 백엔드에서 이미 접근 가능한 문서만 필터링해서 보내주므로, 프론트에서는 단순 분류만 수행
-  const sharedDocuments = documents.filter(doc =>
-    doc.parentId == null &&
-    (doc.userId !== user.id || (doc.permissions && doc.permissions.some(p => p.userId !== user.id)))
-  );
-  const personalDocuments = documents.filter(doc =>
-    doc.parentId == null &&
-    doc.userId === user.id &&
-    (!doc.permissions || !doc.permissions.some(p => p.userId !== user.id))
-  );
+  const { sharedDocuments, personalDocuments } = useMemo(() => {
+    console.log('문서 분류 및 정렬 시작:', documents.length, '개 문서');
+    
+    const shared = documents.filter(doc =>
+      doc.parentId == null &&
+      (doc.userId !== user.id || (doc.permissions && doc.permissions.some(p => p.userId !== user.id)))
+    ).sort((a, b) => {
+      // sortOrder로 정렬 (null 값은 맨 뒤로)
+      const sortOrderA = a.sortOrder;
+      const sortOrderB = b.sortOrder;
+      
+      if (sortOrderA == null && sortOrderB == null) return 0;
+      if (sortOrderA == null) return 1;
+      if (sortOrderB == null) return -1;
+      return sortOrderA - sortOrderB;
+    });
+    
+    const personal = documents.filter(doc =>
+      doc.parentId == null &&
+      doc.userId === user.id &&
+      (!doc.permissions || !doc.permissions.some(p => p.userId !== user.id))
+    ).sort((a, b) => {
+      // sortOrder로 정렬 (null 값은 맨 뒤로)
+      const sortOrderA = a.sortOrder;
+      const sortOrderB = b.sortOrder;
+      
+      if (sortOrderA == null && sortOrderB == null) return 0;
+      if (sortOrderA == null) return 1;
+      if (sortOrderB == null) return -1;
+      return sortOrderA - sortOrderB;
+    });
+    
+    console.log('공유 문서:', shared.map(d => ({ id: d.id, title: d.title, sortOrder: d.sortOrder })));
+    console.log('개인 문서:', personal.map(d => ({ id: d.id, title: d.title, sortOrder: d.sortOrder })));
+    
+    return { sharedDocuments: shared, personalDocuments: personal };
+  }, [documents, user.id]);
 
   const [openedIds, setOpenedIds] = useState(new Set());
   const [childrenMap, setChildrenMap] = useState({}); // { [parentId]: [children] }
