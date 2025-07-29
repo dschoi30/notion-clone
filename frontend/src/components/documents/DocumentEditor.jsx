@@ -1,15 +1,16 @@
 // src/components/documents/DocumentEditor.jsx
 import React, { useState, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useDocument } from '@/contexts/DocumentContext';
 import useDocumentSocket from '@/hooks/useDocumentSocket';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { useAuth } from '@/contexts/AuthContext';
 import useDocumentPresence from '@/hooks/useDocumentPresence';
-import DocumentTableView from './DocumentTableView';
+import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
 import { getProperties } from '@/services/documentApi';
+import DocumentTableView from './DocumentTableView';
 import DocumentHeader from './DocumentHeader';
 import DocumentPageView from './DocumentPageView';
-import { useParams } from 'react-router-dom';
 
 const DocumentEditor = () => {
   const { currentWorkspace } = useWorkspace();
@@ -42,6 +43,9 @@ const DocumentEditor = () => {
   const addPropBtnRef = useRef(null);
 
   const { idSlug } = useParams();
+  
+  // zustand store에서 titleWidth 관리
+  const setTitleWidth = useDocumentPropertiesStore(state => state.setTitleWidth);
 
   // idSlug에서 id와 slug 분리
   let docId = null;
@@ -92,8 +96,12 @@ const DocumentEditor = () => {
     if (currentDocument) {
       setTitle(currentDocument.title);
       setContent(currentDocument.content || '');
+      // titleColumnWidth를 store에 동기화
+      if (currentDocument.titleWidth) {
+        setTitleWidth(currentDocument.titleWidth);
+      }
     }
-  }, [currentDocument]);
+  }, [currentDocument, setTitleWidth]);
 
   useEffect(() => { titleRef.current = title; }, [title]);
   useEffect(() => { contentRef.current = content; }, [content]);

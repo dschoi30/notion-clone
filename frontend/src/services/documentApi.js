@@ -140,7 +140,7 @@ export async function getPropertyValuesByChildDocuments(workspaceId, parentId) {
 }
 
 // title 컬럼 width 변경
-export async function updateTitleColumnWidth(workspaceId, documentId, width) {
+export async function updateTitleWidth(workspaceId, documentId, width) {
   return api.patch(`/api/workspaces/${workspaceId}/documents/${documentId}/title-width`, { width });
 }
 
