@@ -6,6 +6,7 @@ import { PlusIcon, TrashIcon, GripVertical, ArrowLeft, ChevronRight, ChevronDown
 import { useDocument } from '@/contexts/DocumentContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { updateDocumentOrder } from '@/services/documentApi';
 import {
   DndContext,
   closestCenter,
@@ -25,11 +26,26 @@ import { CSS } from '@dnd-kit/utilities';
 import { useNavigate } from 'react-router-dom';
 import { slugify } from '@/lib/utils';
 
-function DocumentTreeItem({ document, currentDocument, onSelect, onDelete, openedIds, setOpenedIds, childrenMap, setChildrenMap, fetchChildDocuments, level = 0, idPath = [] }) {
+function SortableDocumentTreeItem({ document, currentDocument, onSelect, onDelete, openedIds, setOpenedIds, childrenMap, setChildrenMap, fetchChildDocuments, level = 0, idPath = [] }) {
   const [hovered, setHovered] = useState(false);
   const [loading, setLoading] = useState(false);
   const children = childrenMap[document.id] || [];
   const hasChildren = children.length > 0;
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: document.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
 
   const handleToggle = async (e) => {
     e.stopPropagation();
@@ -55,7 +71,9 @@ function DocumentTreeItem({ document, currentDocument, onSelect, onDelete, opene
   return (
     <>
       <div
+        ref={setNodeRef}
         style={{
+          ...style,
           paddingLeft: level * 20,
           background: idPath.includes(document.id)
             ? '#F0F0EF'
@@ -67,6 +85,16 @@ function DocumentTreeItem({ document, currentDocument, onSelect, onDelete, opene
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
+        {/* 드래그 핸들 */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="flex justify-center items-center p-0 mr-1 w-8 h-8 rounded cursor-move hover:bg-gray-200"
+          style={{ minWidth: 32 }}
+        >
+          <GripVertical className="w-4 h-4 text-gray-400" />
+        </div>
+        
         {document.hasChildren ? (
           hovered ? (
             <button
@@ -112,7 +140,7 @@ function DocumentTreeItem({ document, currentDocument, onSelect, onDelete, opene
         <div className="pl-8 text-sm text-gray-400">로딩 중...</div>
       ) : (
         children.map(child => (
-          <DocumentTreeItem
+          <SortableDocumentTreeItem
             key={child.id}
             document={child}
             currentDocument={currentDocument}
@@ -147,6 +175,43 @@ export default function DocumentList() {
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  // dnd-kit 센서 설정
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // 드래그 앤 드롭 핸들러
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    
+    if (active.id !== over.id) {
+      try {
+        // 현재 문서 목록에서 순서 변경
+        const oldIndex = documents.findIndex(doc => doc.id === active.id);
+        const newIndex = documents.findIndex(doc => doc.id === over.id);
+        
+        // 최상위 문서만 순서 변경 가능 (parentId가 null인 문서들)
+        const topLevelDocuments = documents.filter(doc => doc.parentId === null);
+        const oldTopIndex = topLevelDocuments.findIndex(doc => doc.id === active.id);
+        const newTopIndex = topLevelDocuments.findIndex(doc => doc.id === over.id);
+        
+        if (oldTopIndex !== -1 && newTopIndex !== -1) {
+          const newOrder = arrayMove(topLevelDocuments, oldTopIndex, newTopIndex);
+          const documentIds = newOrder.map(doc => doc.id);
+          
+          // 백엔드에 순서 업데이트
+          await updateDocumentOrder(currentWorkspace.id, documentIds);
+        }
+      } catch (err) {
+        console.error('문서 순서 변경 실패:', err);
+        alert('문서 순서 변경에 실패했습니다.');
+      }
+    }
+  };
 
   useEffect(() => {
     if (currentWorkspace) {
@@ -244,23 +309,32 @@ export default function DocumentList() {
           {sharedDocuments.length === 0 ? (
             <div className="text-center text-gray-500">공유 문서가 없습니다.</div>
           ) : (
-            <div className="space-y-1">
-              {sharedDocuments.map(document => (
-                <DocumentTreeItem
-                  key={document.id}
-                  document={document}
-                  currentDocument={currentDocument}
-                  onSelect={handleSelectDocument}
-                  onDelete={handleDeleteDocument}
-                  openedIds={openedIds}
-                  setOpenedIds={setOpenedIds}
-                  childrenMap={childrenMap}
-                  setChildrenMap={setChildrenMap}
-                  fetchChildDocuments={fetchChildDocuments}
-                  idPath={idPath}
-                />
-              ))}
-            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={sharedDocuments.map(doc => doc.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {sharedDocuments.map(document => (
+                  <SortableDocumentTreeItem
+                    key={document.id}
+                    document={document}
+                    currentDocument={currentDocument}
+                    onSelect={handleSelectDocument}
+                    onDelete={handleDeleteDocument}
+                    openedIds={openedIds}
+                    setOpenedIds={setOpenedIds}
+                    childrenMap={childrenMap}
+                    setChildrenMap={setChildrenMap}
+                    fetchChildDocuments={fetchChildDocuments}
+                    idPath={idPath}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           )}
         </div>
         {/* 개인 문서 섹션 */}
@@ -271,23 +345,32 @@ export default function DocumentList() {
           {personalDocuments.length === 0 ? (
             <div className="text-center text-gray-500">개인 문서가 없습니다.</div>
           ) : (
-            <div className="space-y-1">
-              {personalDocuments.map(document => (
-                <DocumentTreeItem
-                  key={document.id}
-                  document={document}
-                  currentDocument={currentDocument}
-                  onSelect={handleSelectDocument}
-                  onDelete={handleDeleteDocument}
-                  openedIds={openedIds}
-                  setOpenedIds={setOpenedIds}
-                  childrenMap={childrenMap}
-                  setChildrenMap={setChildrenMap}
-                  fetchChildDocuments={fetchChildDocuments}
-                  idPath={idPath}
-                />
-              ))}
-            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={personalDocuments.map(doc => doc.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {personalDocuments.map(document => (
+                  <SortableDocumentTreeItem
+                    key={document.id}
+                    document={document}
+                    currentDocument={currentDocument}
+                    onSelect={handleSelectDocument}
+                    onDelete={handleDeleteDocument}
+                    openedIds={openedIds}
+                    setOpenedIds={setOpenedIds}
+                    childrenMap={childrenMap}
+                    setChildrenMap={setChildrenMap}
+                    fetchChildDocuments={fetchChildDocuments}
+                    idPath={idPath}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </div>
