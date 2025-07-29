@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { Text, Hash, Calendar, Tag as TagIcon, User, Clock, Edit3 } from 'lucide-react';
 import { useDocument } from '@/contexts/DocumentContext';
 import { getProperties, addProperty, updateProperty, deleteProperty, addOrUpdatePropertyValue, updatePropertyWidth, getPropertyValuesByChildDocuments,
-  updateDocument, createDocument, updateTitleColumnWidth, getChildDocuments, updatePropertyOrder } from '@/services/documentApi';
+  updateDocument, createDocument, getChildDocuments, updatePropertyOrder } from '@/services/documentApi';
 import { Button } from '@/components/ui/button';
 import AddPropertyPopover from './AddPropertyPopover';
 import DatePopover from './DatePopover';
@@ -164,25 +164,18 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
   
   // zustand store에서 width 정보 가져오기
   const storeProperties = useDocumentPropertiesStore(state => state.properties);
-  const storeDocumentId = useDocumentPropertiesStore(state => state.documentId);
-  const titleColumnWidth = (() => {
-    // properties가 아니라 document에서 가져와야 함. (storeDocumentId가 바뀔 때마다 갱신)
-    // store에서 titleColumnWidth를 별도로 관리하지 않으므로, properties fetch 후 setProperties에서 받아온 document에서 추출 필요
-    // 일단 properties에 없으므로, props로 받은 documentId가 바뀔 때마다 getDocument로 받아와야 함
-    // 하지만 기존 구조상 properties만 zustand에 있으므로, 일단 288로 fallback
-    // 추후 store에 titleColumnWidth 추가 필요
-    return 288;
-  })();
+  const titleWidth = useDocumentPropertiesStore(state => state.titleWidth);
+  const updateTitleWidth = useDocumentPropertiesStore(state => state.updateTitleWidth);
   const propertyWidths = storeProperties.map(p => p.width ?? defaultWidth);
-  const [colWidths, setColWidths] = useState(() => [titleColumnWidth, ...propertyWidths]);
+  const [colWidths, setColWidths] = useState(() => [titleWidth, ...propertyWidths]);
   const liveWidths = useRef(colWidths);
 
   useEffect(() => {
-    const initial = [titleColumnWidth, ...propertyWidths];
+    const initial = [titleWidth, ...propertyWidths];
     setColWidths(initial);
     liveWidths.current = initial;
     // eslint-disable-next-line
-  }, [titleColumnWidth, propertyWidths.join(","), storeProperties.length]);
+  }, [titleWidth, propertyWidths.join(","), storeProperties.length]);
 
   const resizingCol = useRef(null);
   const startX = useRef(0);
@@ -214,8 +207,8 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
       const width = liveWidths.current[colIdx]; // 항상 최신값
       try {
         if (colIdx === 0) {
-          // title 컬럼
-          await updateTitleColumnWidth(workspaceId, documentId, width);
+          // title 컬럼 - store를 통해 백엔드 동기화
+          await updateTitleWidth(workspaceId, documentId, width);
         } else {
           // property 컬럼
           const property = properties[colIdx - 1];
@@ -225,6 +218,7 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
         }
       } catch (e) {
         // 실패해도 UI는 반영
+        console.error('컬럼 크기 업데이트 실패:', e);
       }
     }
     resizingCol.current = null;

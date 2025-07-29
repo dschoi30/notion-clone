@@ -101,3 +101,10 @@
   - 드래그 앤 드롭 후 즉시 정렬 반영: DocumentContext에서 sortOrder 값 업데이트, DocumentList에서 useMemo로 자동 재정렬
   - 개인/공유 문서 카테고리별 독립적인 정렬: 같은 카테고리 내에서만 순서 변경 가능, 카테고리 간 이동 방지
   - 노션 스타일 드래그 앤 드롭: 드래그 중 항목만 투명도 0.4로 표시, 긴 제목 말줄임표 처리, 호버 시 전체 제목 표시
+
+- [x] DocumentTableView 타이틀 컬럼 너비 업데이트 기능 구현 완료
+  - zustand store(useDocumentPropertiesStore)에 titleWidth 상태 관리 및 updateTitlWidth 메서드 추가
+  - DocumentTableView에서 하드코딩된 288값 대신 store의 titleWidth 사용하도록 수정
+  - 타이틀 컬럼 리사이즈 시 store를 통해 백엔드와 자동 동기화되도록 handleResizeMouseUp 개선
+  - DocumentEditor에서 currentDocument 변경 시 titleColumnWidth를 store에 동기화하는 로직 추가
+  - 백엔드 API(updateTitleWidth)와 연동하여 컬럼 너비 변경사항이 즉시 서버에 저장됨

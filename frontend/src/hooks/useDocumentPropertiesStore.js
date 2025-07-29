@@ -5,6 +5,7 @@ export const useDocumentPropertiesStore = create((set, get) => ({
   properties: [],
   loading: false,
   error: null,
+  titleWidth: 288, // 기본값
 
   // 문서 속성 및 태그 옵션 전체 패치
   fetchProperties: async (workspaceId, documentId) => {
@@ -16,6 +17,20 @@ export const useDocumentPropertiesStore = create((set, get) => ({
       set({ error: err.message });
     } finally {
       set({ loading: false });
+    }
+  },
+
+  // titleWidth 설정
+  setTitleWidth: (width) => set({ titleWidth: width }),
+
+  // titleWidth 업데이트 (백엔드와 동기화)
+  updateTitleWidth: async (workspaceId, documentId, width) => {
+    try {
+      await documentApi.updateTitleWidth(workspaceId, documentId, width);
+      set({ titleWidth: width });
+    } catch (err) {
+      console.error('타이틀 컬럼 너비 업데이트 실패:', err);
+      throw err;
     }
   },
 
