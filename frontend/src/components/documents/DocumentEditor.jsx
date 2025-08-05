@@ -230,11 +230,7 @@ const DocumentEditor = () => {
       // 문서 목록에서 해당 문서 객체 찾기
       const targetDoc = documents.find(d => d.id === docId);
       if (targetDoc) {
-        // slugify 함수로 URL 생성
-        const slugify = (str) => str.toLowerCase().replace(/[^a-z0-9가-힣]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-        const slug = slugify(targetDoc.title || 'untitled');
-        // URL 형식: /:id-:slug로 직접 이동
-        navigate(`/${docId}-${slug}`);
+        navigate(`/${docId}-${slugify(targetDoc.title || 'untitled')}`);
       }
     } catch (err) {
       console.error('경로 클릭 문서 이동 실패:', err);

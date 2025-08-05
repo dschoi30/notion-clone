@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import SearchFilters from './SearchFilters';
 import AuthorFilterModal from './AuthorFilterModal';
 import DateFilterModal, { getDateLabel } from './DateFilterModal';
+import { slugify } from '@/lib/utils';
 
 export default function SearchModal({ open, onClose }) {
   const inputRef = useRef(null);
@@ -156,21 +157,26 @@ export default function SearchModal({ open, onClose }) {
 
   // 검색 결과 클릭 시 문서로 이동
   const handleResultClick = async (doc) => {
-    await selectDocument(doc);
-    onClose();
-    navigate(`/document/${doc.id}`);
+    try {
+      // selectDocument 호출하지 않고 직접 navigate만 사용
+      // URL 변경으로 자동으로 DocumentContext가 해당 문서를 로드할 것임
+      navigate(`/${doc.id}-${slugify(doc.title || 'untitled')}`);
+      onClose();
+    } catch (err) {
+      console.error('검색 결과 문서 이동 실패:', err);
+    }
   };
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+    <div className="flex fixed inset-0 z-50 justify-center items-center bg-black bg-opacity-30">
       <div
         ref={modalRef}
         className="bg-white rounded-lg shadow-lg"
         style={{ width: '40vw', height: '50vh', minWidth: 800, minHeight: 500, display: 'flex', flexDirection: 'column' }}
       >
-        <div className="flex items-center w-full pl-3 my-2">
+        <div className="flex items-center pl-3 my-2 w-full">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gray-400">
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18a7.5 7.5 0 006.15-3.35z" />
           </svg>
@@ -178,7 +184,7 @@ export default function SearchModal({ open, onClose }) {
             ref={inputRef}
             type="text"
             placeholder="문서 제목 또는 내용을 검색하세요..."
-            className="w-full py-3 pl-2 pr-4 rounded focus:outline-none"
+            className="py-3 pr-4 pl-2 w-full rounded focus:outline-none"
             value={query}
             onChange={e => setQuery(e.target.value)}
           />
@@ -211,7 +217,7 @@ export default function SearchModal({ open, onClose }) {
           dateType={selectedDateType}
           onDateTypeChange={setSelectedDateType}
         />
-        <div className="flex-1 px-2 mt-4 overflow-y-auto">
+        <div className="overflow-y-auto flex-1 px-2 mt-4">
           <div className="px-2 mb-2 text-xs text-gray-500">
             {debouncedQuery.trim() ? '검색 결과' : '최근 문서'}
           </div>
