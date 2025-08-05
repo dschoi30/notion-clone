@@ -108,3 +108,49 @@
   - 타이틀 컬럼 리사이즈 시 store를 통해 백엔드와 자동 동기화되도록 handleResizeMouseUp 개선
   - DocumentEditor에서 currentDocument 변경 시 titleColumnWidth를 store에 동기화하는 로직 추가
   - 백엔드 API(updateTitleWidth)와 연동하여 컬럼 너비 변경사항이 즉시 서버에 저장됨
+
+- [x] 최초 로그인 시 마지막 문서 조회 문제 해결
+  - App.jsx의 getDefaultDocPath() 함수에서 workspaceLoading, documentsLoading 상태를 고려하도록 수정
+  - 워크스페이스와 문서 로딩이 완료되기 전에는 "로딩 중..." 메시지 표시
+  - 로딩 완료 후에만 localStorage의 lastDocumentId를 기반으로 리다이렉트 실행
+  - DocumentContext.jsx의 자동 선택 로직과의 경합 상태 해결
+  - 안전한 조건부 렌더링으로 올바른 마지막 문서 조회 보장
+
+- [x] 워크스페이스 간 문서 조회 혼재 문제 해결
+  - DocumentContext.jsx에서 워크스페이스 변경 시 documents 배열 초기화 로직 추가
+  - 이전 워크스페이스의 문서 목록이 남아있어서 발생하는 혼선 방지
+  - 워크스페이스 변경 시 자동으로 fetchDocuments 호출하는 useEffect 추가
+  - DocumentEditor.jsx에서 URL로 접근한 문서가 현재 워크스페이스에 없을 때 안전한 처리 로직 추가
+  - 잘못된 문서 접근 시 현재 워크스페이스의 첫 번째 문서로 자동 리다이렉트
+  - slugify 유틸 함수 import 추가하여 URL 생성 기능 완성
+  
+- [x] 문서 조회 보안 검증 강화
+  - DocumentContext.selectDocument()에서 조회된 문서의 workspaceId 검증 추가
+  - 다른 워크스페이스의 문서가 조회되면 에러 발생 및 localStorage 정리
+  - App.jsx getDefaultDocPath()에서 localStorage의 lastDocumentId 검증 강화
+  - 존재하지 않는 문서 ID는 localStorage에서 자동 제거
+  - DocumentEditor에서 URL 접근 시 문서 목록 기반 검증 및 잘못된 ID localStorage 정리
+  - 백엔드 워크스페이스 검증 부족을 프론트엔드에서 보완하는 다층 검증 구조 구축
+
+- [x] 새로고침 시 URL과 문서 동기화 문제 해결
+  - App.jsx에서 새로고침 시 URL의 문서 ID와 현재 워크스페이스 문서 목록 간 일치성 검증
+  - URL의 문서 ID가 현재 워크스페이스에 없으면 올바른 문서로 자동 리다이렉트
+  - DocumentEditor에서 currentDocument 변경 시 URL 자동 동기화 로직 추가
+  - DocumentContext에서 중복된 자동 문서 선택 로직 제거하여 URL과 문서 상태 충돌 방지
+  - React Router의 useLocation, useNavigate를 활용한 실시간 URL 동기화
+  - 워크스페이스 변경, 새로고침, 직접 URL 접근 시 모든 상황에서 일관된 동작 보장
+
+- [x] 문서 선택 시 무한 루프 문제 해결
+  - App.jsx useEffect에서 location.pathname 의존성 제거로 URL 변경으로 인한 재실행 방지
+  - DocumentEditor URL 동기화 useEffect에서 location.pathname 의존성 제거
+  - DocumentEditor idSlug useEffect에서 selectDocument 의존성 제거
+  - URL 검증은 워크스페이스/문서 목록 변경 시에만, URL 동기화는 문서 변경 시에만 실행되도록 분리
+  - 사이드바에서 다른 문서 선택 시 안정적인 단방향 흐름 보장
+
+- [x] 새로고침 시 WorkspaceContext selectedWorkspace 로딩 문제 해결
+  - **근본 원인 발견**: 백엔드 DocumentResponse에 workspaceId 필드가 누락되어 모든 문서가 `[ws:undefined]`로 표시됨
+  - **백엔드 수정**: DocumentResponse.java에 workspaceId 필드 추가 및 매핑 로직 구현
+  - **프론트엔드 개선**: DocumentContext에 백엔드 응답 상세 로그 추가로 workspaceId 확인 가능
+  - **필터링 강화**: workspaceId 또는 workspace.id로 이중 확인하는 필터링 로직 적용
+  - WorkspaceContext에 상세 디버깅 로그 추가: savedId 읽기, workspaces 목록, 워크스페이스 찾기/설정 과정
+  - App.jsx에 workspaceId 포함 문서 목록 디버깅 로그 추가

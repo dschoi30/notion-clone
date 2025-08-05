@@ -1,6 +1,6 @@
 // src/components/documents/DocumentEditor.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useDocument } from '@/contexts/DocumentContext';
@@ -8,6 +8,7 @@ import useDocumentSocket from '@/hooks/useDocumentSocket';
 import useDocumentPresence from '@/hooks/useDocumentPresence';
 import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
 import { getProperties } from '@/services/documentApi';
+import { slugify } from '@/lib/utils';
 import DocumentTableView from './DocumentTableView';
 import DocumentHeader from './DocumentHeader';
 import DocumentPageView from './DocumentPageView';
@@ -15,6 +16,8 @@ import DocumentPageView from './DocumentPageView';
 const DocumentEditor = () => {
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const isMyWorkspace = currentWorkspace && currentWorkspace.ownerId === user.id;
   const isGuest = !isMyWorkspace;
   const { currentDocument, updateDocument, documentLoading, fetchChildDocuments, documents, selectDocument } = useDocument();
@@ -58,14 +61,43 @@ const DocumentEditor = () => {
     }
   }
 
+  // currentDocument가 변경될 때 URL 동기화 (의존성 최적화로 무한 루프 방지)
+  useEffect(() => {
+    if (currentDocument && currentWorkspace) {
+      const expectedPath = `/${currentDocument.id}-${slugify(currentDocument.title)}`;
+      const currentPath = location.pathname;
+      
+      // URL의 문서 ID는 같지만 slug가 다른 경우에만 동기화 (무한 루프 방지)
+      const currentUrlDocId = currentPath.match(/^\/(\d+)(-.*)?$/)?.[1];
+      const isSameDocId = String(currentUrlDocId) === String(currentDocument.id);
+      
+      if (isSameDocId && currentPath !== expectedPath) {
+        console.log(`URL slug 동기화: ${currentPath} -> ${expectedPath}`);
+        navigate(expectedPath, { replace: true });
+      } else if (!isSameDocId) {
+        // 완전히 다른 문서인 경우 (사이드바에서 선택한 경우)
+        console.log(`URL 문서 변경: ${currentPath} -> ${expectedPath}`);
+        navigate(expectedPath, { replace: true });
+      }
+    }
+  }, [currentDocument, currentWorkspace]); // location.pathname 의존성 제거로 무한 루프 방지
+
   // idSlug가 바뀔 때마다 해당 id의 문서를 선택
   useEffect(() => {
-    if (!docId || !documents.length) return;
+    if (!docId || !documents.length || !currentWorkspace) return;
+    
     const found = documents.find(doc => String(doc.id) === String(docId));
-    if (found && (!currentDocument || String(currentDocument.id) !== String(docId))) {
-      selectDocument(found);
+    if (found) {
+      // URL의 문서가 현재 워크스페이스에 있는 경우
+      if (!currentDocument || String(currentDocument.id) !== String(docId)) {
+        selectDocument(found);
+      }
+    } else if (docId) {
+      // URL의 문서가 현재 워크스페이스에 없는 경우 - 이미 App.jsx에서 처리됨
+      console.warn(`DocumentEditor: 문서 ID ${docId}가 현재 워크스페이스(${currentWorkspace.id})의 문서 목록에 존재하지 않습니다.`);
     }
-  }, [docId, documents]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docId, documents, currentWorkspace, currentDocument]); // selectDocument 의존성 제거로 무한 루프 방지
 
   // 경로 계산 유틸
   function getDocumentPath(documentId, documentList) {
@@ -194,11 +226,18 @@ const DocumentEditor = () => {
   // 경로 타이틀 클릭 시 해당 문서로 이동
   const handlePathClick = async (docId) => {
     if (!docId) return;
-    // 문서 목록에서 해당 문서 객체 찾기
-    const targetDoc = documents.find(d => d.id === docId);
-    if (targetDoc) {
-      selectDocument(targetDoc);
-      await fetchChildDocuments(docId); // 자식 문서도 갱신
+    try {
+      // 문서 목록에서 해당 문서 객체 찾기
+      const targetDoc = documents.find(d => d.id === docId);
+      if (targetDoc) {
+        // slugify 함수로 URL 생성
+        const slugify = (str) => str.toLowerCase().replace(/[^a-z0-9가-힣]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+        const slug = slugify(targetDoc.title || 'untitled');
+        // URL 형식: /:id-:slug로 직접 이동
+        navigate(`/${docId}-${slug}`);
+      }
+    } catch (err) {
+      console.error('경로 클릭 문서 이동 실패:', err);
     }
   };
 

@@ -19,6 +19,7 @@ public class DocumentResponse {
     private Long parentId;
     private String viewType;
     private Long userId;
+    private Long workspaceId; // workspaceId 필드 추가
     private String createdBy;
     private String updatedBy;
     private LocalDateTime createdAt;
@@ -37,6 +38,7 @@ public class DocumentResponse {
                 .parentId(document.getParent() != null ? document.getParent().getId() : null)
                 .viewType(document.getViewType().name())
                 .userId(document.getUser().getId())
+                .workspaceId(document.getWorkspace() != null ? document.getWorkspace().getId() : null) // workspaceId 매핑 추가
                 .createdBy(document.getCreatedBy())
                 .updatedBy(document.getUpdatedBy())
                 .createdAt(document.getCreatedAt())
