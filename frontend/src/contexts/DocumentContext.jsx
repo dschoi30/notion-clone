@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import * as documentApi from '@/services/documentApi';
 import { useWorkspace } from './WorkspaceContext';
+import { slugify } from '@/lib/utils';
 
 const DocumentContext = createContext();
 
@@ -21,34 +22,42 @@ export function DocumentProvider({ children }) {
   const [error, setError] = useState(null);
   const { currentWorkspace } = useWorkspace();
 
-  // 워크스페이스가 변경될 때마다 문서 상태 초기화
+  // currentWorkspace 변경 시 즉시 상태 초기화 후 문서 목록 fetch
   useEffect(() => {
-    if (!currentWorkspace || documents.length === 0) return;
-    // 이미 문서가 선택되어 있으면 자동 선택하지 않음
-    if (currentDocument) return;
-
-    const lastId = localStorage.getItem(`lastDocumentId:${currentWorkspace.id}`);
-    const found = documents.find(doc => String(doc.id) === String(lastId));
-    if (found) {
-      selectDocument(found);
-    } else {
-      selectDocument(documents[0]);
-    }
-  }, [documents, currentWorkspace]);
-
-  useEffect(() => {
-    // 워크스페이스가 바뀌면 currentDocument를 즉시 초기화
+    // 즉시 모든 상태 초기화 (이전 워크스페이스 데이터 제거)
+    setDocuments([]);
     setCurrentDocument(null);
+    setError(null);
+
+    if (currentWorkspace) fetchDocuments();
   }, [currentWorkspace]);
 
   const fetchDocuments = useCallback(async () => {
     if (!currentWorkspace) return;
+    
     try {
       setDocumentsLoading(true);
       setError(null);
       const data = await documentApi.getDocuments(currentWorkspace.id);
-      setDocuments(data);
+      
+      // 백엔드에서 다른 워크스페이스 문서가 섞여서 올 경우를 대비한 필터링
+      const filteredData = data.filter(doc => {
+        // workspaceId 또는 workspace.id로 확인
+        const docWorkspaceId = doc.workspaceId || doc.workspace?.id;
+        
+        // fetchDocuments 호출 시점과 완료 시점에 currentWorkspace가 동일한지 확인
+        // (비동기 처리 중에 워크스페이스가 바뀔 수 있음)
+        // 단순히 ID만 비교
+        if (docWorkspaceId && String(docWorkspaceId) !== String(currentWorkspace.id)) {
+          console.warn(`잘못된 워크스페이스 문서 필터링: 문서 ${doc.id}는 워크스페이스 ${docWorkspaceId}에 속함 (현재: ${currentWorkspace.id})`);
+          return false;
+        }
+        return true;
+      });
+      
+      setDocuments(filteredData);
     } catch (err) {
+      console.error(`❌ fetchDocuments 에러:`, err);
       setError(err.message);
     } finally {
       setDocumentsLoading(false);
@@ -115,11 +124,22 @@ export function DocumentProvider({ children }) {
       setDocumentLoading(true);
       setError(null);
       const fullDocument = await documentApi.getDocument(currentWorkspace.id, document.id);
+      
+      // 조회된 문서가 현재 워크스페이스에 속하는지 검증
+      if (fullDocument.workspaceId && String(fullDocument.workspaceId) !== String(currentWorkspace.id)) {
+        console.error(`문서 ${document.id}는 다른 워크스페이스(${fullDocument.workspaceId})에 속합니다. 현재 워크스페이스: ${currentWorkspace.id}`);
+        throw new Error(`문서가 현재 워크스페이스에 속하지 않습니다.`);
+      }
+      
       setCurrentDocument(fullDocument);
       localStorage.setItem(`lastDocumentId:${currentWorkspace.id}`, document.id);
     } catch (err) {
       setError(err.message);
       console.error('Failed to fetch document:', err);
+      // 에러 발생 시 현재 문서를 null로 설정
+      setCurrentDocument(null);
+      // localStorage에서 잘못된 documentId 제거
+      localStorage.removeItem(`lastDocumentId:${currentWorkspace.id}`);
     } finally {
       setDocumentLoading(false);
     }

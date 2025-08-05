@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, createRef } from 'react';
-import { Navigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Text, Hash, Calendar, Tag as TagIcon, User, Clock, Edit3 } from 'lucide-react';
 import { useDocument } from '@/contexts/DocumentContext';
 import { getProperties, addProperty, updateProperty, deleteProperty, addOrUpdatePropertyValue, updatePropertyWidth, getPropertyValuesByChildDocuments,
@@ -117,6 +117,7 @@ function SortablePropertyHeader({ property, index, onDelete, onEdit, onResize, e
 }
 
 const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
+  const navigate = useNavigate(); // useNavigate 훅 추가
   const [properties, setProperties] = useState(parentProps || []); // [{ id, name, type }]
   const [rows, setRows] = useState([]); // [{ id, title, values: { [propertyId]: value }, document }]
   const [editingCell, setEditingCell] = useState(null);
@@ -463,8 +464,18 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
                   type="button"
                   onClick={async e => {
                     e.stopPropagation();
-                    await selectDocument({ id: rowId });
-                    <Navigate to={`/document/${rowId}`} />;
+                    try {
+                      // 먼저 문서 정보를 가져와서 slug 생성
+                      const targetRow = rows.find(r => r.id === rowId);
+                      if (targetRow) {
+                        const slugify = (str) => str.toLowerCase().replace(/[^a-z0-9가-힣]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+                        const slug = slugify(targetRow.title || 'untitled');
+                        // URL 형식: /:id-:slug
+                        navigate(`/${rowId}-${slug}`);
+                      }
+                    } catch (err) {
+                      console.error('문서 열기 실패:', err);
+                    }
                   }}
                   className="absolute right-2 top-1/2 px-2 py-1 text-xs rounded border border-gray-300 transition -translate-y-1/2 hover:bg-gray-200"
                   style={{ zIndex: 20 }}
