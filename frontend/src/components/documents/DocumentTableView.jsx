@@ -1,19 +1,19 @@
-import React, { useState, useEffect, useRef, createRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Text } from 'lucide-react';
 import { useDocument } from '@/contexts/DocumentContext';
 import { Button } from '@/components/ui/button';
 import AddPropertyPopover from './AddPropertyPopover';
-import DatePopover from './DatePopover';
-import TagPopover from './TagPopover';
+import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
 import { formatKoreanDateTime } from '@/lib/utils';
 import { getColorObj } from '@/lib/colors';
-import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
+import DatePopover from './DatePopover';
+import TagPopover from './TagPopover';
+import { createRef } from 'react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { DndContext, closestCenter } from '@dnd-kit/core';
-import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
-import SortablePropertyHeader from './table/SortablePropertyHeader';
-import { getPropertyIcon, slugify } from './table/utils.jsx';
+import TableHeader from './table/TableHeader';
+import TableRow from './table/TableRow';
+import { slugify } from './table/utils.jsx';
 import { useColumnDnd } from './table/hooks/useColumnDnd';
 import { useColumnResize } from './table/hooks/useColumnResize';
 import { useTableData } from './table/hooks/useTableData';
@@ -358,47 +358,19 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
       {/* 테이블 UI */}
       <div style={{ minWidth: 'max-content' }}>
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleColumnDragEnd}>
-          <div className="flex items-center">
-            {/* 이름 컬럼 */}
-            <div className="flex relative items-center text-gray-500" style={{ minWidth: colWidths[0], width: colWidths[0], padding: '8px', borderLeft: 'none', borderRight: propertiesForRender.length === 0 ? 'none' : '1px solid #e9e9e7' }}>
-              <Text className="inline mr-1" size={16} />이름
-              <div
-                style={{ position: 'absolute', right: 0, top: 0, width: 6, height: '100%', cursor: 'col-resize', zIndex: 10 }}
-                onMouseDown={e => handleResizeMouseDown(e, 0)}
-              />
-            </div>
-            {/* property 컬럼들 (드래그 가능) */}
-            <SortableContext
-              items={propertiesForRender.map(p => p.id)}
-              strategy={horizontalListSortingStrategy}
-            >
-              {propertiesForRender.map((p, idx) => (
-                <SortablePropertyHeader
-                  key={p.id}
-                  property={p}
-                  index={idx}
-                  onDelete={handleDeleteProperty}
-                  onEdit={handleHeaderNameChange}
-                  onResize={handleResizeMouseDown}
+          <TableHeader
+            colWidths={colWidths}
+            properties={propertiesForRender}
+            handleResizeMouseDown={handleResizeMouseDown}
                   editingHeader={editingHeader}
                   setEditingHeader={setEditingHeader}
-                  colWidths={colWidths}
-                />
-              ))}
-            </SortableContext>
-            <div className="relative">
-              <Button ref={addBtnRef} size="sm" variant="ghost" className="ml-2" onClick={() => setIsPopoverOpen(prev => !prev)}>
-                + 속성 추가
-              </Button>
-              {isPopoverOpen && (
-                <div className="absolute left-0 top-full z-10 mt-1" >
-                  <AddPropertyPopover 
-                    onAddProperty={handleAddProperty} 
-                  />
-                </div>
-              )}
-            </div>
-          </div>
+            handleDeleteProperty={handleDeleteProperty}
+            handleHeaderNameChange={handleHeaderNameChange}
+            addBtnRef={addBtnRef}
+            isPopoverOpen={isPopoverOpen}
+            setIsPopoverOpen={setIsPopoverOpen}
+            AddPropertyPopoverComponent={() => <AddPropertyPopover onAddProperty={handleAddProperty} />}
+          />
         </DndContext>
         <div>
           {isLoading && <div className="flex justify-center items-center h-10 text-gray-400">로딩 중...</div>}
@@ -407,12 +379,39 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
             <div className="flex items-center h-10 text-gray-400">빈 행</div>
           ) : (
             rows.map((row, rowIdx) => (
-              <div key={row.id} className="flex items-center h-10">
-                {/* 이름 셀 */}
-                {renderCell(row, null, 0, true, rowIdx)}
-                {/* property 셀 */}
-                {propertiesForRender.map((p, idx) => renderCell(row, p, idx, false, rowIdx))}
-              </div>
+              <TableRow
+                key={row.id}
+                row={row}
+                rowIdx={rowIdx}
+                properties={propertiesForRender}
+                colWidths={colWidths}
+                editingCell={editingCell}
+                hoveredCell={hoveredCell}
+                setEditingCell={setEditingCell}
+                setHoveredCell={setHoveredCell}
+                handleCellValueChange={handleCellValueChange}
+                onOpenRow={(r) => {
+                  const slug = slugify(r.title || 'untitled');
+                  navigate(`/${r.id}-${slug}`);
+                }}
+                systemPropTypes={SYSTEM_PROP_TYPES}
+                tagCellRefs={tagCellRefs}
+                tagPopoverRect={tagPopoverRect}
+                setTagPopoverRect={setTagPopoverRect}
+                onTagOptionsUpdate={(property, updatedTagOptions) => {
+                  setFetchedProperties((prev) =>
+                    prev.map((p) => (p.id === property.id ? { ...p, tagOptions: updatedTagOptions } : p))
+                  );
+                  setRows((prev) =>
+                    prev.map((rowItem) => {
+                      if (!(property.id in rowItem.values)) {
+                        return { ...rowItem, values: { ...rowItem.values, [property.id]: '' } };
+                      }
+                      return rowItem;
+                    })
+                  );
+                }}
+              />
             ))
           )}
         </div>
