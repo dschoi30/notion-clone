@@ -31,9 +31,8 @@ function SortablePropertyHeader({ property, index, onDelete, onEdit, onResize, e
       <div
         {...attributes}
         {...listeners}
-        className="flex items-center w-full transition-colors hover:bg-gray-50 cursor-move"
+        className="flex items-center px-2 w-full transition-colors hover:bg-gray-50 cursor-move"
         style={{
-          padding: '8px',
           borderRight: '1px solid #e9e9e7',
           borderLeft: 'none',
           background: isDragging ? '#f0f0f0' : 'transparent',
