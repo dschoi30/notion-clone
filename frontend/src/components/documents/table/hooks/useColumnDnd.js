@@ -4,7 +4,12 @@ import { updatePropertyOrder } from '@/services/documentApi';
 
 export function useColumnDnd({ properties, setProperties, workspaceId, documentId }) {
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        delay: 150,
+        tolerance: 5,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
