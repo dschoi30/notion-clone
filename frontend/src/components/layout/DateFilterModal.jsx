@@ -149,11 +149,11 @@ export default function DateFilterModal({ open, onClose, onSelect, anchorRef, se
         zIndex: 1000,
         boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
       }}
-      className="p-2 bg-white border border-gray-200 rounded-lg"
+      className="p-2 bg-white rounded-lg border border-gray-200"
       onClick={e => e.stopPropagation()}
       onMouseDown={e => e.stopPropagation()}
     >
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex justify-between items-center mb-2">
         <div className="relative">
           <button
             className="flex items-center px-2 py-1 text-xs bg-white hover:bg-gray-50"
@@ -161,10 +161,10 @@ export default function DateFilterModal({ open, onClose, onSelect, anchorRef, se
             type="button"
           >
             {dateTypeLabel}
-            <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+            <svg className="ml-1 w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
           </button>
           {dropdownOpen && (
-            <ul className="absolute left-0 z-10 w-24 mt-1 bg-white border rounded shadow">
+            <ul className="absolute left-0 z-10 mt-1 w-24 bg-white rounded border shadow">
               {dateTypeOptions.map(opt => (
                 <li
                   key={opt.value}
@@ -195,8 +195,8 @@ export default function DateFilterModal({ open, onClose, onSelect, anchorRef, se
           </li>
         ))}
       </ul>
-      <div className="p-2 mt-2 border rounded bg-gray-50">
-        <div className="flex items-center justify-between mb-2">
+      <div className="p-2 mt-2 bg-gray-50 rounded border">
+        <div className="flex justify-between items-center mb-2">
           <button onClick={() => setCalendar(c => ({ ...c, month: c.month === 0 ? 11 : c.month - 1, year: c.month === 0 ? c.year - 1 : c.year }))}>&lt;</button>
           <span>{calendar.year}년 {calendar.month + 1}월</span>
           <button onClick={() => setCalendar(c => ({ ...c, month: c.month === 11 ? 0 : c.month + 1, year: c.month === 11 ? c.year + 1 : c.year }))}>&gt;</button>
@@ -220,7 +220,7 @@ export default function DateFilterModal({ open, onClose, onSelect, anchorRef, se
                   onClick={() => handleDatePick(i+1)}
                 >
                   <div className="absolute inset-0 bg-blue-100"></div>
-                  <span className="relative z-10 flex items-center justify-center text-white bg-red-500 rounded-full w-7 h-7">{i+1}</span>
+                  <span className="flex relative z-10 justify-center items-center w-7 h-7 text-white bg-red-500 rounded-full">{i+1}</span>
                 </button>
               );
             }

@@ -1,70 +1,73 @@
 package com.example.notionclone.domain.document.dto;
 
+import com.example.notionclone.domain.document.entity.Document;
+import com.example.notionclone.domain.permission.dto.PermissionInfo;
+import com.example.notionclone.domain.permission.entity.Permission;
+import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.example.notionclone.domain.document.entity.Document;
-import com.example.notionclone.domain.permission.entity.Permission;
-import com.example.notionclone.domain.permission.dto.PermissionInfo;
-
 @Getter
-@NoArgsConstructor
+@Builder
 public class DocumentResponse {
     private Long id;
     private String title;
     private String content;
-    private Long workspaceId;
+    private Long parentId;
+    private String viewType;
+    private Long userId;
+    private Long workspaceId; // workspaceId 필드 추가
+    private String createdBy;
+    private String updatedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private boolean isTrashed;
-    private Long userId;
     private List<PermissionInfo> permissions;
+    private List<DocumentPropertyDto> properties;
+    private boolean hasChildren;
+    private Integer titleColumnWidth;
+    private Integer sortOrder;
 
-    /**
-     * @deprecated permissions 없이 생성하는 from은 내부용으로만 사용하세요.
-     */
-    @Deprecated
-    public static DocumentResponse from(Document document) {
-        DocumentResponse response = new DocumentResponse();
-        response.id = document.getId();
-        response.title = document.getTitle();
-        response.content = document.getContent();
-        response.workspaceId = document.getWorkspace() != null ? document.getWorkspace().getId() : null;
-        response.createdAt = document.getCreatedAt();
-        response.updatedAt = document.getUpdatedAt();
-        response.isTrashed = document.isTrashed();
-        response.userId = document.getUser().getId();
-        response.permissions = null;
+    public static DocumentResponse fromDocumentWithPermissionsAndChildren(Document document, List<Permission> permissions, boolean hasChildren) {
+        return DocumentResponse.builder()
+                .id(document.getId())
+                .title(document.getTitle())
+                .content(document.getContent())
+                .parentId(document.getParent() != null ? document.getParent().getId() : null)
+                .viewType(document.getViewType().name())
+                .userId(document.getUser().getId())
+                .workspaceId(document.getWorkspace() != null ? document.getWorkspace().getId() : null) // workspaceId 매핑 추가
+                .createdBy(document.getCreatedBy())
+                .updatedBy(document.getUpdatedBy())
+                .createdAt(document.getCreatedAt())
+                .updatedAt(document.getUpdatedAt())
+                .permissions(permissions != null ? permissions.stream().map(PermissionInfo::from).collect(Collectors.toList()) : null)
+                .properties(document.getProperties().stream().map(DocumentPropertyDto::from).collect(Collectors.toList()))
+                .hasChildren(hasChildren)
+                .titleColumnWidth(document.getTitleColumnWidth())
+                .sortOrder(document.getSortOrder())
+                .build();
+    }
+
+    public static DocumentResponse fromDocumentWithPermissions(Document document, List<Permission> permissions) {
+        return fromDocumentWithPermissionsAndChildren(document, permissions, false);
+    }
+
+    public static DocumentResponse fromDocument(Document document) {
+        return fromDocumentWithPermissionsAndChildren(document, null, false);
+    }
+
+    public static DocumentResponse fromDocumentWithPermissionsAndChildren(
+        Document document, List<Permission> permissions, boolean hasChildren, List<DocumentPropertyDto> properties
+    ) {
+        DocumentResponse response = fromDocumentWithPermissionsAndChildren(document, permissions, hasChildren);
+        response.setProperties(properties);
         return response;
     }
 
-    public static DocumentResponse from(Document document, List<Permission> permissions) {
-        DocumentResponse response = new DocumentResponse();
-        response.id = document.getId();
-        response.title = document.getTitle();
-        response.content = document.getContent();
-        response.workspaceId = document.getWorkspace() != null ? document.getWorkspace().getId() : null;
-        response.createdAt = document.getCreatedAt();
-        response.updatedAt = document.getUpdatedAt();
-        response.isTrashed = document.isTrashed();
-        response.userId = document.getUser().getId();
-        boolean ownerExists = permissions.stream().anyMatch(p -> p.getUser().getId().equals(document.getUser().getId()));
-        List<PermissionInfo> permissionInfos = permissions.stream().map(PermissionInfo::new).collect(Collectors.toList());
-        if (!ownerExists) {
-            PermissionInfo ownerInfo = new PermissionInfo(
-                document.getUser().getId(),
-                document.getUser().getName(),
-                document.getUser().getEmail(),
-                com.example.notionclone.domain.permission.entity.PermissionType.OWNER,
-                null
-            );
-            permissionInfos.add(0, ownerInfo);
-        }
-        response.permissions = permissionInfos;
-        return response;
+    public void setProperties(List<DocumentPropertyDto> properties) {
+        this.properties = properties;
     }
 } 

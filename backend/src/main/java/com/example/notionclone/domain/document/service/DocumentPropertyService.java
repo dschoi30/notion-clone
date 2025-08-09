@@ -1,0 +1,155 @@
+package com.example.notionclone.domain.document.service;
+
+import com.example.notionclone.domain.document.dto.DocumentPropertyDto;
+import com.example.notionclone.domain.document.entity.Document;
+import com.example.notionclone.domain.document.entity.DocumentProperty;
+import com.example.notionclone.domain.document.entity.PropertyType;
+import com.example.notionclone.domain.document.repository.DocumentPropertyRepository;
+import com.example.notionclone.domain.document.repository.DocumentRepository;
+import com.example.notionclone.domain.document.entity.DocumentPropertyTagOption;
+import com.example.notionclone.domain.document.repository.DocumentPropertyTagOptionRepository;
+import com.example.notionclone.exception.ResourceNotFoundException;
+import com.example.notionclone.domain.user.entity.User;
+import com.example.notionclone.domain.user.repository.UserRepository;
+import com.example.notionclone.domain.permission.service.PermissionService;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class DocumentPropertyService {
+    private final DocumentPropertyRepository propertyRepository;
+    private final DocumentRepository documentRepository;
+    private final UserRepository userRepository;
+    private final PermissionService permissionService;
+    private final DocumentPropertyTagOptionRepository tagOptionRepository;
+
+    @Transactional
+    public DocumentProperty addProperty(Long documentId, String name, PropertyType type, Integer sortOrder) {
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId));
+        Long targetId = (document.getParent() != null) ? document.getParent().getId() : document.getId();
+        Document targetDoc = documentRepository.findById(targetId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + targetId));
+        DocumentProperty property = DocumentProperty.builder()
+                .document(targetDoc)
+                .name(name)
+                .type(type)
+                .sortOrder(sortOrder)
+                .build();
+        return propertyRepository.save(property);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DocumentPropertyDto> getPropertiesByDocument(Long documentId) {
+        Document doc = documentRepository.findById(documentId)
+            .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId));
+        Long targetId = (doc.getParent() != null) ? doc.getParent().getId() : doc.getId();
+        List<DocumentProperty> properties = propertyRepository.findByDocumentIdOrderBySortOrderAsc(targetId);
+        return properties.stream()
+                .map(property -> {
+                    DocumentPropertyDto dto = DocumentPropertyDto.from(property);
+                    if ("TAG".equals(property.getType().name())) {
+                        List<DocumentPropertyTagOption> tagOptions = tagOptionRepository
+                                .findByPropertyId(property.getId());
+                        List<DocumentPropertyDto.TagOptionDto> tagOptionDtos = tagOptions.stream()
+                                .map(DocumentPropertyDto.TagOptionDto::new).collect(Collectors.toList());
+                        dto.setTagOptions(tagOptionDtos);
+                    }
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void deleteProperty(Long propertyId) {
+        propertyRepository.deleteById(propertyId);
+    }
+
+    @Transactional
+    public DocumentProperty updateProperty(Long userId, Long propertyId, String name) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+
+        DocumentProperty property = propertyRepository.findById(propertyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Property not found: " + propertyId));
+
+        Document document = property.getDocument();
+
+        boolean isOwner = document.getUser().getId().equals(userId);
+        boolean hasWritePermission = permissionService.hasAcceptedWritePermission(user, document);
+
+        if (!isOwner && !hasWritePermission) {
+            throw new org.springframework.security.access.AccessDeniedException("No permission to edit this property.");
+        }
+
+        property.setName(name);
+        return propertyRepository.save(property);
+    }
+
+    @Transactional
+    public void updatePropertyWidth(Long propertyId, Integer width) {
+        DocumentProperty property = propertyRepository.findById(propertyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Property not found: " + propertyId));
+        property.setWidth(width);
+        propertyRepository.save(property);
+    }
+
+    @Transactional
+    public DocumentPropertyTagOption addTagOption(Long propertyId, String label, String color, Integer sortOrder) {
+        DocumentProperty property = propertyRepository.findById(propertyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Property not found: " + propertyId));
+        DocumentPropertyTagOption option = DocumentPropertyTagOption.builder()
+                .property(property)
+                .label(label)
+                .color(color)
+                .sortOrder(sortOrder)
+                .build();
+        return tagOptionRepository.save(option);
+    }
+
+    @Transactional
+    public DocumentPropertyTagOption updateTagOption(Long optionId, String label, String color, Integer sortOrder) {
+        DocumentPropertyTagOption option = tagOptionRepository.findById(optionId)
+                .orElseThrow(() -> new ResourceNotFoundException("TagOption not found: " + optionId));
+        option.setLabel(label);
+        option.setColor(color);
+        option.setSortOrder(sortOrder);
+        return tagOptionRepository.save(option);
+    }
+
+    @Transactional
+    public void deleteTagOption(Long optionId) {
+        tagOptionRepository.deleteById(optionId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DocumentPropertyTagOption> getTagOptionsByProperty(Long propertyId) {
+        return tagOptionRepository.findByPropertyId(propertyId);
+    }
+
+    @Transactional
+    public void updatePropertyOrder(Long documentId, List<Long> propertyIds) {
+        Document doc = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId));
+        Long targetId = (doc.getParent() != null) ? doc.getParent().getId() : doc.getId();
+        
+        for (int i = 0; i < propertyIds.size(); i++) {
+            Long propertyId = propertyIds.get(i);
+            DocumentProperty property = propertyRepository.findById(propertyId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Property not found: " + propertyId));
+            
+            // 속성이 해당 문서에 속하는지 확인
+            if (!property.getDocument().getId().equals(targetId)) {
+                throw new IllegalArgumentException("Property does not belong to the specified document");
+            }
+            
+            property.setSortOrder(i);
+            propertyRepository.save(property);
+        }
+    }
+} 

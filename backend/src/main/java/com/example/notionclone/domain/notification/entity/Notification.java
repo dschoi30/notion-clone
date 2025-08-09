@@ -1,6 +1,6 @@
 package com.example.notionclone.domain.notification.entity;
 
-import com.example.notionclone.domain.BaseTimeEntity;
+import com.example.notionclone.domain.BaseEntity;
 import com.example.notionclone.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -11,7 +11,7 @@ import lombok.*;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-public class Notification extends BaseTimeEntity {
+public class Notification extends BaseEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 

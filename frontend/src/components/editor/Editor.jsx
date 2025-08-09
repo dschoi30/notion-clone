@@ -325,7 +325,7 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
   }
 
   return (
-    <div className="editor">
+    <div className="pb-4 editor">
       <EditorMenuBar editor={editor} setLink={setLink} />
       <EditorContent 
         editor={editor}
