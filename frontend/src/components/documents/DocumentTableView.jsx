@@ -22,7 +22,7 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove, SortableContext, horizontalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import SortablePropertyHeader from './table/SortablePropertyHeader';
-import { getPropertyIcon, slugify } from './table/utils';
+import { getPropertyIcon, slugify } from './table/utils.jsx';
 
 // moved to ./table/utils
 
