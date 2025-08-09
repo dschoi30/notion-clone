@@ -46,7 +46,8 @@ function SortablePropertyHeader({ property, index, onDelete, onEdit, onResize, e
             onBlur={onEdit}
             onKeyDown={(e) => e.key === 'Enter' && onEdit()}
             autoFocus
-            className="px-1 py-0 w-full text-sm bg-gray-200 rounded border border-blue-400 outline-none"
+            className="px-2 py-1 w-full rounded border outline-none"
+            style={{ background: '#fff', border: '1.5px solid #bdbdbd' }}
           />
         ) : (
           <div
