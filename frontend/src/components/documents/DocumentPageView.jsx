@@ -229,7 +229,8 @@ const DocumentPageView = ({
                 {isEditingHeader && !SYSTEM_PROP_TYPES.includes(prop.type) ? (
                   <input
                     autoFocus
-                    className="px-1 py-0 w-[120px] text-sm bg-gray-200 rounded border border-blue-400 outline-none"
+                    className="px-2 py-1 w-[140px] rounded border outline-none"
+                    style={{ background: '#fff', border: '1.5px solid #bdbdbd' }}
                     value={editingHeaderName}
                     onChange={e => setEditingHeaderName(e.target.value)}
                     onBlur={handleHeaderNameChange}
