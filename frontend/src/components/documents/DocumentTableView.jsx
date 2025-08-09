@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef, createRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Text } from 'lucide-react';
 import { useDocument } from '@/contexts/DocumentContext';
-import { getProperties, addProperty, updateProperty, deleteProperty, addOrUpdatePropertyValue, updatePropertyWidth, getPropertyValuesByChildDocuments,
-  updateDocument, createDocument, getChildDocuments, updatePropertyOrder } from '@/services/documentApi';
 import { Button } from '@/components/ui/button';
 import AddPropertyPopover from './AddPropertyPopover';
 import DatePopover from './DatePopover';
@@ -12,17 +10,13 @@ import { formatKoreanDateTime } from '@/lib/utils';
 import { getColorObj } from '@/lib/colors';
 import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import {
-  DndContext,
-  closestCenter,
-  useSensor,
-  useSensors,
-  PointerSensor,
-  KeyboardSensor,
-} from '@dnd-kit/core';
-import { arrayMove, SortableContext, horizontalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { DndContext, closestCenter } from '@dnd-kit/core';
+import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import SortablePropertyHeader from './table/SortablePropertyHeader';
 import { getPropertyIcon, slugify } from './table/utils.jsx';
+import { useColumnDnd } from './table/hooks/useColumnDnd';
+import { useColumnResize } from './table/hooks/useColumnResize';
+import { useTableData } from './table/hooks/useTableData';
 
 // moved to ./table/utils
 
@@ -30,236 +24,72 @@ import { getPropertyIcon, slugify } from './table/utils.jsx';
 
 const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
   const navigate = useNavigate(); // useNavigate 훅 추가
-  const [properties, setProperties] = useState(parentProps || []); // [{ id, name, type }]
-  const [rows, setRows] = useState([]); // [{ id, title, values: { [propertyId]: value }, document }]
+  const [properties, setProperties] = useState(parentProps || []); // keep initial props until hook fetch
   const [editingCell, setEditingCell] = useState(null);
   const [hoveredCell, setHoveredCell] = useState(null);
-  const [editingHeader, setEditingHeader] = useState({ id: null, name: '' });
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
   const addBtnRef = useRef(null);
   const tagCellRefs = useRef({}); // {rowId_propertyId: ref}
   const [tagPopoverRect, setTagPopoverRect] = useState(null);
   const defaultWidth = 192; // 12rem
   
-  // dnd-kit 센서 설정
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  // 드래그 앤 드롭 핸들러
-  const handleDragEnd = async (event) => {
-    const { active, over } = event;
-    
-    if (active.id !== over.id) {
-      const oldIndex = properties.findIndex(p => p.id === active.id);
-      const newIndex = properties.findIndex(p => p.id === over.id);
-      
-      const newProperties = arrayMove(properties, oldIndex, newIndex);
-      setProperties(newProperties);
-      
-      // 백엔드에 순서 업데이트
-      try {
-        const propertyIds = newProperties.map(p => p.id);
-        await updatePropertyOrder(workspaceId, documentId, propertyIds);
-      } catch (err) {
-        console.error('속성 순서 업데이트 실패:', err);
-        // 실패 시 원래 순서로 복원
-        setProperties(properties);
-        alert('속성 순서 변경에 실패했습니다. 다시 시도해주세요.');
-      }
-    }
+  const systemPropTypeMap = {
+    CREATED_BY: (row) => row.document?.createdBy || '',
+    LAST_UPDATED_BY: (row) => row.document?.updatedBy || '',
+    CREATED_AT: (row) => row.document?.createdAt || '',
+    LAST_UPDATED_AT: (row) => row.document?.updatedAt || '',
   };
-  
-  // zustand store에서 width 정보 가져오기
-  const storeProperties = useDocumentPropertiesStore(state => state.properties);
-  const titleWidth = useDocumentPropertiesStore(state => state.titleWidth);
-  const updateTitleWidth = useDocumentPropertiesStore(state => state.updateTitleWidth);
-  const propertyWidths = storeProperties.map(p => p.width ?? defaultWidth);
-  const [colWidths, setColWidths] = useState(() => [titleWidth, ...propertyWidths]);
-  const liveWidths = useRef(colWidths);
+
+  // data hook
+  const {
+    properties: fetchedProperties,
+    setProperties: setFetchedProperties,
+    rows,
+    setRows,
+    isLoading,
+    error,
+    editingHeader,
+    setEditingHeader,
+    handleAddProperty,
+    handleDeleteProperty,
+    handleAddRow,
+    handleCellValueChange,
+    handleHeaderNameChange,
+  } = useTableData({ workspaceId, documentId, systemPropTypeMap });
 
   useEffect(() => {
-    const initial = [titleWidth, ...propertyWidths];
-    setColWidths(initial);
-    liveWidths.current = initial;
-  }, [titleWidth, propertyWidths.join(","), storeProperties.length]);
-
-  const resizingCol = useRef(null);
-  const startX = useRef(0);
-  const startWidth = useRef(0);
-
-  const handleResizeMouseDown = (e, colIdx) => {
-    resizingCol.current = colIdx;
-    startX.current = e.clientX;
-    startWidth.current = colWidths[colIdx];
-    document.body.style.cursor = 'col-resize';
-    window.addEventListener('mousemove', handleResizeMouseMove);
-    window.addEventListener('mouseup', handleResizeMouseUp);
-  };
-  const handleResizeMouseMove = (e) => {
-    if (resizingCol.current == null) return;
-    const dx = e.clientX - startX.current;
-    const newWidth = Math.max(100, startWidth.current + dx);
-    setColWidths((prev) => {
-      const next = [...prev];
-      next[resizingCol.current] = newWidth;
-      return next;
-    });
-    liveWidths.current[resizingCol.current] = newWidth;
-  };
-  const handleResizeMouseUp = async () => {
-    // 서버에 PATCH
-    if (resizingCol.current != null) {
-      const colIdx = resizingCol.current;
-      const width = liveWidths.current[colIdx]; // 항상 최신값
-      try {
-        if (colIdx === 0) {
-          // title 컬럼 - store를 통해 백엔드 동기화
-          await updateTitleWidth(workspaceId, documentId, width);
-        } else {
-          // property 컬럼
-          const property = properties[colIdx - 1];
-          if (property) {
-            await updatePropertyWidth(workspaceId, property.id, width);
-          }
-        }
-      } catch (e) {
-        // 실패해도 UI는 반영
-        console.error('컬럼 크기 업데이트 실패:', e);
-      }
+    if (parentProps && parentProps.length > 0) {
+      setFetchedProperties(parentProps);
     }
-    resizingCol.current = null;
-    document.body.style.cursor = '';
-    window.removeEventListener('mousemove', handleResizeMouseMove);
-    window.removeEventListener('mouseup', handleResizeMouseUp);
-  };
+  }, [parentProps?.length]);
 
-  const systemPropTypeMap = {
-    CREATED_BY: row => row.document?.createdBy || '',
-    LAST_UPDATED_BY: row => row.document?.updatedBy || '',
-    CREATED_AT: row => row.document?.createdAt || '',
-    LAST_UPDATED_AT: row => row.document?.updatedAt || '',
-  };
+  // column resize
+  const storeProperties = useDocumentPropertiesStore((state) => state.properties);
+  const titleWidth = useDocumentPropertiesStore((state) => state.titleWidth);
+  const updateTitleWidth = useDocumentPropertiesStore((state) => state.updateTitleWidth);
+  const propertyWidths = storeProperties.map((p) => p.width ?? defaultWidth);
+  const { colWidths, handleResizeMouseDown } = useColumnResize({
+    properties: fetchedProperties,
+    titleWidth,
+    propertyWidths,
+    workspaceId,
+    documentId,
+    updateTitleWidthFn: updateTitleWidth,
+  });
 
-  const handleAddProperty = async (name, type) => {
-    if (!name || !type) return;
-    try {
-      const newProperty = await addProperty(workspaceId, documentId, { name, type, sortOrder: properties.length });
-      setProperties(prev => [...prev, newProperty]);
-      if (rows.length > 0) {
-        // systemPropTypes면 자동 값 입력
-        if (systemPropTypeMap[type]) {
-          await Promise.all(rows.map(async row => {
-            const value = systemPropTypeMap[type](row);
-            await addOrUpdatePropertyValue(workspaceId, row.id, newProperty.id, value);
-            // 프론트에도 즉시 반영
-            row.values[newProperty.id] = value;
-          }));
-          setRows([...rows]);
-        } else {
-          await Promise.all(rows.map(row => addOrUpdatePropertyValue(workspaceId, row.id, newProperty.id, '')));
-        }
-      }
-      setIsPopoverOpen(false);
-    } catch (e) {
-      alert('속성 추가 실패');
-    }
-  };
+  // column dnd
+  const { sensors, handleColumnDragEnd } = useColumnDnd({
+    properties: fetchedProperties,
+    setProperties: setFetchedProperties,
+    workspaceId,
+    documentId,
+  });
+  
+  // (removed) inline resize logic moved to hook
 
-  const handleDeleteProperty = async (propertyId) => {
-    if (!window.confirm('정말로 이 속성을 삭제하시겠습니까?')) return;
-    try {
-      await deleteProperty(workspaceId, propertyId);
-      setProperties(prev => prev.filter(p => p.id !== propertyId));
-      setRows(prev => prev.map(row => {
-        const newValues = { ...row.values };
-        delete newValues[propertyId];
-        return { ...row, values: newValues };
-      }));
-    } catch (e) {
-      alert('속성 삭제 실패');
-    }
-  };
+  const propertiesForRender = fetchedProperties && fetchedProperties.length > 0 ? fetchedProperties : properties;
 
-  const handleAddRow = async () => {
-    try {
-      const newDoc = await createDocument(workspaceId, {
-        title: '',
-        content: '',
-        parentId: documentId,
-        viewType: 'PAGE',
-      });
-      const newRow = { id: newDoc.id, title: '', values: {} };
-      properties.forEach(p => {
-        if (systemPropTypeMap[p.type]) {
-          switch (p.type) {
-            case 'CREATED_BY':
-              newRow.values[p.id] = newDoc.createdBy;
-              break;
-            case 'LAST_UPDATED_BY':
-              newRow.values[p.id] = newDoc.updatedBy;
-              break;
-            case 'CREATED_AT':
-              newRow.values[p.id] = newDoc.createdAt;
-              break;
-            case 'LAST_UPDATED_AT':
-              newRow.values[p.id] = newDoc.updatedAt;
-              break;
-          }
-        } else {
-          newRow.values[p.id] = '';
-        }
-      });
-      setRows(prev => [...prev, newRow]);
-    } catch (e) {
-      alert('페이지 생성 실패');
-    }
-  };
-
-  const handleCellValueChange = async (rowId, propertyId, value) => {
-    if (propertyId == null) {
-      // 이름 셀(타이틀) 변경
-      setRows(prev => prev.map(row => row.id === rowId ? { ...row, title: value } : row));
-      // 자식 document의 title을 백엔드에 PATCH
-      try {
-        await updateDocument(workspaceId, rowId, { title: value });
-      } catch (e) {
-        alert('이름 저장 실패');
-      }
-    } else {
-      setRows(prev => prev.map(row =>
-        row.id === rowId ? { ...row, values: { ...row.values, [propertyId]: value } } : row
-      ));
-      if (propertyId) {
-        try {
-          await addOrUpdatePropertyValue(workspaceId, rowId, propertyId, value);
-          setProperties(prev => prev.map(p => p.id === editingHeader.id ? { ...p, name: editingHeader.name } : p));
-        } catch (e) {
-          alert('값 저장 실패');
-        }
-      }
-    }
-  };
-
-  const handleHeaderNameChange = async () => {
-    if (!editingHeader.id || !editingHeader.name) {
-      setEditingHeader({ id: null, name: '' });
-      return;
-    }
-    try {
-      await updateProperty(workspaceId, editingHeader.id, editingHeader.name);
-      setProperties(prev => prev.map(p => p.id === editingHeader.id ? { ...p, name: editingHeader.name } : p));
-    } catch (e) {
-      alert('속성 이름 변경 실패');
-    } finally {
-      setEditingHeader({ id: null, name: '' });
-    }
-  };
+  // (removed) inline table data/handlers moved to hook
 
   const SYSTEM_PROP_TYPES = ['CREATED_BY', 'LAST_UPDATED_BY', 'CREATED_AT', 'LAST_UPDATED_AT'];
 
@@ -277,48 +107,7 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
     }
   }, [currentWorkspace, currentDocument, fetchProperties, setDocumentId]);
 
-  async function fetchTableData() {
-    setIsLoading(true);
-    setError(null);
-    try {
-      // 1. 컬럼 정보 조회
-      const props = await getProperties(workspaceId, documentId);
-      setProperties(props);
-      // 2. 자식 문서(PAGE) 목록 fetch
-      const children = await getChildDocuments(workspaceId, documentId);
-      setRows([]); // 초기화
-      if (!children || children.length === 0) {
-        setProperties([]);
-        setRows([]);
-        return;
-      }
-      // 3. 모든 자식(PAGE) 문서의 property value fetch
-      const allValues = await getPropertyValuesByChildDocuments(workspaceId, documentId);
-      // 4. 자식문서 ID를 key로 값들을 그룹핑
-      const valuesByRowId = allValues.reduce((acc, val) => {
-        if (!acc[val.documentId]) acc[val.documentId] = {};
-        acc[val.documentId][val.propertyId] = val.value;
-        return acc;
-      }, {});
-      // 5. 최종 테이블 데이터(행) 구성
-      const tableRows = children.map(child => ({
-        id: child.id,
-        title: child.title,
-        values: valuesByRowId[child.id] || {},
-        document: child // document 전체 포함
-      }));
-      setRows(tableRows);
-    } catch (err) {
-      setError(err);
-      console.error('테이블 데이터 로딩 실패:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchTableData();
-  }, [workspaceId, documentId]);
+  // (removed) inline fetch logic moved to hook
 
   const renderCell = (row, property, idx, isNameCell = false, rowIdx = 0) => {
     const rowId = row.id;
@@ -535,7 +324,7 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
                 handleCellValueChange(rowId, property.id, val);
               }}
               onTagOptionsUpdate={async (updatedTagOptions) => {
-                setProperties(prev => prev.map(p => 
+                setFetchedProperties(prev => prev.map(p => 
                   p.id === property.id ? { ...p, tagOptions: updatedTagOptions } : p
                 ));
                 
@@ -568,14 +357,10 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
     <div className="px-20 space-y-4 min-w-0">
       {/* 테이블 UI */}
       <div style={{ minWidth: 'max-content' }}>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleColumnDragEnd}>
           <div className="flex items-center">
             {/* 이름 컬럼 */}
-            <div className="flex relative items-center text-gray-500" style={{ minWidth: colWidths[0], width: colWidths[0], padding: '8px', borderLeft: 'none', borderRight: properties.length === 0 ? 'none' : '1px solid #e9e9e7' }}>
+            <div className="flex relative items-center text-gray-500" style={{ minWidth: colWidths[0], width: colWidths[0], padding: '8px', borderLeft: 'none', borderRight: propertiesForRender.length === 0 ? 'none' : '1px solid #e9e9e7' }}>
               <Text className="inline mr-1" size={16} />이름
               <div
                 style={{ position: 'absolute', right: 0, top: 0, width: 6, height: '100%', cursor: 'col-resize', zIndex: 10 }}
@@ -584,10 +369,10 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
             </div>
             {/* property 컬럼들 (드래그 가능) */}
             <SortableContext
-              items={properties.map(p => p.id)}
+              items={propertiesForRender.map(p => p.id)}
               strategy={horizontalListSortingStrategy}
             >
-              {properties.map((p, idx) => (
+              {propertiesForRender.map((p, idx) => (
                 <SortablePropertyHeader
                   key={p.id}
                   property={p}
@@ -626,7 +411,7 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
                 {/* 이름 셀 */}
                 {renderCell(row, null, 0, true, rowIdx)}
                 {/* property 셀 */}
-                {properties.map((p, idx) => renderCell(row, p, idx, false, rowIdx))}
+                {propertiesForRender.map((p, idx) => renderCell(row, p, idx, false, rowIdx))}
               </div>
             ))
           )}
