@@ -29,7 +29,9 @@ function SortablePropertyHeader({ property, index, onDelete, onEdit, onResize, e
       className="flex relative items-center text-gray-500 group"
     >
       <div
-        className="flex items-center w-full transition-colors hover:bg-gray-50"
+        {...attributes}
+        {...listeners}
+        className="flex items-center w-full transition-colors hover:bg-gray-50 cursor-move"
         style={{
           padding: '8px',
           borderRight: '1px solid #e9e9e7',
@@ -37,15 +39,6 @@ function SortablePropertyHeader({ property, index, onDelete, onEdit, onResize, e
           background: isDragging ? '#f0f0f0' : 'transparent',
         }}
       >
-        <div
-          {...attributes}
-          {...listeners}
-          className="mr-2 px-1 text-gray-400 hover:text-gray-600 cursor-grab select-none"
-          title="드래그"
-          onClick={(e) => e.stopPropagation()}
-        >
-          ⋮⋮
-        </div>
         {editingHeader.id === property.id ? (
           <input
             value={editingHeader.name}
