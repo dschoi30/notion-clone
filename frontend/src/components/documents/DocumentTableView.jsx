@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, createRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Text, Hash, Calendar, Tag as TagIcon, User, Clock, Edit3 } from 'lucide-react';
+import { Text } from 'lucide-react';
 import { useDocument } from '@/contexts/DocumentContext';
 import { getProperties, addProperty, updateProperty, deleteProperty, addOrUpdatePropertyValue, updatePropertyWidth, getPropertyValuesByChildDocuments,
   updateDocument, createDocument, getChildDocuments, updatePropertyOrder } from '@/services/documentApi';
@@ -20,101 +20,13 @@ import {
   PointerSensor,
   KeyboardSensor,
 } from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  useSortable,
-  horizontalListSortingStrategy,
-  sortableKeyboardCoordinates,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { arrayMove, SortableContext, horizontalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import SortablePropertyHeader from './table/SortablePropertyHeader';
+import { getPropertyIcon, slugify } from './table/utils';
 
-function getPropertyIcon(type) {
-  switch (type) {
-    case 'TEXT': return <Text className="inline mr-1" size={16} />;
-    case 'NUMBER': return <Hash className="inline mr-1" size={16} />;
-    case 'DATE': return <Calendar className="inline mr-1" size={16} />;
-    case 'TAG': return <TagIcon className="inline mr-1" size={16} />;
-    case 'CREATED_BY': return <User className="inline mr-1" size={16} />;
-    case 'LAST_UPDATED_BY': return <Edit3 className="inline mr-1" size={16} />;
-    case 'CREATED_AT': return <Clock className="inline mr-1" size={16} />;
-    case 'LAST_UPDATED_AT': return <Clock className="inline mr-1" size={16} />;
-    default: return null;
-  }
-}
+// moved to ./table/utils
 
-function SortablePropertyHeader({ property, index, onDelete, onEdit, onResize, editingHeader, setEditingHeader, colWidths }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: property.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    minWidth: colWidths[1 + index],
-    width: colWidths[1 + index],
-    zIndex: isDragging ? 1000 : 'auto',
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="flex relative items-center text-gray-500 group"
-    >
-      <div
-        {...attributes}
-        {...listeners}
-        className="flex items-center w-full transition-colors cursor-move hover:bg-gray-50"
-        style={{ 
-          padding: '8px', 
-          borderRight: '1px solid #e9e9e7', 
-          borderLeft: 'none',
-          background: isDragging ? '#f0f0f0' : 'transparent'
-        }}
-      >
-        {editingHeader.id === property.id ? (
-          <input
-            value={editingHeader.name}
-            onChange={e => setEditingHeader(prev => ({...prev, name: e.target.value}))}
-            onBlur={onEdit}
-            onKeyDown={e => e.key === 'Enter' && onEdit()}
-            autoFocus
-            className="px-1 py-0 w-full text-sm bg-gray-200 rounded border border-blue-400 outline-none"
-          />
-        ) : (
-          <div
-            className="flex items-center w-full text-gray-500"
-            onClick={() => setEditingHeader({ id: property.id, name: property.name })}
-          >
-            {getPropertyIcon(property.type)}{property.name}
-          </div>
-        )}
-        <button
-          className="ml-2 text-gray-400 opacity-0 transition hover:text-red-500 group-hover:opacity-100"
-          style={{ fontSize: 14 }}
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(property.id);
-          }}
-          title="컬럼 삭제"
-        >
-          ×
-        </button>
-      </div>
-      <div
-        style={{ position: 'absolute', right: 0, top: 0, width: 6, height: '100%', cursor: 'col-resize', zIndex: 10 }}
-        onMouseDown={e => onResize(e, 1 + index)}
-      />
-    </div>
-  );
-}
+// moved to ./table/SortablePropertyHeader.jsx
 
 const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
   const navigate = useNavigate(); // useNavigate 훅 추가
@@ -175,7 +87,6 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
     const initial = [titleWidth, ...propertyWidths];
     setColWidths(initial);
     liveWidths.current = initial;
-    // eslint-disable-next-line
   }, [titleWidth, propertyWidths.join(","), storeProperties.length]);
 
   const resizingCol = useRef(null);
@@ -468,7 +379,6 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
                       // 먼저 문서 정보를 가져와서 slug 생성
                       const targetRow = rows.find(r => r.id === rowId);
                       if (targetRow) {
-                        const slugify = (str) => str.toLowerCase().replace(/[^a-z0-9가-힣]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
                         const slug = slugify(targetRow.title || 'untitled');
                         // URL 형식: /:id-:slug
                         navigate(`/${rowId}-${slug}`);
