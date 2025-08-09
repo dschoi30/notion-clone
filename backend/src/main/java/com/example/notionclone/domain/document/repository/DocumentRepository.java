@@ -32,4 +32,10 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
     void deleteAllTrashedByWorkspaceId(@Param("workspaceId") Long workspaceId);
 
     List<Document> findByWorkspaceIdAndUserId(Long workspaceId, Long userId);
+
+    List<Document> findByWorkspaceIdAndUserIdAndIsTrashedFalse(Long workspaceId, Long userId);
+
+    List<Document> findByParentIdAndIsTrashedFalse(Long parentId);
+
+    boolean existsByParentIdAndIsTrashedFalse(Long parentId);
 } 

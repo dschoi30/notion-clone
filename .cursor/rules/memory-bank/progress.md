@@ -1,7 +1,8 @@
-- 2024-06-09: DocumentEditor.jsx에 실시간 자동 저장(debounce 500ms) 기능 구현. 저장 버튼 제거, 저장 상태 UI만 표시. title/content 변경 시 자동 저장 트리거. 
-- 2024-06-29: useDocumentSocket.js에서 Stomp 클라이언트 생성 방식을 공식 권장 방식(Client + webSocketFactory)으로 변경하여 자동 재연결 지원 및 경고 해결. 
+- `DocumentList.jsx`에서 문서의 `viewType`이 `TABLE`일 경우, `FileText` 아이콘 대신 `Table` 아이콘을 표시하도록 수정하여 시각적 구분을 명확히 함.
+- DocumentEditor.jsx에 실시간 자동 저장(debounce 500ms) 기능 구현. 저장 버튼 제거, 저장 상태 UI만 표시. title/content 변경 시 자동 저장 트리거. 
+- useDocumentSocket.js에서 Stomp 클라이언트 생성 방식을 공식 권장 방식(Client + webSocketFactory)으로 변경하여 자동 재연결 지원 및 경고 해결. 
 - vite.config.js의 WebSocket 프록시 설정을 확인하고 주석을 추가하여 명확히 함. 
-- 2024-06-29: WebSocket 연결 시 JWT 인증을 위해 프론트엔드에서 토큰을 쿼리 파라미터로 전달하고, 백엔드에서 JwtHandshakeInterceptor로 검증하는 기능 추가. 
+- WebSocket 연결 시 JWT 인증을 위해 프론트엔드에서 토큰을 쿼리 파라미터로 전달하고, 백엔드에서 JwtHandshakeInterceptor로 검증하는 기능 추가. 
 - [x] WorkspaceList 컴포넌트 단위테스트 파일(WorkspaceList.test.jsx) 작성 완료
   - 주요 동작(목록 렌더링, 로딩/에러, 워크스페이스 선택, 추가/설정/로그아웃 버튼, 모달 표시 등) 테스트 포함
   - useWorkspace, useAuth 등 context hook mocking 적용
@@ -14,15 +15,142 @@
 - TrashModal 모달 위치 계산을 anchor 아래로 열었을 때 화면을 벗어나면 위로 열고, 위로 열어도 화면을 벗어나면 top을 0으로 고정하는 방식으로 개선함. 
 - TrashModal 위치 계산 시 dialogHeight를 고정값(320)으로 사용하고, 모달 전체가 아니라 ul(문서 리스트)에만 maxHeight, overflowY를 적용하도록 수정함. 
 - TrashModal 위치 계산 시 useLayoutEffect를 사용해 실제 모달 높이(dialogRef.current.offsetHeight)로 위치를 2차 보정하는 로직을 추가함. 위치 계산 함수는 updateDialogPosition으로 분리하고, open/anchorRef/workspaceId/trashedDocuments 변경 시마다 위치를 재계산하도록 개선함. 
-- 2024-06-09: 깃허브 이슈 등록 및 브랜치 생성
+- 깃허브 이슈 등록 및 브랜치 생성
   - [#1 사이드바에 검색 메뉴 및 모달 기반 실시간 문서 검색 기능 추가](https://github.com/dschoi30/notion-clone/issues/1)
   - 브랜치명: feature/sidebar-search-modal
-- TrashModal 위치 계산 useLayoutEffect에 anchorRef, dialogRef, getBoundingClientRect 예외 및 경고 추가 (2024-06-12)
-- TrashModal 위치 계산에서 dialogRef.current가 null일 때 setTimeout으로 1프레임 뒤에 위치 계산을 재시도하도록 개선 (2024-06-12)
-- TrashModal 위치 계산 로직을 calculateDialogPosition 함수로 분리하고, useLayoutEffect 내 중복 코드를 제거해 리팩토링 (2024-06-12)
+- TrashModal 위치 계산 useLayoutEffect에 anchorRef, dialogRef, getBoundingClientRect 예외 및 경고 추가
+- TrashModal 위치 계산에서 dialogRef.current가 null일 때 setTimeout으로 1프레임 뒤에 위치 계산을 재시도하도록 개선
+- TrashModal 위치 계산 로직을 calculateDialogPosition 함수로 분리하고, useLayoutEffect 내 중복 코드를 제거해 리팩토링
 - 작성자 필터 모달이 드롭다운처럼 버튼(anchorRef) 아래에 자연스럽게 위치하도록 수정. SearchFilters의 작성자 버튼에 ref를 부여해 AuthorFilterModal에 anchorRef로 전달, absolute 위치 계산 및 오버레이 제거까지 완료.
 - 날짜 필터(DateFilterModal) 드롭다운 모달 컴포넌트 생성 및 SearchFilters, SearchModal과 연동. 날짜 버튼 클릭 시 모달 오픈, 오늘/이번 주/이번 달/직접 선택 등 프리셋 선택 가능. 선택 시 버튼에 라벨 표시. (직접 선택은 미구현)
-- DateFilterModal에서 '직접 선택' 버튼 제거 및 showCalendar를 항상 true로 고정하여, 모달이 열리면 바로 캘린더가 보이도록 개선 (2024-06-09)
-- 2024-06-09: DocumentEditor.jsx 상단에 문서 권한자 이니셜 아이콘 목록을 표시하고, 현재 로그인한 사용자는 강조 스타일로 보여주는 기능을 추가함.
-- 2024-06-09: useDocumentPresence.js 커스텀 훅 생성(문서별 실시간 접속자 목록 관리, 소켓 연결)
-- 2024-06-09: DocumentEditor.jsx에서 권한자 이니셜 아이콘에 presence(접속자) 강조(초록색 테두리) 적용
+- DateFilterModal에서 '직접 선택' 버튼 제거 및 showCalendar를 항상 true로 고정하여, 모달이 열리면 바로 캘린더가 보이도록 개선
+- DocumentEditor.jsx 상단에 문서 권한자 이니셜 아이콘 목록을 표시하고, 현재 로그인한 사용자는 강조 스타일로 보여주는 기능을 추가함.
+- useDocumentPresence.js 커스텀 훅 생성(문서별 실시간 접속자 목록 관리, 소켓 연결)
+- DocumentEditor.jsx에서 권한자 이니셜 아이콘에 presence(접속자) 강조(초록색 테두리) 적용
+- [x] 1. ERD/DB 및 모델 구조 확정 및 반영 (Document parent/viewType, Property/Value, Enum 생성)
+- [x] 2. API(백엔드) 확장 및 구현 (Document parent/viewType 반영, 하위 문서 조회, 생성/수정 API 확장 등)
+- [x] 3. 프론트엔드 DocumentList/Editor 구조 개편
+- [ ] 4. TableView, GalleryView 등 뷰 타입별 컴포넌트 구현
+- [ ] 5. 속성/행 관리 기능 개발
+- [ ] 6. UX/UI 개선 및 테스트, 배포
+- DocumentEditor.jsx 최초 생성 상태(제목/내용/자식문서 모두 비어있고 viewType이 PAGE)에서만 하단에 '테이블', '갤러리' 버튼이 나타나도록 UI 구현. '테이블' 클릭 시 viewType을 TABLE로 변경하고, 테이블 기본 UI(헤더: 이름, 빈 1행, 속성 추가/새 페이지 버튼) 렌더링까지 완료.
+- DocumentProperty/DocumentPropertyValue 엔티티용 Repository, Service, DTO, Controller(API) 생성 및 CRUD 구현
+  - 속성 추가/조회/삭제, 값 추가/수정/조회 API 구현
+  - 프론트 테이블 뷰와 연동 준비 완료
+- DocumentTableView.jsx: handleConfirmAddProperty 함수에서 새 property 추가 후, 모든 row에 대해 addOrUpdatePropertyValue API를 호출하여 각 row의 새 property 값(초기값 '')이 백엔드에도 반영되도록 수정함.
+- 문서 조회/수정/삭제 API에 대한 권한 검증 로직을 추가하여 보안을 강화함.
+  - `DocumentService`의 `getDocument`, `updateDocument`, `deleteDocument` 메서드에 소유자 또는 `Permission` 기반의 권한 검사 로직을 구현함.
+  - 권한이 없는 요청에 대해 404 Not Found 대신 403 Forbidden (`AccessDeniedException`)을 반환하도록 수정하여 API 응답의 명확성을 높임.
+  - `DocumentController`에서 `DocumentService`의 메서드를 호출할 때, 현재 인증된 사용자(`User`) 객체를 전달하도록 수정함.
+- systemPropTypes 속성 추가 시 document 메타데이터 기반 자동 값 입력 기능 DocumentTableView.jsx에 구현
+- rows 구조 확장(document 전체 포함) DocumentEditor.jsx에 반영
+- DocumentTableView.jsx에서 각 행의 셀 높이가 다를 때, 한 행의 최대 셀 높이로 모든 셀의 높이를 맞추는 기능을 구현함. (cellRefs 구조 2차원화, useEffect로 최대 높이 계산, renderCell에서 style.height 적용)
+- DocumentEditor가 viewType이 PAGE일 때만 속성 fetch/속성 추가/속성 요약 UI를 보여주고, TABLE/GALLERY일 때는 해당 컴포넌트로 분기하도록 리팩토링. 테이블 row/property fetch 등은 DocumentTableView로 완전히 위임.
+- App.jsx 라우팅 구조를 /document/:id 경로에서만 DocumentEditor가 렌더링되도록 변경
+- 문서 상세 URL을 /:id-:slug 형태로 변경
+- DocumentEditor에서 idSlug 파싱 및 문서 선택
+- DocumentList에서 문서 클릭 시 해당 경로로 이동하도록 수정
+- slugify 유틸 추가
+- 최초 로그인 또는 / 경로 접근 시 lastId 값으로 문서로 리다이렉트하는 로직 App.jsx에 추가
+- lastId 없으면 documents[0]로 이동
+- Provider를 App에서 감싸도록 구조 변경
+- DocumentPageView.jsx에서 속성명/값 목록을 한 줄에 하나씩 세로로 정렬하고, 각 속성 행에 호버 시 bg-gray-100 배경색이 적용되도록 스타일을 개선했습니다. 기본 배경색은 없습니다.
+- Sidebar.jsx에서 사이드바가 항상 화면에 고정되어 보이도록 position: fixed, top: 0, left: 0, height: 100vh, zIndex: 30 스타일을 적용했습니다.
+- DocumentPropertyService.java에서 parentId가 있으면 부모 id로, 없으면 자신의 id로 속성 추가/조회하도록 리팩토링 완료.
+- DocumentPageView(PAGE 뷰)에서 system property type 속성 추가 시, 즉시 property value가 저장되고 화면에 반영되도록 DocumentEditor.jsx의 handleAddProperty를 개선함
+- DocumentProperty의 태그 옵션(tagOptions) 목록을 백엔드에서 관리하도록 DB/엔티티/서비스/컨트롤러/API를 모두 구현함
+- frontend/src/hooks/useDocumentPropertiesStore.js: zustand 기반 문서 속성 및 태그 옵션 전역 관리 store 생성 (fetchProperties, add/edit/removeTagOption 등)
+- TagPopover.jsx: props 대신 zustand store에서 tagOptions를 직접 조회/수정하도록 리팩터링
+- DocumentPageView.jsx, DocumentTableView.jsx: 문서 진입 시 zustand store에서 properties/tagOptions 패치, TagPopover에 propertyId만 전달하도록 변경
+- DocumentTableView에서 titleColumnWidth, propertyWidths를 props로 받지 않고 zustand store(useDocumentPropertiesStore)에서 가져오도록 리팩토링함
+- propertyWidths는 store의 properties의 width 필드를 활용
+- titleColumnWidth는 store에 별도 관리 필요(현재는 288로 fallback)
+- 상위 컴포넌트(DocumentEditor)에서는 더 이상 해당 props를 넘기지 않음
+- DocumentPropertyService의 getPropertiesByDocument 메서드에서 sort_order 순으로 오름차순 정렬하여 반환하도록 수정
+- DocumentPropertyRepository에 findByDocumentIdOrderBySortOrderAsc 메서드 추가
+- [x] 현재 백엔드 엔티티 클래스들을 기반으로 클래스 다이어그램과 ERD 업데이트 완료
+  - BaseEntity 추상 클래스와 상속 관계 반영
+  - Document, DocumentProperty, DocumentPropertyValue, DocumentPropertyTagOption 엔티티 추가
+  - Permission, Notification 엔티티 상세 정보 반영
+  - ViewType, PropertyType, PermissionType, PermissionStatus, NotificationType, NotificationStatus enum 추가
+  - Workspace의 계층 구조(parent-child) 관계 반영
+  - Document의 계층 구조(parent-child) 관계 반영
+  - 모든 엔티티 간의 관계를 정확히 매핑
+
+- [x] DocumentTableView.jsx 테이블 헤더 드래그 앤 드롭 기능 구현 완료
+  - 백엔드: DocumentPropertyService에 updatePropertyOrder 메서드 추가, DocumentController에 PATCH /{documentId}/properties/order 엔드포인트 추가
+  - 프론트엔드: documentApi.js에 updatePropertyOrder 함수 추가
+  - dnd-kit 라이브러리 활용하여 SortablePropertyHeader 컴포넌트 생성
+  - DndContext, SortableContext로 테이블 헤더 감싸기
+  - 드래그 앤 드롭 시 백엔드 API 호출하여 sortOrder 업데이트
+  - 에러 처리 및 로딩 상태 관리 개선
+  - 시각적 피드백(드래그 중 투명도, 호버 효과) 추가
+
+- [x] DocumentList.jsx 드래그 앤 드롭 기능 재활성화 완료
+  - SortableDocumentTreeItem 컴포넌트로 변환하여 드래그 앤 드롭 활성화
+  - DocumentContext의 updateDocumentOrder 함수 활용하여 로컬 상태 직접 업데이트
+  - 화면 깜빡임 없이 부드러운 순서 변경 구현
+  - 그립 아이콘 제거하고 문서 제목 영역 전체를 드래그 영역으로 설정
+
+- [x] 문서 정렬 기능 개선 완료
+  - 프론트엔드: DocumentList에서 개인/공유 문서 분류 후 sortOrder로 정렬
+  - 백엔드: Repository에서 정렬 로직 제거하여 단순 조회로 변경
+  - 현재 구조에 맞는 최적화: 모든 문서를 가져온 후 프론트에서 분류/정렬
+  - null 값 처리를 포함한 안전한 정렬 구현
+  - 최상위 문서와 하위 문서 모두 sortOrder 기준으로 정렬되도록 개선
+  - 드래그 앤 드롭 후 즉시 정렬 반영: DocumentContext에서 sortOrder 값 업데이트, DocumentList에서 useMemo로 자동 재정렬
+  - 개인/공유 문서 카테고리별 독립적인 정렬: 같은 카테고리 내에서만 순서 변경 가능, 카테고리 간 이동 방지
+  - 노션 스타일 드래그 앤 드롭: 드래그 중 항목만 투명도 0.4로 표시, 긴 제목 말줄임표 처리, 호버 시 전체 제목 표시
+
+- [x] DocumentTableView 타이틀 컬럼 너비 업데이트 기능 구현 완료
+  - zustand store(useDocumentPropertiesStore)에 titleWidth 상태 관리 및 updateTitlWidth 메서드 추가
+  - DocumentTableView에서 하드코딩된 288값 대신 store의 titleWidth 사용하도록 수정
+  - 타이틀 컬럼 리사이즈 시 store를 통해 백엔드와 자동 동기화되도록 handleResizeMouseUp 개선
+  - DocumentEditor에서 currentDocument 변경 시 titleColumnWidth를 store에 동기화하는 로직 추가
+  - 백엔드 API(updateTitleWidth)와 연동하여 컬럼 너비 변경사항이 즉시 서버에 저장됨
+
+- [x] 최초 로그인 시 마지막 문서 조회 문제 해결
+  - App.jsx의 getDefaultDocPath() 함수에서 workspaceLoading, documentsLoading 상태를 고려하도록 수정
+  - 워크스페이스와 문서 로딩이 완료되기 전에는 "로딩 중..." 메시지 표시
+  - 로딩 완료 후에만 localStorage의 lastDocumentId를 기반으로 리다이렉트 실행
+  - DocumentContext.jsx의 자동 선택 로직과의 경합 상태 해결
+  - 안전한 조건부 렌더링으로 올바른 마지막 문서 조회 보장
+
+- [x] 워크스페이스 간 문서 조회 혼재 문제 해결
+  - DocumentContext.jsx에서 워크스페이스 변경 시 documents 배열 초기화 로직 추가
+  - 이전 워크스페이스의 문서 목록이 남아있어서 발생하는 혼선 방지
+  - 워크스페이스 변경 시 자동으로 fetchDocuments 호출하는 useEffect 추가
+  - DocumentEditor.jsx에서 URL로 접근한 문서가 현재 워크스페이스에 없을 때 안전한 처리 로직 추가
+  - 잘못된 문서 접근 시 현재 워크스페이스의 첫 번째 문서로 자동 리다이렉트
+  - slugify 유틸 함수 import 추가하여 URL 생성 기능 완성
+  
+- [x] 문서 조회 보안 검증 강화
+  - DocumentContext.selectDocument()에서 조회된 문서의 workspaceId 검증 추가
+  - 다른 워크스페이스의 문서가 조회되면 에러 발생 및 localStorage 정리
+  - App.jsx getDefaultDocPath()에서 localStorage의 lastDocumentId 검증 강화
+  - 존재하지 않는 문서 ID는 localStorage에서 자동 제거
+  - DocumentEditor에서 URL 접근 시 문서 목록 기반 검증 및 잘못된 ID localStorage 정리
+  - 백엔드 워크스페이스 검증 부족을 프론트엔드에서 보완하는 다층 검증 구조 구축
+
+- [x] 새로고침 시 URL과 문서 동기화 문제 해결
+  - App.jsx에서 새로고침 시 URL의 문서 ID와 현재 워크스페이스 문서 목록 간 일치성 검증
+  - URL의 문서 ID가 현재 워크스페이스에 없으면 올바른 문서로 자동 리다이렉트
+  - DocumentEditor에서 currentDocument 변경 시 URL 자동 동기화 로직 추가
+  - DocumentContext에서 중복된 자동 문서 선택 로직 제거하여 URL과 문서 상태 충돌 방지
+  - React Router의 useLocation, useNavigate를 활용한 실시간 URL 동기화
+  - 워크스페이스 변경, 새로고침, 직접 URL 접근 시 모든 상황에서 일관된 동작 보장
+
+- [x] 문서 선택 시 무한 루프 문제 해결
+  - App.jsx useEffect에서 location.pathname 의존성 제거로 URL 변경으로 인한 재실행 방지
+  - DocumentEditor URL 동기화 useEffect에서 location.pathname 의존성 제거
+  - DocumentEditor idSlug useEffect에서 selectDocument 의존성 제거
+  - URL 검증은 워크스페이스/문서 목록 변경 시에만, URL 동기화는 문서 변경 시에만 실행되도록 분리
+  - 사이드바에서 다른 문서 선택 시 안정적인 단방향 흐름 보장
+
+- [x] 새로고침 시 WorkspaceContext selectedWorkspace 로딩 문제 해결
+  - **근본 원인 발견**: 백엔드 DocumentResponse에 workspaceId 필드가 누락되어 모든 문서가 `[ws:undefined]`로 표시됨
+  - **백엔드 수정**: DocumentResponse.java에 workspaceId 필드 추가 및 매핑 로직 구현
+  - **프론트엔드 개선**: DocumentContext에 백엔드 응답 상세 로그 추가로 workspaceId 확인 가능
+  - **필터링 강화**: workspaceId 또는 workspace.id로 이중 확인하는 필터링 로직 적용
+  - WorkspaceContext에 상세 디버깅 로그 추가: savedId 읽기, workspaces 목록, 워크스페이스 찾기/설정 과정
+  - App.jsx에 workspaceId 포함 문서 목록 디버깅 로그 추가

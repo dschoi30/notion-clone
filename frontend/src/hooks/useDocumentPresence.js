@@ -33,7 +33,7 @@ export default function useDocumentPresence(documentId, user) {
         stompClient.subscribe(`/topic/presence/${documentId}`, (msg) => {
           const data = JSON.parse(msg.body);
           if (data.type === 'presence') {
-            console.log('presence 브로드캐스트 수신:', data.users);
+            // console.log('presence 브로드캐스트 수신:', data.users);
             setViewers(data.users);
           }
         });

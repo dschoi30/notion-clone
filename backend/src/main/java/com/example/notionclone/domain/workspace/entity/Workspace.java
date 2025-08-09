@@ -1,6 +1,6 @@
 package com.example.notionclone.domain.workspace.entity;
 
-import com.example.notionclone.domain.BaseTimeEntity;
+import com.example.notionclone.domain.BaseEntity;
 import com.example.notionclone.domain.document.entity.Document;
 import com.example.notionclone.domain.user.entity.User;
 import jakarta.persistence.*;
@@ -14,7 +14,7 @@ import java.util.List;
 @Getter
 @ToString(exclude = {"user", "parent", "subWorkspaces", "documents"})
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Workspace extends BaseTimeEntity {
+public class Workspace extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

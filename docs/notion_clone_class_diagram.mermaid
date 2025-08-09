@@ -1,10 +1,17 @@
 classDiagram
+    class BaseEntity {
+        -String createdBy
+        -String updatedBy
+        -LocalDateTime createdAt
+        -LocalDateTime updatedAt
+    }
+
     class User {
         -Long id
         -String email
         -String password
         -String name
-        -UserRole role
+        -String profileImageUrl
         +register()
         +login()
         +updateProfile()
@@ -13,59 +20,159 @@ classDiagram
     class Workspace {
         -Long id
         -String name
-        -User owner
-        -List~User~ members
+        -User user
+        -Workspace parent
+        -List~Workspace~ subWorkspaces
+        -List~Document~ documents
         +createWorkspace()
-        +addMember()
-        +removeMember()
+        +addSubWorkspace()
+        +removeSubWorkspace()
+        +addDocument()
+        +removeDocument()
+        +update()
     }
 
     class Document {
         -Long id
         -String title
         -String content
-        -DocumentType type
-        -User creator
-        -DateTime createdAt
-        -DateTime updatedAt
+        -Workspace workspace
+        -User user
+        -Integer sortOrder
+        -boolean isTrashed
+        -Integer titleColumnWidth
+        -Document parent
+        -ViewType viewType
+        -List~Permission~ permissions
+        -List~DocumentProperty~ properties
         +createDocument()
         +updateDocument()
         +deleteDocument()
+        +setTrashed()
+        +setViewType()
     }
 
-    class Board {
+    class DocumentProperty {
         -Long id
+        -Document document
         -String name
-        -List~Column~ columns
-        +createBoard()
-        +addColumn()
-        +moveCard()
+        -PropertyType type
+        -Integer sortOrder
+        -Integer width
+        -List~DocumentPropertyValue~ values
+        -List~DocumentPropertyTagOption~ tagOptions
+        +setWidth()
     }
 
-    class Card {
+    class DocumentPropertyValue {
         -Long id
-        -String title
-        -String description
-        -User assignee
-        -CardStatus status
-        +createCard()
-        +updateCard()
-        +moveCard()
+        -Document document
+        -DocumentProperty property
+        -String value
+    }
+
+    class DocumentPropertyTagOption {
+        -Long id
+        -DocumentProperty property
+        -String label
+        -String color
+        -Integer sortOrder
+        +toDto()
     }
 
     class Permission {
         -Long id
-        -PermissionType type
         -User user
-        -Resource resource
+        -Document document
+        -PermissionType permissionType
+        -PermissionStatus status
         +grantPermission()
         +revokePermission()
         +checkPermission()
     }
 
+    class Notification {
+        -Long id
+        -User receiver
+        -NotificationType type
+        -String message
+        -String payload
+        -NotificationStatus status
+        +setStatus()
+        +prePersist()
+    }
+
+    class ViewType {
+        <<enumeration>>
+        PAGE
+        TABLE
+        GALLERY
+    }
+
+    class PropertyType {
+        <<enumeration>>
+        TEXT
+        NUMBER
+        TAG
+        DATE
+        CREATED_BY
+        LAST_UPDATED_BY
+        CREATED_AT
+        LAST_UPDATED_AT
+    }
+
+    class PermissionType {
+        <<enumeration>>
+        READ
+        WRITE
+        OWNER
+    }
+
+    class PermissionStatus {
+        <<enumeration>>
+        PENDING
+        ACCEPTED
+        REJECTED
+    }
+
+    class NotificationType {
+        <<enumeration>>
+        INVITE
+        COMMENT
+        MENTION
+        SYSTEM
+    }
+
+    class NotificationStatus {
+        <<enumeration>>
+        UNREAD
+        READ
+        ACCEPTED
+        REJECTED
+    }
+
+    BaseEntity <|-- User
+    BaseEntity <|-- Workspace
+    BaseEntity <|-- Document
+    BaseEntity <|-- DocumentProperty
+    BaseEntity <|-- DocumentPropertyValue
+    BaseEntity <|-- DocumentPropertyTagOption
+    BaseEntity <|-- Permission
+    BaseEntity <|-- Notification
+
     User "1" -- "*" Workspace : owns
+    Workspace "1" -- "*" Workspace : parent-child
     Workspace "1" -- "*" Document : contains
-    Document "1" -- "1" Board : contains
-    Board "1" -- "*" Card : contains
-    User "1" -- "*" Permission : has
+    Document "1" -- "*" Document : parent-child
+    Document "1" -- "*" DocumentProperty : has
+    DocumentProperty "1" -- "*" DocumentPropertyValue : contains
+    DocumentProperty "1" -- "*" DocumentPropertyTagOption : has
     Document "1" -- "*" Permission : controls
+    User "1" -- "*" Permission : has
+    User "1" -- "*" Notification : receives
+    Document "1" -- "1" ViewType : has
+    DocumentProperty "1" -- "1" PropertyType : has
+    Permission "1" -- "1" PermissionType : has
+    Permission "1" -- "1" PermissionStatus : has
+    Notification "1" -- "1" NotificationType : has
+    Notification "1" -- "1" NotificationStatus : has

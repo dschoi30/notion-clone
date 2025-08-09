@@ -7,8 +7,14 @@ import SearchButton from './SearchButton';
 
 export default function Sidebar() {
   return (
-    <aside className="flex flex-col w-64 h-screen border-r border-gray-200"
-        style={{ backgroundColor: '#F8F8F7' }}>
+    <aside
+      className="flex fixed top-0 left-0 flex-col w-64 h-screen border-r border-gray-200"
+      style={{
+        backgroundColor: '#F8F8F7',
+        height: '100vh',
+        zIndex: 30
+      }}
+    >
       <WorkspaceList />
       <SearchButton />
       <Notifications />

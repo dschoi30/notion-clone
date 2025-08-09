@@ -1,20 +1,26 @@
 // src/components/documents/DocumentEditor.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { useDocument } from '../../contexts/DocumentContext';
-import Editor from '../editor/Editor';
-import useDocumentSocket from '../../hooks/useDocumentSocket';
-import DocumentShareModal from './DocumentShareModal';
-import { Button } from '../ui/button';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import useDocumentPresence from '../../hooks/useDocumentPresence';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useDocument } from '@/contexts/DocumentContext';
+import useDocumentSocket from '@/hooks/useDocumentSocket';
+import useDocumentPresence from '@/hooks/useDocumentPresence';
+import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
+import { getProperties } from '@/services/documentApi';
+import { slugify } from '@/lib/utils';
+import DocumentTableView from './DocumentTableView';
+import DocumentHeader from './DocumentHeader';
+import DocumentPageView from './DocumentPageView';
 
 const DocumentEditor = () => {
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const isMyWorkspace = currentWorkspace && currentWorkspace.ownerId === user.id;
   const isGuest = !isMyWorkspace;
-  const { currentDocument, updateDocument, documentLoading } = useDocument();
+  const { currentDocument, updateDocument, documentLoading, fetchChildDocuments, documents, selectDocument } = useDocument();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
@@ -24,7 +30,7 @@ const DocumentEditor = () => {
   const contentRef = useRef(content);
   const editorRef = useRef(null);
 
-  // 공유 모달 상태
+  // 공유 팝오버 상태
   const [showShareModal, setShowShareModal] = useState(false);
   const shareButtonRef = useRef(null);
 
@@ -33,12 +39,101 @@ const DocumentEditor = () => {
 
   const viewers = useDocumentPresence(currentDocument?.id, user);
 
+  // 테이블 속성(컬럼) 및 값 상태 (mock)
+  const [properties, setProperties] = useState([]); // [{ id, name, type }]
+  // const [propertyValues, setPropertyValues] = useState({}); // { [propertyId]: value }
+  const [isAddPropOpen, setIsAddPropOpen] = useState(false);
+  const addPropBtnRef = useRef(null);
+
+  const { idSlug } = useParams();
+  
+  // zustand store에서 titleWidth 관리
+  const setTitleWidth = useDocumentPropertiesStore(state => state.setTitleWidth);
+
+  // idSlug에서 id와 slug 분리
+  let docId = null;
+  if (idSlug) {
+    const match = idSlug.match(/^(\d+)-(.+)$/);
+    if (match) {
+      docId = match[1];
+    } else if (/^\d+$/.test(idSlug)) {
+      docId = idSlug;
+    }
+  }
+
+  // currentDocument가 변경될 때 URL 동기화 (의존성 최적화로 무한 루프 방지)
+  useEffect(() => {
+    if (currentDocument && currentWorkspace) {
+      const expectedPath = `/${currentDocument.id}-${slugify(currentDocument.title)}`;
+      const currentPath = location.pathname;
+      
+      // URL의 문서 ID는 같지만 slug가 다른 경우에만 동기화 (무한 루프 방지)
+      const currentUrlDocId = currentPath.match(/^\/(\d+)(-.*)?$/)?.[1];
+      const isSameDocId = String(currentUrlDocId) === String(currentDocument.id);
+      
+      if (isSameDocId && currentPath !== expectedPath) {
+        console.log(`URL slug 동기화: ${currentPath} -> ${expectedPath}`);
+        navigate(expectedPath, { replace: true });
+      } else if (!isSameDocId) {
+        // 완전히 다른 문서인 경우 (사이드바에서 선택한 경우)
+        console.log(`URL 문서 변경: ${currentPath} -> ${expectedPath}`);
+        navigate(expectedPath, { replace: true });
+      }
+    }
+  }, [currentDocument, currentWorkspace]); // location.pathname 의존성 제거로 무한 루프 방지
+
+  // idSlug가 바뀔 때마다 해당 id의 문서를 선택
+  useEffect(() => {
+    if (!docId || !documents.length || !currentWorkspace) return;
+    
+    const found = documents.find(doc => String(doc.id) === String(docId));
+    if (found) {
+      // URL의 문서가 현재 워크스페이스에 있는 경우
+      if (!currentDocument || String(currentDocument.id) !== String(docId)) {
+        selectDocument(found);
+      }
+    } else if (docId) {
+      // URL의 문서가 현재 워크스페이스에 없는 경우 - 이미 App.jsx에서 처리됨
+      console.warn(`DocumentEditor: 문서 ID ${docId}가 현재 워크스페이스(${currentWorkspace.id})의 문서 목록에 존재하지 않습니다.`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docId, documents, currentWorkspace, currentDocument]); // selectDocument 의존성 제거로 무한 루프 방지
+
+  // 경로 계산 유틸
+  function getDocumentPath(documentId, documentList) {
+    const path = [];
+    let doc = documentList.find(d => d.id === documentId);
+    while (doc) {
+      path.unshift(doc);
+      doc = doc.parentId ? documentList.find(d => d.id === doc.parentId) : null;
+    }
+    return path;
+  }
+
+  const path = currentDocument && documents ? getDocumentPath(currentDocument.id, documents) : [];
+
+  // 부모 문서의 properties 조회
+  useEffect(() => {
+    if (currentWorkspace?.id && currentDocument?.parentId && currentDocument.viewType === 'PAGE') {
+      (async () => {
+        const props = await getProperties(currentWorkspace.id, currentDocument.parentId);
+        setProperties(props);
+      })();
+    } else {
+      setProperties([]);
+    }
+  }, [currentWorkspace?.id, currentDocument?.id, currentDocument?.viewType]);
+
   useEffect(() => {
     if (currentDocument) {
       setTitle(currentDocument.title);
       setContent(currentDocument.content || '');
+      // titleColumnWidth를 store에 동기화
+      if (currentDocument.titleWidth) {
+        setTitleWidth(currentDocument.titleWidth);
+      }
     }
-  }, [currentDocument]);
+  }, [currentDocument, setTitleWidth]);
 
   useEffect(() => { titleRef.current = title; }, [title]);
   useEffect(() => { contentRef.current = content; }, [content]);
@@ -61,7 +156,6 @@ const DocumentEditor = () => {
     setContent(newContent);
     setSaveStatus('unsaved');
     triggerAutoSave();
-    console.log('sendEdit 호출', newContent);
     sendEdit({ content: newContent, userId: currentDocument.userId });
   };
 
@@ -75,7 +169,7 @@ const DocumentEditor = () => {
     try {
       setSaveStatus('saving');
       await updateDocument(currentDocument.id, {
-        title: titleRef.current,
+        title: titleRef.current || '',
         content: contentRef.current,
       });
       setSaveStatus('saved');
@@ -115,87 +209,85 @@ const DocumentEditor = () => {
     }
   };
 
+  // viewType 변경 핸들러
+  const handleChangeViewType = async (type) => {
+    if (!currentDocument) return;
+    // viewType을 바꾸기 전에 현재 title, content를 먼저 저장합니다.
+    await handleSave();
+    await updateDocument(currentDocument.id, { viewType: type });
+  };
+
+  // 최초 생성 상태 판별: 제목, 내용, 자식 문서 모두 비어있고 viewType이 PAGE
+  const isInitial =
+    currentDocument &&
+    (!currentDocument.content || currentDocument.content.trim() === '') &&
+    currentDocument.viewType === 'PAGE';
+
+  // 경로 타이틀 클릭 시 해당 문서로 이동
+  const handlePathClick = async (docId) => {
+    if (!docId) return;
+    try {
+      // 문서 목록에서 해당 문서 객체 찾기
+      const targetDoc = documents.find(d => d.id === docId);
+      if (targetDoc) {
+        navigate(`/${docId}-${slugify(targetDoc.title || 'untitled')}`);
+      }
+    } catch (err) {
+      console.error('경로 클릭 문서 이동 실패:', err);
+    }
+  };
+
   if (!currentDocument) {
-    return <div className="p-4">선택된 문서가 없습니다.</div>;
+    return <div className="p-4 text-sm">선택된 문서가 없습니다.</div>;
   }
 
   if (documentLoading) {
-    return <div className="p-4">문서 불러오는 중...</div>;
+    return <div className="p-4 text-sm">문서 불러오는 중...</div>;
   }
 
   return (
-    <main className="flex-1 overflow-auto">
-      <div className="p-4 space-y-4">
-        <div className="relative flex items-center justify-between">
-          <input
-            type="text"
-            value={title}
-            onChange={handleTitleChange}
-            onKeyDown={handleTitleKeyDown}
-            placeholder="제목 없음"
-            className="w-full text-2xl font-bold bg-transparent border-none outline-none"
-          />
-          {/* 권한자 이니셜 아이콘 목록 */}
-          <div className="flex items-center mr-2">
-            {currentDocument?.permissions?.map((p) => {
-              const isPresent = viewers.some(v => String(v.userId) === String(p.userId));
-              return (
-                <div
-                  key={p.userId}
-                  className={
-                    'flex items-center justify-center w-8 h-8 mr-1 text-base font-bold rounded-full select-none bg-blue-500 text-white ring-2 ring-blue-400 ' +
-                    (isPresent ? 'opacity-100' : 'opacity-40')
-                  }
-                  title={p.name || p.email || ''}
-                >
-                  {p.name ? p.name.charAt(0).toUpperCase() : '?'}
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex items-center ml-2 space-x-2">
-            <span
-              style={{ whiteSpace: 'nowrap' }}
-              className={
-                (saveStatus === 'saving' ? 'text-blue-500' :
-                saveStatus === 'error' ? 'text-red-500' :
-                'text-gray-400') + ' ml-2'
-              }
-            >
-              {saveStatus === 'saving' ? '저장 중...' :
-              saveStatus === 'error' ? '저장 실패' :
-              saveStatus === 'unsaved' ? '저장 대기' : '저장됨'}
-            </span>
-            {/* 게스트가 아닐 때만 공유 버튼 노출 */}
-            {!isGuest && (
-              <Button
-                ref={shareButtonRef}
-                size="sm"
-                variant="outline"
-                className="ml-2"
-                onClick={() => setShowShareModal((v) => !v)}
-              >
-                공유
-              </Button>
-            )}
-          </div>
-          {/* 공유 모달 */}
-          {showShareModal && !isGuest && (
-            <DocumentShareModal
-              open={showShareModal}
-              onClose={() => setShowShareModal(false)}
-              workspaceId={currentWorkspace.id}
-              documentId={currentDocument.id}
-              anchorRef={shareButtonRef}
-            />
-          )}
-        </div>
-        <Editor 
-          content={content} 
-          onUpdate={handleContentChange}
-          ref={editorRef}
-          editable={!isReadOnly}
+    <main className="overflow-x-visible relative bg-white">
+      <div className="p-4 space-y-4 min-w-0">
+        {/* 상단 타이틀/공유/저장 상태/권한자 이니셜 */}
+        <DocumentHeader
+          title={title}
+          onTitleChange={handleTitleChange}
+          onTitleKeyDown={handleTitleKeyDown}
+          saveStatus={saveStatus}
+          isGuest={isGuest}
+          showShareModal={showShareModal}
+          setShowShareModal={setShowShareModal}
+          shareButtonRef={shareButtonRef}
+          currentDocument={currentDocument}
+          viewers={viewers}
+          user={user}
+          currentWorkspace={currentWorkspace}
+          path={path}
+          onPathClick={handlePathClick}
         />
+        {currentDocument.viewType === 'PAGE' && (
+          <DocumentPageView
+            addPropBtnRef={addPropBtnRef}
+            isAddPropOpen={isAddPropOpen}
+            setIsAddPropOpen={setIsAddPropOpen}
+            content={content}
+            handleContentChange={handleContentChange}
+            editorRef={editorRef}
+            isReadOnly={isReadOnly}
+            isInitial={isInitial}
+            handleChangeViewType={handleChangeViewType}
+          />
+        )}
+        {currentDocument.viewType === 'TABLE' && (
+          <DocumentTableView
+            workspaceId={currentWorkspace.id}
+            documentId={currentDocument.id}
+            properties={properties}
+          />
+        )}
+        {currentDocument.viewType === 'GALLERY' && (
+          <div className="p-4">갤러리 뷰는 아직 구현되지 않았습니다.</div>
+        )}
       </div>
     </main>
   );

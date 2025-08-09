@@ -1,6 +1,6 @@
 package com.example.notionclone.domain.permission.entity;
 
-import com.example.notionclone.domain.BaseTimeEntity;
+import com.example.notionclone.domain.BaseEntity;
 import com.example.notionclone.domain.document.entity.Document;
 import com.example.notionclone.domain.user.entity.User;
 import jakarta.persistence.*;
@@ -12,7 +12,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Permission extends BaseTimeEntity {
+public class Permission extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
