@@ -42,16 +42,11 @@ function PropertyCell({
     const cellKey = `${rowId}_${property.id}`;
     content = (
       <div
-        ref={(el) => {
-          if (property.type === 'TAG') {
-            tagCellRefs.current[cellKey] = el;
-          }
-        }}
         className="flex gap-1 items-center"
         style={{ minWidth: 0, minHeight: 32, overflow: 'hidden', whiteSpace: 'nowrap', flexWrap: 'nowrap' }}
         onClick={() => {
           if (!isSystemProp) {
-            const rect = tagCellRefs.current[cellKey]?.getBoundingClientRect();
+            const rect = tagCellRefs.current[cellKey]?.current?.getBoundingClientRect();
             if (rect && rect.width > 0 && rect.height > 0) {
               setTagPopoverRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
               setEditingCell({ rowId, propertyId });

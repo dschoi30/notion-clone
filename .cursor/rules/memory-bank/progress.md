@@ -109,6 +109,21 @@
   - 전체 빌드 검증 완료 (vite prod build)
   - 후속 작업(P1.2) 대비 구조 정리: 행 단위 컴포넌트/훅 분리 준비
 
+- [x] DocumentTableView 리팩터링(2차)
+  - `useTableData`, `useColumnResize`, `useColumnDnd` 훅 분리 및 컨테이너에 적용
+  - 인라인 로직 제거, 상태/이벤트를 훅으로 캡슐화
+  - 빌드 및 린트 통과
+
+- [x] DocumentTableView 리팩터링(3차)
+  - 렌더링 분리: `TableHeader`, `TableRow`, `NameCell`, `PropertyCell` 도입
+  - 태그 팝오버 업데이트 시 상위 상태 동기화 콜백 연결
+  - 빌드 통과, 기능 동일성 유지
+
+- [x] 테이블 헤더 클릭-편집 개선
+  - dnd-kit `PointerSensor.activationConstraint(delay:150, tolerance:5)` 적용
+  - 빠른 클릭은 편집, 길게 누르거나 이동 시 드래그 시작
+  - 별도 드래그 핸들 제거, 라벨 클릭으로 인라인 편집 가능
+
 - [x] DocumentTableView 타이틀 컬럼 너비 업데이트 기능 구현 완료
   - zustand store(useDocumentPropertiesStore)에 titleWidth 상태 관리 및 updateTitlWidth 메서드 추가
   - DocumentTableView에서 하드코딩된 288값 대신 store의 titleWidth 사용하도록 수정
