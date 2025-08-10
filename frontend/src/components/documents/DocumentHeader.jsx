@@ -33,7 +33,7 @@ export default function DocumentHeader({
           ))}
         </div>
       )}
-      <div className="flex relative justify-between items-center px-20 pt-12 pb-4">
+      <div className="flex relative justify-between items-center px-20 pt-12 pb-6">
         <input
           type="text"
           value={title}
