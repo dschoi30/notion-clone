@@ -92,6 +92,11 @@ export async function getChildDocuments(workspaceId, parentId) {
   return response.data;
 }
 
+// 자식 문서(행) 순서 업데이트
+export async function updateChildDocumentOrder(workspaceId, parentId, documentIds) {
+  return api.patch(`/api/workspaces/${workspaceId}/documents/${parentId}/children/order`, documentIds);
+}
+
 // 문서 속성 추가
 export async function addProperty(workspaceId, documentId, { name, type, sortOrder }) {
   const res = await api.post(`/api/workspaces/${workspaceId}/documents/${documentId}/properties`, { name, type, sortOrder });

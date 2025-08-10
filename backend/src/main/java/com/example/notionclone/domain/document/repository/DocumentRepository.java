@@ -37,5 +37,11 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
 
     List<Document> findByParentIdAndIsTrashedFalse(Long parentId);
 
+    List<Document> findByParentIdAndIsTrashedFalseOrderBySortOrderAscIdAsc(Long parentId);
+
     boolean existsByParentIdAndIsTrashedFalse(Long parentId);
+
+    @Modifying
+    @Query("UPDATE Document d SET d.sortOrder = :sortOrder WHERE d.parent.id = :parentId AND d.id = :docId")
+    void updateChildSortOrder(@Param("parentId") Long parentId, @Param("docId") Long docId, @Param("sortOrder") int sortOrder);
 } 

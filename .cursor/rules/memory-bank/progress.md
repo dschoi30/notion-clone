@@ -31,7 +31,7 @@
 - [x] 2. API(백엔드) 확장 및 구현 (Document parent/viewType 반영, 하위 문서 조회, 생성/수정 API 확장 등)
 - [x] 3. 프론트엔드 DocumentList/Editor 구조 개편
 - [ ] 4. TableView, GalleryView 등 뷰 타입별 컴포넌트 구현
-- [ ] 5. 속성/행 관리 기능 개발
+- [x] 5. 속성/행 관리 기능 개발
 - [ ] 6. UX/UI 개선 및 테스트, 배포
 - DocumentEditor.jsx 최초 생성 상태(제목/내용/자식문서 모두 비어있고 viewType이 PAGE)에서만 하단에 '테이블', '갤러리' 버튼이 나타나도록 UI 구현. '테이블' 클릭 시 viewType을 TABLE로 변경하고, 테이블 기본 UI(헤더: 이름, 빈 1행, 속성 추가/새 페이지 버튼) 렌더링까지 완료.
 - DocumentProperty/DocumentPropertyValue 엔티티용 Repository, Service, DTO, Controller(API) 생성 및 CRUD 구현
@@ -176,3 +176,18 @@
   - **필터링 강화**: workspaceId 또는 workspace.id로 이중 확인하는 필터링 로직 적용
   - WorkspaceContext에 상세 디버깅 로그 추가: savedId 읽기, workspaces 목록, 워크스페이스 찾기/설정 과정
   - App.jsx에 workspaceId 포함 문서 목록 디버깅 로그 추가
+ 
+ - [x] P1.2 테이블 행 관리(드래그 앤 드롭/체크박스/삭제) 1차 구현
+   - 프론트엔드
+     - `@radix-ui/react-checkbox` 추가, `components/ui/checkbox.jsx` 생성(shadcn 스타일)
+     - `DocumentTableView.jsx`에 행 DnD 컨텍스트 추가(세로 정렬), 선택 상태(Set) 및 선택바(선택 개수/삭제) 구현
+     - `TableRow.jsx`에 `useSortable` 적용, 드래그 핸들/체크박스는 `NameCell` 좌측 레일에 표시
+     - `NameCell.jsx`에 체크박스/Grip 핸들 추가, 호버 시 표시되도록 처리
+   - 백엔드
+     - 자식 문서 정렬 API 추가: `PATCH /api/workspaces/{wsId}/documents/{parentId}/children/order` (배열 바디)
+     - `DocumentRepository`에 `updateChildSortOrder` 쿼리 추가, 정렬 조회 메서드 `findByParentIdAndIsTrashedFalseOrderBySortOrderAscIdAsc`
+     - `DocumentService.updateChildOrder()` 구현, `getChildDocuments()` 정렬 보장
+     - `DocumentController`에 권한 체크 후 서비스 호출 엔드포인트 추가
+   - 프론트/백엔드 연동
+     - `documentApi.updateChildDocumentOrder()` 추가, DnD 종료 시 호출
+     - 선택 삭제는 기존 `deleteDocument` 반복 호출(추후 bulk API 고려)
