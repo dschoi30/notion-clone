@@ -20,6 +20,7 @@ function PropertyCell({
   tagPopoverRect,
   setTagPopoverRect,
   onTagOptionsUpdate,
+  isSelected,
 }) {
   const rowId = row.id;
   const propertyId = property?.id;
@@ -79,7 +80,7 @@ function PropertyCell({
     <div
       key={property.id}
       ref={tagCellRefs.current[cellKey]}
-      className="flex relative items-center h-full notion-table-view-cell"
+      className={`flex relative items-center h-full notion-table-view-cell ${isSelected ? 'bg-blue-50' : ''}`}
       style={{
         width: colWidth,
         minWidth: 80,
@@ -91,7 +92,7 @@ function PropertyCell({
         borderLeft: 'none',
         whiteSpace: 'normal',
         wordBreak: 'break-word',
-        background: isEditing ? '#e9e9e7' : isHovered ? '#f5f5f5' : 'transparent',
+        background: isEditing ? '#e9e9e7' : undefined,
         cursor: isEditing ? (isSystemProp ? 'default' : 'text') : isSystemProp ? 'default' : 'pointer',
       }}
       onClick={() => {
