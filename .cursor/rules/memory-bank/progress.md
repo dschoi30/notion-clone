@@ -124,6 +124,12 @@
   - 빠른 클릭은 편집, 길게 누르거나 이동 시 드래그 시작
   - 별도 드래그 핸들 제거, 라벨 클릭으로 인라인 편집 가능
 
+ - [x] 테이블 '속성 추가' 팝오버 외부 클릭 닫힘 로직 추가
+   - 파일: `frontend/src/components/documents/table/TableHeader.jsx`
+   - `useRef`로 팝오버 래퍼 참조를 잡고, `useEffect`에서 `document` mousedown 캡처 단계 리스너로 외부 클릭을 감지해 `setIsPopoverOpen(false)` 처리
+   - 팝오버 버튼 영역 클릭은 예외 처리하여 토글 동작 유지
+   - 린트 통과 확인
+
 - [x] DocumentTableView 타이틀 컬럼 너비 업데이트 기능 구현 완료
   - zustand store(useDocumentPropertiesStore)에 titleWidth 상태 관리 및 updateTitlWidth 메서드 추가
   - DocumentTableView에서 하드코딩된 288값 대신 store의 titleWidth 사용하도록 수정
