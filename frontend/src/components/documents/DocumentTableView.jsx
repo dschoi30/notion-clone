@@ -118,6 +118,7 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
       const next = new Set(prev);
       if (next.has(rowId)) next.delete(rowId);
       else next.add(rowId);
+      // 전체 선택 상태 유지 규칙: 일부만 선택되면 헤더 체크 해제(헤더는 props로 파생)
       return next;
     });
   };
@@ -416,6 +417,16 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
             isPopoverOpen={isPopoverOpen}
             setIsPopoverOpen={setIsPopoverOpen}
             AddPropertyPopoverComponent={() => <AddPropertyPopover onAddProperty={handleAddProperty} />}
+            // selection controls
+            isAllSelected={rows.length > 0 && selectedRowIds.size === rows.length}
+            isSomeSelected={selectedRowIds.size > 0 && selectedRowIds.size < rows.length}
+            onToggleAll={() => {
+              if (selectedRowIds.size === rows.length) {
+                setSelectedRowIds(new Set());
+              } else {
+                setSelectedRowIds(new Set(rows.map(r => r.id)));
+              }
+            }}
           />
         </DndContext>
         <div className="relative">
