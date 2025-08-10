@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Text } from 'lucide-react';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import SortablePropertyHeader from './SortablePropertyHeader';
@@ -20,6 +20,30 @@ function TableHeader({
   isSomeSelected,
   onToggleAll,
 }) {
+  const popoverRef = useRef(null);
+
+  useEffect(() => {
+    if (!isPopoverOpen) return;
+
+    const handleDocumentMouseDown = (event) => {
+      const popoverEl = popoverRef.current;
+      const buttonEl = addBtnRef?.current;
+
+      const target = event.target;
+      const clickedInsidePopover = popoverEl && popoverEl.contains(target);
+      const clickedOnButton = buttonEl && buttonEl.contains(target);
+
+      if (!clickedInsidePopover && !clickedOnButton) {
+        setIsPopoverOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleDocumentMouseDown, true);
+    return () => {
+      document.removeEventListener('mousedown', handleDocumentMouseDown, true);
+    };
+  }, [isPopoverOpen, setIsPopoverOpen, addBtnRef]);
+
   return (
     <div className="flex items-center group relative">
       {/* 헤더 좌측 레일: 호버 시 표시 */}
@@ -61,7 +85,7 @@ function TableHeader({
           + 속성 추가
         </button>
         {isPopoverOpen && (
-          <div className="absolute left-0 top-full z-10 mt-1">
+          <div ref={popoverRef} className="absolute left-0 top-full z-10 mt-1">
             <AddPropertyPopoverComponent />
           </div>
         )}
