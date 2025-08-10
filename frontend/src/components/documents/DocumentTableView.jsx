@@ -420,7 +420,7 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
         </DndContext>
         <div className="relative">
           {selectedRowIds.size > 0 && (
-            <div className="absolute -top-10 left-0 flex items-center gap-2 bg-white border rounded px-3 py-1 shadow-sm">
+            <div className="absolute flex items-center gap-2 bg-white border rounded px-3 py-1 shadow-sm" style={{ top: -72 }}>
               <span className="text-sm text-gray-600">{selectedRowIds.size}개 선택됨</span>
               <button className="text-red-600 hover:text-red-700 inline-flex items-center gap-1" onClick={handleBulkDelete}>
                 <Trash2 size={14} /> 삭제

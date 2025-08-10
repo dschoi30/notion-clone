@@ -1,6 +1,8 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Checkbox } from '@/components/ui/checkbox';
+import { GripVertical } from 'lucide-react';
 import NameCell from './cells/NameCell';
 import PropertyCell from './cells/PropertyCell';
 
@@ -31,7 +33,26 @@ function TableRow({
     opacity: isDragging ? 0.7 : 1,
   };
   return (
-    <div ref={setNodeRef} style={style} className="flex items-center h-10 group relative">
+    <div ref={setNodeRef} style={style} className="flex items-center h-10 group relative" >
+      {/* 좌측 레일 (NameCell 바깥) */}
+      <div
+        className={`absolute top-0 h-full flex items-center gap-1 pl-1 pr-1 transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+        style={{ width: 28, zIndex: 2, left: -48 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Checkbox checked={!!isSelected} onCheckedChange={() => onToggleSelect(row.id)} />
+        <button
+          type="button"
+          className="cursor-move text-gray-400 hover:text-gray-600"
+          aria-label="drag handle"
+          {...attributes}
+          {...listeners}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical size={14} />
+        </button>
+      </div>
+      {/* 좌측 레일은 음수 오프셋으로 표시하므로 별도 여백을 추가하지 않음 */}
       <NameCell
         row={row}
         rowIdx={rowIdx}
@@ -42,11 +63,6 @@ function TableRow({
         setHoveredCell={setHoveredCell}
         handleCellValueChange={handleCellValueChange}
         onOpenRow={onOpenRow}
-        dragAttributes={attributes}
-        dragListeners={listeners}
-        isRowDragging={isDragging}
-        isSelected={isSelected}
-        onToggleSelect={onToggleSelect}
       />
       {properties.map((p, idx) => (
         <PropertyCell
