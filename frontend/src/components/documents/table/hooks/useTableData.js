@@ -6,10 +6,9 @@ import {
   deleteProperty,
   addOrUpdatePropertyValue,
   getPropertyValuesByChildDocuments,
-  updateDocument,
-  createDocument,
   getChildDocuments,
 } from '@/services/documentApi';
+import { useDocument } from '@/contexts/DocumentContext';
 
 export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
   const [properties, setProperties] = useState([]);
@@ -17,6 +16,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [editingHeader, setEditingHeader] = useState({ id: null, name: '' });
+  const { createDocument, updateDocument } = useDocument();
 
   async function fetchTableData() {
     setIsLoading(true);
@@ -55,7 +55,6 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
   useEffect(() => {
     if (!workspaceId || !documentId) return;
     fetchTableData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId, documentId]);
 
   const handleAddProperty = async (name, type) => {
@@ -101,35 +100,29 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
 
   const handleAddRow = async () => {
     try {
-      const newDoc = await createDocument(workspaceId, {
+      const newDoc = await createDocument({
         title: '',
         content: '',
         parentId: documentId,
         viewType: 'PAGE',
       });
       const newRow = { id: newDoc.id, title: '', values: {} };
-      properties.forEach((p) => {
+
+      // 시스템/일반 속성 모두 초기 값 DB 반영
+      const ops = properties.map((p) => {
+        let value = '';
         if (systemPropTypeMap[p.type]) {
-          switch (p.type) {
-            case 'CREATED_BY':
-              newRow.values[p.id] = newDoc.createdBy;
-              break;
-            case 'LAST_UPDATED_BY':
-              newRow.values[p.id] = newDoc.updatedBy;
-              break;
-            case 'CREATED_AT':
-              newRow.values[p.id] = newDoc.createdAt;
-              break;
-            case 'LAST_UPDATED_AT':
-              newRow.values[p.id] = newDoc.updatedAt;
-              break;
-            default:
-              break;
-          }
-        } else {
-          newRow.values[p.id] = '';
+          // systemPropType 값 계산 (newDoc 메타데이터 기반)
+          value = systemPropTypeMap[p.type]({ document: newDoc });
         }
+        newRow.values[p.id] = value;
+        return addOrUpdatePropertyValue(workspaceId, newDoc.id, p.id, value);
       });
+
+      if (ops.length > 0) {
+        await Promise.all(ops);
+      }
+
       setRows((prev) => [...prev, newRow]);
     } catch (e) {
       alert('페이지 생성 실패');
@@ -140,7 +133,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     if (propertyId == null) {
       setRows((prev) => prev.map((row) => (row.id === rowId ? { ...row, title: value } : row)));
       try {
-        await updateDocument(workspaceId, rowId, { title: value });
+        await updateDocument(rowId, { title: value });
       } catch (e) {
         alert('이름 저장 실패');
       }
