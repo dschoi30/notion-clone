@@ -1,5 +1,6 @@
 import React from 'react';
-import { Text } from 'lucide-react';
+import { Text, GripVertical } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 
 function NameCell({
   row,
@@ -11,6 +12,11 @@ function NameCell({
   setHoveredCell,
   handleCellValueChange,
   onOpenRow,
+  dragAttributes,
+  dragListeners,
+  isRowDragging,
+  isSelected,
+  onToggleSelect,
 }) {
   const rowId = row.id;
   const propertyId = null;
@@ -26,6 +32,7 @@ function NameCell({
         minWidth: 80,
         minHeight: '36px',
         fontSize: '14px',
+        paddingLeft: 28,
         borderTop: rowIdx === 0 ? '1px solid #e9e9e7' : 'none',
         borderBottom: '1px solid #e9e9e7',
         borderRight: '1px solid #e9e9e7',
@@ -39,6 +46,24 @@ function NameCell({
       onMouseEnter={() => setHoveredCell({ rowId, propertyId: null })}
       onMouseLeave={() => setHoveredCell(null)}
     >
+      {/* 좌측 레일: 체크박스 + 드래그 핸들 */}
+      <div
+        className="absolute left-0 top-0 h-full flex items-center gap-1 pl-1 pr-1 opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{ width: 28 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Checkbox checked={!!isSelected} onCheckedChange={() => onToggleSelect(rowId)} />
+        <button
+          type="button"
+          className="cursor-move text-gray-400 hover:text-gray-600"
+          aria-label="drag handle"
+          {...dragAttributes}
+          {...dragListeners}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical size={14} />
+        </button>
+      </div>
       {isEditing ? (
         <input
           autoFocus

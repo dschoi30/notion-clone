@@ -7,9 +7,6 @@ import com.example.notionclone.domain.user.entity.User;
 import com.example.notionclone.domain.workspace.entity.Workspace;
 import com.example.notionclone.domain.workspace.repository.WorkspaceRepository;
 import com.example.notionclone.exception.ResourceNotFoundException;
-import com.example.notionclone.domain.notification.entity.NotificationType;
-import com.example.notionclone.domain.notification.repository.NotificationRepository;
-import com.example.notionclone.domain.notification.entity.NotificationStatus;
 import com.example.notionclone.domain.permission.repository.PermissionRepository;
 import com.example.notionclone.domain.permission.entity.Permission;
 import com.example.notionclone.domain.permission.entity.PermissionStatus;
@@ -22,7 +19,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.Objects;
 import java.util.ArrayList;
 import com.example.notionclone.domain.document.entity.ViewType;
 import java.util.Optional;
@@ -44,7 +40,6 @@ import com.example.notionclone.domain.document.repository.DocumentPropertyReposi
 public class DocumentService {
   private final DocumentRepository documentRepository;
   private final WorkspaceRepository workspaceRepository;
-  private final NotificationRepository notificationRepository;
   private final PermissionRepository permissionRepository;
   private final PermissionService permissionService;
   private final UserRepository userRepository;
@@ -287,7 +282,7 @@ public class DocumentService {
 
   @Transactional(readOnly = true)
   public List<DocumentResponse> getChildDocuments(Long parentId, User user) {
-    List<Document> children = documentRepository.findByParentIdAndIsTrashedFalse(parentId);
+    List<Document> children = documentRepository.findByParentIdAndIsTrashedFalseOrderBySortOrderAscIdAsc(parentId);
     // 권한에 따라 필터링
     List<Document> accessibleChildren = children.stream().filter(doc -> {
       if (doc.getUser().getId().equals(user.getId())) { // 소유자
@@ -304,6 +299,15 @@ public class DocumentService {
           return DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, permissions, hasChildren);
         })
         .collect(Collectors.toList());
+  }
+
+  @Transactional
+  public void updateChildOrder(Long parentId, List<Long> documentIds, Long userId) {
+    // 권한 검증은 컨트롤러에서 parentId 기준으로 수행되므로 여기서는 정렬만 처리
+    for (int i = 0; i < documentIds.size(); i++) {
+      Long docId = documentIds.get(i);
+      documentRepository.updateChildSortOrder(parentId, docId, i);
+    }
   }
 
   @Transactional

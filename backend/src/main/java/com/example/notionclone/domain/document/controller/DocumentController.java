@@ -203,6 +203,27 @@ public class DocumentController {
         return ResponseEntity.ok(documentService.getChildDocuments(parentId, user));
     }
 
+    @PatchMapping("/{parentId}/children/order")
+    public ResponseEntity<Void> updateChildOrder(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId,
+            @PathVariable Long parentId,
+            @RequestBody List<Long> documentIds
+    ) {
+        // 권한 체크: parentId 문서를 기준으로 OWNER 또는 ACCEPTED 권한 필요
+        Document parent = documentRepository.findById(parentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + parentId));
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
+        boolean isOwner = parent.getUser().getId().equals(user.getId());
+        boolean hasAcceptedPermission = permissionService.hasAcceptedPermission(user, parent);
+        if (!isOwner && !hasAcceptedPermission) {
+            throw new org.springframework.security.access.AccessDeniedException("No permission to update children order for this document.");
+        }
+        documentService.updateChildOrder(parentId, documentIds, user.getId());
+        return ResponseEntity.ok().build();
+    }
+
     // 문서 속성 추가
     @PostMapping("/{documentId}/properties")
     public DocumentPropertyDto addProperty(

@@ -11,6 +11,9 @@ import TagPopover from './TagPopover';
 import { createRef } from 'react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { DndContext, closestCenter } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { updateChildDocumentOrder, deleteDocument } from '@/services/documentApi';
+import { Trash2 } from 'lucide-react';
 import TableHeader from './table/TableHeader';
 import TableRow from './table/TableRow';
 import { slugify } from './table/utils.jsx';
@@ -94,6 +97,7 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
   const SYSTEM_PROP_TYPES = ['CREATED_BY', 'LAST_UPDATED_BY', 'CREATED_AT', 'LAST_UPDATED_AT'];
 
   const cellRefs = useRef({}); // {rowId_propertyId: ref}
+  const [selectedRowIds, setSelectedRowIds] = useState(new Set());
 
   const { currentDocument, selectDocument } = useDocument();
   const { currentWorkspace } = useWorkspace();
@@ -108,6 +112,48 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
   }, [currentWorkspace, currentDocument, fetchProperties, setDocumentId]);
 
   // (removed) inline fetch logic moved to hook
+
+  const toggleSelect = (rowId) => {
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowId)) next.delete(rowId);
+      else next.add(rowId);
+      return next;
+    });
+  };
+
+  const handleRowDragEnd = async (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = rows.findIndex((r) => r.id === active.id);
+    const newIndex = rows.findIndex((r) => r.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const newRows = [...rows];
+    const [moved] = newRows.splice(oldIndex, 1);
+    newRows.splice(newIndex, 0, moved);
+    setRows(newRows);
+    try {
+      const ids = newRows.map((r) => r.id);
+      await updateChildDocumentOrder(workspaceId, documentId, ids);
+    } catch (e) {
+      // 실패 시 원복
+      setRows(rows);
+      alert('행 순서 변경에 실패했습니다. 다시 시도해주세요.');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedRowIds.size === 0) return;
+    if (!window.confirm(`${selectedRowIds.size}개 항목을 삭제하시겠습니까?`)) return;
+    const ids = Array.from(selectedRowIds);
+    try {
+      await Promise.all(ids.map((id) => deleteDocument(workspaceId, id)));
+      setRows((prev) => prev.filter((r) => !selectedRowIds.has(r.id)));
+      setSelectedRowIds(new Set());
+    } catch (e) {
+      alert('삭제 중 오류가 발생했습니다.');
+    }
+  };
 
   const renderCell = (row, property, idx, isNameCell = false, rowIdx = 0) => {
     const rowId = row.id;
@@ -372,47 +418,61 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
             AddPropertyPopoverComponent={() => <AddPropertyPopover onAddProperty={handleAddProperty} />}
           />
         </DndContext>
-        <div>
+        <div className="relative">
+          {selectedRowIds.size > 0 && (
+            <div className="absolute -top-10 left-0 flex items-center gap-2 bg-white border rounded px-3 py-1 shadow-sm">
+              <span className="text-sm text-gray-600">{selectedRowIds.size}개 선택됨</span>
+              <button className="text-red-600 hover:text-red-700 inline-flex items-center gap-1" onClick={handleBulkDelete}>
+                <Trash2 size={14} /> 삭제
+              </button>
+            </div>
+          )}
           {isLoading && <div className="flex justify-center items-center h-10 text-gray-400">로딩 중...</div>}
           {error && <div className="flex justify-center items-center h-10 text-red-500">데이터 로딩 중 오류 발생: {error.message}</div>}
           {rows.length === 0 && !isLoading && !error ? (
             <div className="flex items-center h-10 text-gray-400">빈 행</div>
           ) : (
-            rows.map((row, rowIdx) => (
-              <TableRow
-                key={row.id}
-                row={row}
-                rowIdx={rowIdx}
-                properties={propertiesForRender}
-                colWidths={colWidths}
-                editingCell={editingCell}
-                hoveredCell={hoveredCell}
-                setEditingCell={setEditingCell}
-                setHoveredCell={setHoveredCell}
-                handleCellValueChange={handleCellValueChange}
-                onOpenRow={(r) => {
-                  const slug = slugify(r.title || 'untitled');
-                  navigate(`/${r.id}-${slug}`);
-                }}
-                systemPropTypes={SYSTEM_PROP_TYPES}
-                tagCellRefs={tagCellRefs}
-                tagPopoverRect={tagPopoverRect}
-                setTagPopoverRect={setTagPopoverRect}
-                onTagOptionsUpdate={(property, updatedTagOptions) => {
-                  setFetchedProperties((prev) =>
-                    prev.map((p) => (p.id === property.id ? { ...p, tagOptions: updatedTagOptions } : p))
-                  );
-                  setRows((prev) =>
-                    prev.map((rowItem) => {
-                      if (!(property.id in rowItem.values)) {
-                        return { ...rowItem, values: { ...rowItem.values, [property.id]: '' } };
-                      }
-                      return rowItem;
-                    })
-                  );
-                }}
-              />
-            ))
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleRowDragEnd}>
+              <SortableContext items={rows.map((r) => r.id)} strategy={verticalListSortingStrategy}>
+                {rows.map((row, rowIdx) => (
+                  <TableRow
+                    key={row.id}
+                    row={row}
+                    rowIdx={rowIdx}
+                    properties={propertiesForRender}
+                    colWidths={colWidths}
+                    editingCell={editingCell}
+                    hoveredCell={hoveredCell}
+                    setEditingCell={setEditingCell}
+                    setHoveredCell={setHoveredCell}
+                    handleCellValueChange={handleCellValueChange}
+                    onOpenRow={(r) => {
+                      const slug = slugify(r.title || 'untitled');
+                      navigate(`/${r.id}-${slug}`);
+                    }}
+                    systemPropTypes={SYSTEM_PROP_TYPES}
+                    tagCellRefs={tagCellRefs}
+                    tagPopoverRect={tagPopoverRect}
+                    setTagPopoverRect={setTagPopoverRect}
+                    onTagOptionsUpdate={(property, updatedTagOptions) => {
+                      setFetchedProperties((prev) =>
+                        prev.map((p) => (p.id === property.id ? { ...p, tagOptions: updatedTagOptions } : p))
+                      );
+                      setRows((prev) =>
+                        prev.map((rowItem) => {
+                          if (!(property.id in rowItem.values)) {
+                            return { ...rowItem, values: { ...rowItem.values, [property.id]: '' } };
+                          }
+                          return rowItem;
+                        })
+                      );
+                    }}
+                    isSelected={selectedRowIds.has(row.id)}
+                    onToggleSelect={toggleSelect}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           )}
         </div>
         <div className="py-2">
