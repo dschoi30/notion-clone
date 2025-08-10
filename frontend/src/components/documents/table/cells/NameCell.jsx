@@ -10,6 +10,7 @@ function NameCell({
   setHoveredCell,
   handleCellValueChange,
   onOpenRow,
+  isSelected,
 }) {
   const rowId = row.id;
   const propertyId = null;
@@ -19,7 +20,7 @@ function NameCell({
 
   return (
     <div
-      className="flex relative items-center h-full notion-table-view-cell"
+      className={`flex relative items-center h-full notion-table-view-cell ${isSelected ? 'bg-blue-50' : ''}`}
       style={{
         width: colWidth,
         minWidth: 80,
@@ -31,7 +32,7 @@ function NameCell({
         borderLeft: 'none',
         whiteSpace: 'normal',
         wordBreak: 'break-word',
-        background: isEditing ? '#e9e9e7' : isHovered ? '#f5f5f5' : 'transparent',
+        background: isEditing ? '#e9e9e7' : undefined,
         cursor: isEditing ? 'text' : 'pointer',
       }}
       onClick={() => setEditingCell({ rowId, propertyId: null })}

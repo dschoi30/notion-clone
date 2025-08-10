@@ -33,24 +33,28 @@ function TableRow({
     opacity: isDragging ? 0.7 : 1,
   };
   return (
-    <div ref={setNodeRef} style={style} className="flex items-center h-10 group relative" >
+    <div ref={setNodeRef} style={style} className={`flex items-center h-10 group relative ${isSelected ? 'bg-blue-100' : ''}`} >
       {/* 좌측 레일 (NameCell 바깥) */}
       <div
         className={`absolute top-0 h-full flex items-center gap-1 pl-1 pr-1 transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-        style={{ width: 28, zIndex: 2, left: -48 }}
+        style={{ width: 28, zIndex: 2, left: -54 }}
         onClick={(e) => e.stopPropagation()}
       >
-        <Checkbox checked={!!isSelected} onCheckedChange={() => onToggleSelect(row.id)} />
         <button
           type="button"
-          className="cursor-move text-gray-400 hover:text-gray-600"
+          className="cursor-move text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 py-1 rounded hover:bg-gray-100 transition duration-150 transform -translate-x-2"
           aria-label="drag handle"
           {...attributes}
           {...listeners}
           onClick={(e) => e.stopPropagation()}
         >
-          <GripVertical size={14} />
+          <GripVertical size={18} />
         </button>
+        <Checkbox
+          checked={!!isSelected}
+          onCheckedChange={() => onToggleSelect(row.id)}
+          className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500 data-[state=checked]:text-white"
+        />
       </div>
       {/* 좌측 레일은 음수 오프셋으로 표시하므로 별도 여백을 추가하지 않음 */}
       <NameCell
@@ -63,6 +67,7 @@ function TableRow({
         setHoveredCell={setHoveredCell}
         handleCellValueChange={handleCellValueChange}
         onOpenRow={onOpenRow}
+        isSelected={isSelected}
       />
       {properties.map((p, idx) => (
         <PropertyCell
@@ -82,6 +87,7 @@ function TableRow({
           tagPopoverRect={tagPopoverRect}
           setTagPopoverRect={setTagPopoverRect}
           onTagOptionsUpdate={onTagOptionsUpdate}
+          isSelected={isSelected}
         />
       ))}
     </div>
