@@ -63,7 +63,7 @@ function NameCell({
                 e.stopPropagation();
                 onOpenRow(row);
               }}
-              className="absolute right-2 top-1/2 px-2 py-1 text-xs rounded border border-gray-300 transition -translate-y-1/2 hover:bg-gray-200"
+              className="absolute right-2 top-1/2 px-2 py-1 text-xs rounded border border-gray-300 transition -translate-y-1/2 hover:bg-gray-100"
               style={{ zIndex: 20 }}
               title="문서 열기"
             >
