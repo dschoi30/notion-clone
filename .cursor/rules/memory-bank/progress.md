@@ -191,3 +191,9 @@
    - 프론트/백엔드 연동
      - `documentApi.updateChildDocumentOrder()` 추가, DnD 종료 시 호출
      - 선택 삭제는 기존 `deleteDocument` 반복 호출(추후 bulk API 고려)
+
+- [x] 테이블에서 새 문서 생성 후 "열기" 시 URL 진입 에러 수정
+  - 문제: `useTableData` 훅이 문서 생성/제목수정 시 컨텍스트를 우회하여 API를 직접 호출해, `DocumentContext.documents`가 갱신되지 않아 App/Layout/Editor에서 URL 검증에 실패함
+  - 수정: `useTableData`에서 컨텍스트의 `createDocument`, `updateDocument`를 사용하도록 변경하여 전역 문서 목록과 현재 문서 상태가 즉시 동기화되도록 개선
+  - 파일: `frontend/src/components/documents/table/hooks/useTableData.js`
+  - 영향: 테이블에서 새 행 생성 직후 "열기" 버튼으로 이동하면 `documents` 목록에 새 문서가 포함되어 URL 검증 통과 및 정상 렌더링
