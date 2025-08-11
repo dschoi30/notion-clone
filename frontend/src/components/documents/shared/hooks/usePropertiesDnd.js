@@ -2,17 +2,15 @@ import { useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/c
 import { sortableKeyboardCoordinates, arrayMove } from '@dnd-kit/sortable';
 import { updatePropertyOrder } from '@/services/documentApi';
 
-export function useColumnDnd({ properties, setProperties, workspaceId, documentId }) {
+// 공통 속성 DnD 훅: 컬럼(테이블)과 리스트(Page) 모두에서 사용 가능
+export function usePropertiesDnd({ properties, setProperties, workspaceId, documentId }) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: {
-        delay: 150,
-        tolerance: 5,
-      },
+      activationConstraint: { delay: 150, tolerance: 5 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   const handleColumnDragEnd = async (event) => {
@@ -37,4 +35,7 @@ export function useColumnDnd({ properties, setProperties, workspaceId, documentI
 
   return { sensors, handleColumnDragEnd };
 }
+
+export default usePropertiesDnd;
+
 
