@@ -39,11 +39,7 @@ const DocumentEditor = () => {
 
   const viewers = useDocumentPresence(currentDocument?.id, user);
 
-  // 테이블 속성(컬럼) 및 값 상태 (mock)
-  const [properties, setProperties] = useState([]); // [{ id, name, type }]
-  // const [propertyValues, setPropertyValues] = useState({}); // { [propertyId]: value }
-  const [isAddPropOpen, setIsAddPropOpen] = useState(false);
-  const addPropBtnRef = useRef(null);
+  // (removed) PAGE 내부에서 속성 추가/팝오버 상태 관리
 
   const { idSlug } = useParams();
   
@@ -96,8 +92,7 @@ const DocumentEditor = () => {
       // URL의 문서가 현재 워크스페이스에 없는 경우 - 이미 App.jsx에서 처리됨
       console.warn(`DocumentEditor: 문서 ID ${docId}가 현재 워크스페이스(${currentWorkspace.id})의 문서 목록에 존재하지 않습니다.`);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [docId, documents, currentWorkspace, currentDocument]); // selectDocument 의존성 제거로 무한 루프 방지
+  }, [docId, documents, currentWorkspace, currentDocument]);
 
   // 경로 계산 유틸
   function getDocumentPath(documentId, documentList) {
@@ -112,17 +107,7 @@ const DocumentEditor = () => {
 
   const path = currentDocument && documents ? getDocumentPath(currentDocument.id, documents) : [];
 
-  // 부모 문서의 properties 조회
-  useEffect(() => {
-    if (currentWorkspace?.id && currentDocument?.parentId && currentDocument.viewType === 'PAGE') {
-      (async () => {
-        const props = await getProperties(currentWorkspace.id, currentDocument.parentId);
-        setProperties(props);
-      })();
-    } else {
-      setProperties([]);
-    }
-  }, [currentWorkspace?.id, currentDocument?.id, currentDocument?.viewType]);
+  // (removed) PAGE에서 부모 속성 선반영 로직은 Page 훅에서 일괄 처리
 
   useEffect(() => {
     if (currentDocument) {
@@ -184,7 +169,6 @@ const DocumentEditor = () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
       handleSave();
     };
-    // eslint-disable-next-line
   }, []);
 
   // currentDocument가 변경될 때 마지막 변경 내용 저장
@@ -197,7 +181,6 @@ const DocumentEditor = () => {
       updateDocument(prevDocumentRef.current.id, { title, content });
     }
     prevDocumentRef.current = currentDocument;
-    // eslint-disable-next-line
   }, [currentDocument]);
 
   const handleTitleKeyDown = (e) => {
@@ -267,9 +250,6 @@ const DocumentEditor = () => {
         />
         {currentDocument.viewType === 'PAGE' && (
           <DocumentPageView
-            addPropBtnRef={addPropBtnRef}
-            isAddPropOpen={isAddPropOpen}
-            setIsAddPropOpen={setIsAddPropOpen}
             content={content}
             handleContentChange={handleContentChange}
             editorRef={editorRef}
@@ -282,7 +262,6 @@ const DocumentEditor = () => {
           <DocumentTableView
             workspaceId={currentWorkspace.id}
             documentId={currentDocument.id}
-            properties={properties}
           />
         )}
         {currentDocument.viewType === 'GALLERY' && (

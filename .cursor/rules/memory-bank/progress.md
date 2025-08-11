@@ -203,3 +203,9 @@
   - 수정: `useTableData`에서 컨텍스트의 `createDocument`, `updateDocument`를 사용하도록 변경하여 전역 문서 목록과 현재 문서 상태가 즉시 동기화되도록 개선
   - 파일: `frontend/src/components/documents/table/hooks/useTableData.js`
   - 영향: 테이블에서 새 행 생성 직후 "열기" 버튼으로 이동하면 `documents` 목록에 새 문서가 포함되어 URL 검증 통과 및 정상 렌더링
+
+- [x] 공통 속성 DnD/상수 도입 및 테이블 적용
+  - `shared/hooks/usePropertiesDnd.js` 추가: 컬럼/리스트 공용 속성 DnD 훅(기존 useColumnDnd 동작을 일반화)
+  - `shared/constants.js` 추가: `SYSTEM_PROP_TYPES`, `DEFAULT_PROPERTY_WIDTH` 공용화
+  - `DocumentTableView.jsx`에서 공통 훅/상수 사용하도록 수정, 기본 너비 상수 치환
+  - 린트 통과 확인, 테이블 컬럼 DnD/리사이즈 기존 동작 유지

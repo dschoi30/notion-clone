@@ -1,7 +1,7 @@
 import React, { createRef } from 'react';
 import DatePopover from '../../DatePopover';
 import TagPopover from '../../TagPopover';
-import { formatKoreanDateTime } from '@/lib/utils';
+import { formatKoreanDateSmart } from '@/lib/utils';
 import { getColorObj } from '@/lib/colors';
 
 function PropertyCell({
@@ -30,8 +30,8 @@ function PropertyCell({
   const value = property ? row.values[property.id] || '' : '';
   let content = value;
 
-  if (property.type === 'CREATED_AT' || property.type === 'LAST_UPDATED_AT') {
-    content = formatKoreanDateTime(value);
+  if (property.type === 'CREATED_AT' || property.type === 'LAST_UPDATED_AT' || property.type === 'DATE') {
+    content = formatKoreanDateSmart(value);
   }
 
   if (property.type === 'TAG') {

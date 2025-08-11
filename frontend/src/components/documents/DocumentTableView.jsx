@@ -4,11 +4,6 @@ import { useDocument } from '@/contexts/DocumentContext';
 import { Button } from '@/components/ui/button';
 import AddPropertyPopover from './AddPropertyPopover';
 import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
-import { formatKoreanDateTime } from '@/lib/utils';
-import { getColorObj } from '@/lib/colors';
-import DatePopover from './DatePopover';
-import TagPopover from './TagPopover';
-import { createRef } from 'react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -17,31 +12,23 @@ import { Trash2 } from 'lucide-react';
 import TableHeader from './table/TableHeader';
 import TableRow from './table/TableRow';
 import { slugify } from './table/utils.jsx';
-import { useColumnDnd } from './table/hooks/useColumnDnd';
+import { usePropertiesDnd } from '@/components/documents/shared/hooks/usePropertiesDnd';
 import { useColumnResize } from './table/hooks/useColumnResize';
 import { useTableData } from './table/hooks/useTableData';
+import { DEFAULT_PROPERTY_WIDTH, SYSTEM_PROP_TYPES } from '@/components/documents/shared/constants';
+import { buildSystemPropTypeMapForTable } from '@/components/documents/shared/systemPropTypeMap';
 
-// moved to ./table/utils
-
-// moved to ./table/SortablePropertyHeader.jsx
-
-const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
+const DocumentTableView = ({ workspaceId, documentId }) => {
   const navigate = useNavigate(); // useNavigate 훅 추가
-  const [properties, setProperties] = useState(parentProps || []); // keep initial props until hook fetch
+  const [properties, setProperties] = useState([]);
   const [editingCell, setEditingCell] = useState(null);
   const [hoveredCell, setHoveredCell] = useState(null);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const addBtnRef = useRef(null);
   const tagCellRefs = useRef({}); // {rowId_propertyId: ref}
   const [tagPopoverRect, setTagPopoverRect] = useState(null);
-  const defaultWidth = 192; // 12rem
   
-  const systemPropTypeMap = {
-    CREATED_BY: (row) => row.document?.createdBy || '',
-    LAST_UPDATED_BY: (row) => row.document?.updatedBy || '',
-    CREATED_AT: (row) => row.document?.createdAt || '',
-    LAST_UPDATED_AT: (row) => row.document?.updatedAt || '',
-  };
+  const systemPropTypeMap = buildSystemPropTypeMapForTable();
 
   // data hook
   const {
@@ -60,17 +47,11 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
     handleHeaderNameChange,
   } = useTableData({ workspaceId, documentId, systemPropTypeMap });
 
-  useEffect(() => {
-    if (parentProps && parentProps.length > 0) {
-      setFetchedProperties(parentProps);
-    }
-  }, [parentProps?.length]);
-
   // column resize
   const storeProperties = useDocumentPropertiesStore((state) => state.properties);
   const titleWidth = useDocumentPropertiesStore((state) => state.titleWidth);
   const updateTitleWidth = useDocumentPropertiesStore((state) => state.updateTitleWidth);
-  const propertyWidths = storeProperties.map((p) => p.width ?? defaultWidth);
+  const propertyWidths = storeProperties.map((p) => p.width ?? DEFAULT_PROPERTY_WIDTH);
   const { colWidths, handleResizeMouseDown } = useColumnResize({
     properties: fetchedProperties,
     titleWidth,
@@ -81,25 +62,18 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
   });
 
   // column dnd
-  const { sensors, handleColumnDragEnd } = useColumnDnd({
+  const { sensors, handleColumnDragEnd } = usePropertiesDnd({
     properties: fetchedProperties,
     setProperties: setFetchedProperties,
     workspaceId,
     documentId,
   });
   
-  // (removed) inline resize logic moved to hook
-
   const propertiesForRender = fetchedProperties && fetchedProperties.length > 0 ? fetchedProperties : properties;
 
-  // (removed) inline table data/handlers moved to hook
-
-  const SYSTEM_PROP_TYPES = ['CREATED_BY', 'LAST_UPDATED_BY', 'CREATED_AT', 'LAST_UPDATED_AT'];
-
-  const cellRefs = useRef({}); // {rowId_propertyId: ref}
   const [selectedRowIds, setSelectedRowIds] = useState(new Set());
 
-  const { currentDocument, selectDocument } = useDocument();
+  const { currentDocument } = useDocument();
   const { currentWorkspace } = useWorkspace();
   const fetchProperties = useDocumentPropertiesStore(state => state.fetchProperties);
   const setDocumentId = useDocumentPropertiesStore(state => state.setDocumentId);
@@ -111,14 +85,11 @@ const DocumentTableView = ({ workspaceId, documentId, parentProps}) => {
     }
   }, [currentWorkspace, currentDocument, fetchProperties, setDocumentId]);
 
-  // (removed) inline fetch logic moved to hook
-
   const toggleSelect = (rowId) => {
     setSelectedRowIds((prev) => {
       const next = new Set(prev);
       if (next.has(rowId)) next.delete(rowId);
       else next.add(rowId);
-      // 전체 선택 상태 유지 규칙: 일부만 선택되면 헤더 체크 해제(헤더는 props로 파생)
       return next;
     });
   };

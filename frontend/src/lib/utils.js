@@ -25,3 +25,15 @@ export function formatKoreanDateTime(dt) {
   const hour12 = hour % 12 === 0 ? 12 : hour % 12;
   return `${d.year()}년 ${d.month() + 1}월 ${d.date()}일 ${ampm} ${hour12}:${d.format('mm')}`;
 }
+
+// 날짜 문자열에 시간이 포함되지 않으면 'YYYY년 M월 D일' 형식으로만 표기
+// 시간이 포함되면 formatKoreanDateTime 형식으로 표기
+export function formatKoreanDateSmart(dt) {
+  if (!dt) return '';
+  const hasTime = typeof dt === 'string' && dt.includes('T') && dt.split('T')[1].length >= 4;
+  if (!hasTime) {
+    const d = dayjs(dt).locale('ko');
+    return `${d.year()}년 ${d.month() + 1}월 ${d.date()}일`;
+  }
+  return formatKoreanDateTime(dt);
+}
