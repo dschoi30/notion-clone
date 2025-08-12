@@ -82,18 +82,18 @@ public class DocumentVersionService {
 
     @Transactional(readOnly = true)
     public DocumentVersionDtos.DetailResponse getVersion(Long versionId) {
-        DocumentVersion v = versionRepository.findById(versionId)
+        DocumentVersion version = versionRepository.findById(versionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document version not found with id: " + versionId));
         return DocumentVersionDtos.DetailResponse.builder()
-                .id(v.getId())
-                .title(v.getTitle())
-                .viewType(v.getViewType())
-                .titleWidth(v.getTitleColumnWidth())
-                .content(v.getContent())
-                .propertiesJson(v.getPropertiesJson())
-                .propertyValuesJson(v.getPropertyValuesJson())
-                .createdBy(v.getCreatedBy())
-                .createdAt(v.getCreatedAt())
+                .id(version.getId())
+                .title(version.getTitle())
+                .viewType(version.getViewType())
+                .titleWidth(version.getTitleColumnWidth())
+                .content(version.getContent())
+                .propertiesJson(version.getPropertiesJson())
+                .propertyValuesJson(version.getPropertyValuesJson())
+                .createdBy(version.getCreatedBy())
+                .createdAt(version.getCreatedAt())
                 .build();
     }
 

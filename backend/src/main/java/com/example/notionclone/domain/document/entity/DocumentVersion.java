@@ -9,7 +9,6 @@ import lombok.*;
 @Table(
         name = "document_versions",
         indexes = {
-                @Index(name = "idx_document_versions_document_id_created_at", columnList = "document_id, createdAt DESC"),
                 @Index(name = "idx_document_versions_workspace_document", columnList = "workspace_id, document_id"),
                 @Index(name = "idx_document_versions_hash", columnList = "snapshot_hash")
         },
