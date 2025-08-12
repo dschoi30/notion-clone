@@ -1,5 +1,6 @@
 import React, { Fragment } from 'react';
 import { Button } from '@/components/ui/button';
+import VersionHistoryPanel from './VersionHistoryPanel';
 import DocumentSharePopover from './DocumentSharePopover';
 
 export default function DocumentHeader({
@@ -18,6 +19,7 @@ export default function DocumentHeader({
   path,
   onPathClick
 }) {
+  const [showVersions, setShowVersions] = React.useState(false);
   return (
     <div className="flex flex-col w-full">
       {/* 경로 표시 */}
@@ -87,6 +89,14 @@ export default function DocumentHeader({
               공유
             </Button>
           )}
+          <Button
+            size="sm"
+            variant="secondary"
+            className="ml-1 text-sm"
+            onClick={() => setShowVersions(true)}
+          >
+            버전 기록
+          </Button>
         </div>
         {/* 공유 팝오버 */}
         {showShareModal && !isGuest && (
@@ -99,6 +109,13 @@ export default function DocumentHeader({
           />
         )}
       </div>
+      {showVersions && (
+        <VersionHistoryPanel
+          onClose={() => setShowVersions(false)}
+          workspaceId={currentWorkspace?.id}
+          documentId={currentDocument?.id}
+        />
+      )}
     </div>
   );
 } 

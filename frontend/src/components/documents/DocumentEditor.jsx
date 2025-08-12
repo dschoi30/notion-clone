@@ -7,9 +7,13 @@ import { useDocument } from '@/contexts/DocumentContext';
 import useDocumentSocket from '@/hooks/useDocumentSocket';
 import useDocumentPresence from '@/hooks/useDocumentPresence';
 import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
-import { getProperties } from '@/services/documentApi';
+import { getProperties, getPropertyValuesByDocument } from '@/services/documentApi';
 import { slugify } from '@/lib/utils';
 import DocumentTableView from './DocumentTableView';
+import usePageStayTimer from '@/hooks/usePageStayTimer';
+import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
+import { getProperties, getPropertyValuesByDocument } from '@/services/documentApi';
+import { createDocumentVersion } from '@/services/documentApi';
 import DocumentHeader from './DocumentHeader';
 import DocumentPageView from './DocumentPageView';
 
@@ -38,6 +42,38 @@ const DocumentEditor = () => {
   const isReadOnly = myPermission && myPermission.permissionType === 'WRITE';
 
   const viewers = useDocumentPresence(currentDocument?.id, user);
+  const { properties, titleWidth } = useDocumentPropertiesStore(state => ({ properties: state.properties, titleWidth: state.titleWidth }));
+  const [nextSnapshotMs, setNextSnapshotMs] = useState(10 * 60 * 1000);
+
+  const handleReachTenMinutes = async () => {
+    try {
+      if (!currentDocument || !currentWorkspace) return;
+      // 최신 속성/값을 병렬로 로드
+      const [props, valuesArr] = await Promise.all([
+        getProperties(currentWorkspace.id, currentDocument.id),
+        getPropertyValuesByDocument(currentWorkspace.id, currentDocument.id),
+      ]);
+      const propsSlim = (props || []).map(p => ({ id: p.id, name: p.name, type: p.type, sortOrder: p.sortOrder, width: p.width }));
+      const valuesObj = {};
+      (valuesArr || []).forEach(v => { valuesObj[v.propertyId] = v.value; });
+
+      await createDocumentVersion(currentWorkspace.id, currentDocument.id, {
+        title: titleRef.current || '',
+        viewType: currentDocument.viewType,
+        titleWidth: titleWidth,
+        content: currentDocument.viewType === 'PAGE' ? (contentRef.current || '') : null,
+        propertiesJson: JSON.stringify(propsSlim),
+        propertyValuesJson: JSON.stringify(valuesObj),
+      });
+    } catch (e) {
+      console.error('버전 생성 실패:', e);
+    } finally {
+      // 다음 10분 임계치 설정
+      setNextSnapshotMs((ms) => ms + 10 * 60 * 1000);
+    }
+  };
+
+  const { elapsedMs } = usePageStayTimer({ enabled: !!currentDocument, onReachMs: handleReachTenMinutes, targetMs: nextSnapshotMs });
 
   // (removed) PAGE 내부에서 속성 추가/팝오버 상태 관리
 
@@ -182,6 +218,11 @@ const DocumentEditor = () => {
     }
     prevDocumentRef.current = currentDocument;
   }, [currentDocument]);
+
+  // 문서 전환 시 임계치를 현재 누적+10분으로 재설정
+  useEffect(() => {
+    setNextSnapshotMs(elapsedMs + 10 * 60 * 1000);
+  }, [docId]);
 
   const handleTitleKeyDown = (e) => {
     if (e.key === 'Enter') {

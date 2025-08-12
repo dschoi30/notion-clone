@@ -182,3 +182,19 @@ export async function getTagOptionsByProperty(workspaceId, propertyId) {
   const res = await api.get(`/api/workspaces/${workspaceId}/documents/properties/${propertyId}/tag-options`);
   return res.data;
 }
+
+// --- Versioning ---
+export async function createDocumentVersion(workspaceId, documentId, payload) {
+  const res = await api.post(`/api/workspaces/${workspaceId}/documents/${documentId}/versions`, payload);
+  return res.data;
+}
+
+export async function getDocumentVersions(workspaceId, documentId, params = { page: 0, size: 20 }) {
+  const res = await api.get(`/api/workspaces/${workspaceId}/documents/${documentId}/versions`, { params });
+  return res.data;
+}
+
+export async function getDocumentVersion(workspaceId, documentId, versionId) {
+  const res = await api.get(`/api/workspaces/${workspaceId}/documents/${documentId}/versions/${versionId}`);
+  return res.data;
+}

@@ -1,3 +1,4 @@
+- 2025-08-12: P2.3 버전 관리 착수. 백엔드 `document_versions` 엔티티/리포지토리/서비스/컨트롤러 추가(해시 기반 중복 방지, 90일 보관 정리). FE에 10분 체류 타이머 훅 `usePageStayTimer` 추가, `DocumentEditor`에 자동 스냅샷 생성 연동. 우측 상단 `버전 기록` 버튼 및 `VersionHistoryPanel` 사이드패널 구현(목록/단건 조회, PAGE 미리보기). API 클라이언트 함수 3종 추가.
 - `DocumentList.jsx`에서 문서의 `viewType`이 `TABLE`일 경우, `FileText` 아이콘 대신 `Table` 아이콘을 표시하도록 수정하여 시각적 구분을 명확히 함.
 - DocumentEditor.jsx에 실시간 자동 저장(debounce 500ms) 기능 구현. 저장 버튼 제거, 저장 상태 UI만 표시. title/content 변경 시 자동 저장 트리거. 
 - useDocumentSocket.js에서 Stomp 클라이언트 생성 방식을 공식 권장 방식(Client + webSocketFactory)으로 변경하여 자동 재연결 지원 및 경고 해결. 
