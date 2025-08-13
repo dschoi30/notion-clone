@@ -72,7 +72,7 @@ const DocumentEditor = () => {
     }
   };
 
-  const { elapsedMs } = usePageStayTimer({ enabled: !!currentDocument, onReachMs: handleReachTenMinutes, targetMs: nextSnapshotMs });
+  const { elapsedMs } = usePageStayTimer({ enabled: !!currentDocument, onReachMs: handleReachTenMinutes, targetMs: nextSnapshotMs, debug: true, countWhenHidden: true });
 
   // (removed) PAGE 내부에서 속성 추가/팝오버 상태 관리
 
