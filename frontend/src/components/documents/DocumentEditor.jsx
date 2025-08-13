@@ -11,8 +11,6 @@ import { getProperties, getPropertyValuesByDocument } from '@/services/documentA
 import { slugify } from '@/lib/utils';
 import DocumentTableView from './DocumentTableView';
 import usePageStayTimer from '@/hooks/usePageStayTimer';
-import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
-import { getProperties, getPropertyValuesByDocument } from '@/services/documentApi';
 import { createDocumentVersion } from '@/services/documentApi';
 import DocumentHeader from './DocumentHeader';
 import DocumentPageView from './DocumentPageView';
@@ -43,7 +41,8 @@ const DocumentEditor = () => {
 
   const viewers = useDocumentPresence(currentDocument?.id, user);
   const { properties, titleWidth } = useDocumentPropertiesStore(state => ({ properties: state.properties, titleWidth: state.titleWidth }));
-  const [nextSnapshotMs, setNextSnapshotMs] = useState(10 * 60 * 1000);
+  const SNAPSHOT_INTERVAL_MS = (import.meta.env && import.meta.env.MODE === 'development') ? 30 * 1000 : 10 * 60 * 1000;
+  const [nextSnapshotMs, setNextSnapshotMs] = useState(SNAPSHOT_INTERVAL_MS);
 
   const handleReachTenMinutes = async () => {
     try {
@@ -68,8 +67,8 @@ const DocumentEditor = () => {
     } catch (e) {
       console.error('버전 생성 실패:', e);
     } finally {
-      // 다음 10분 임계치 설정
-      setNextSnapshotMs((ms) => ms + 10 * 60 * 1000);
+      // 다음 임계치 설정
+      setNextSnapshotMs((ms) => ms + SNAPSHOT_INTERVAL_MS);
     }
   };
 
@@ -219,9 +218,9 @@ const DocumentEditor = () => {
     prevDocumentRef.current = currentDocument;
   }, [currentDocument]);
 
-  // 문서 전환 시 임계치를 현재 누적+10분으로 재설정
+  // 문서 전환 시 임계치를 현재 누적+간격으로 재설정
   useEffect(() => {
-    setNextSnapshotMs(elapsedMs + 10 * 60 * 1000);
+    setNextSnapshotMs(elapsedMs + SNAPSHOT_INTERVAL_MS);
   }, [docId]);
 
   const handleTitleKeyDown = (e) => {
