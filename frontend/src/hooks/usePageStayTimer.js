@@ -1,23 +1,33 @@
 import { useEffect, useRef, useState } from 'react';
+import { createLogger } from '@/lib/logger';
 
 // 누적 체류 시간을 ms로 계산. 문서가 보일 때만 카운트
-export default function usePageStayTimer({ enabled = true, onReachMs = () => {}, targetMs = 10 * 60 * 1000, debug = false, countWhenHidden = false }) {
+export default function usePageStayTimer({ enabled = true, onReachMs = () => {}, targetMs = 10 * 60 * 1000 }) {
   const [elapsedMs, setElapsedMs] = useState(0);
   const lastTickRef = useRef(null);
   const timerRef = useRef(null);
+  const log = createLogger('stayTimer');
+  const callbackRef = useRef(onReachMs);
 
   useEffect(() => {
-    if (!enabled) return;
+    callbackRef.current = onReachMs;
+  }, [onReachMs]);
+
+  useEffect(() => {
+    if (!enabled) {
+      log.debug('[stayTimer] disabled');
+      return;
+    }
 
     const handleVisibility = () => {
-      if (document.hidden && !countWhenHidden) {
+      if (document.hidden) {
         // stop
         if (timerRef.current) {
           window.clearInterval(timerRef.current);
           timerRef.current = null;
         }
         lastTickRef.current = null;
-        if (debug) console.debug('[stayTimer] paused (hidden)');
+        log.debug('paused (hidden)');
       } else {
         // start
         lastTickRef.current = performance.now();
@@ -29,27 +39,31 @@ export default function usePageStayTimer({ enabled = true, onReachMs = () => {},
             lastTickRef.current = now;
             setElapsedMs((prev) => {
               const next = prev + delta;
-              if (debug) console.debug(`[stayTimer] +${Math.round(delta)}ms -> ${Math.round(next)} / target ${targetMs}`);
+              log.debug(`+${Math.round(delta)}ms -> ${Math.round(next)} / target ${targetMs}`);
               if (prev < targetMs && next >= targetMs) {
-                if (debug) console.debug('[stayTimer] target reached');
-                onReachMs(next);
+                log.debug('target reached');
+                try { callbackRef.current(next); } catch (err) { log.error('[stayTimer] onReachMs error', err); }
               }
               return next;
             });
           }, 1000);
+          log.debug('interval started');
         }
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibility);
-    if (debug) console.debug('[stayTimer] start, targetMs=', targetMs);
+    log.debug('start, targetMs=', targetMs);
     handleVisibility();
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
-      if (timerRef.current) window.clearInterval(timerRef.current);
-      if (debug) console.debug('[stayTimer] cleanup');
+      if (timerRef.current) {
+        window.clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      log.debug('cleanup');
     };
-  }, [enabled, targetMs, onReachMs, debug, countWhenHidden]);
+  }, [enabled, targetMs]);
 
   return { elapsedMs };
 }
