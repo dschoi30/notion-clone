@@ -11,11 +11,14 @@ import { getProperties, getPropertyValuesByDocument } from '@/services/documentA
 import { slugify } from '@/lib/utils';
 import DocumentTableView from './DocumentTableView';
 import usePageStayTimer from '@/hooks/usePageStayTimer';
+import { createLogger } from '@/lib/logger';
 import { createDocumentVersion } from '@/services/documentApi';
 import DocumentHeader from './DocumentHeader';
 import DocumentPageView from './DocumentPageView';
 
 const DocumentEditor = () => {
+  const vlog = createLogger('version');
+  const rlog = createLogger('router');
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -44,7 +47,7 @@ const DocumentEditor = () => {
   const SNAPSHOT_INTERVAL_MS = (import.meta.env && import.meta.env.MODE === 'development') ? 30 * 1000 : 10 * 60 * 1000;
   const [nextSnapshotMs, setNextSnapshotMs] = useState(SNAPSHOT_INTERVAL_MS);
 
-  const handleReachTenMinutes = async () => {
+  const handleReachTenMinutes = async (reachedMs) => {
     try {
       if (!currentDocument || !currentWorkspace) return;
       // 최신 속성/값을 병렬로 로드
@@ -56,25 +59,30 @@ const DocumentEditor = () => {
       const valuesObj = {};
       (valuesArr || []).forEach(v => { valuesObj[v.propertyId] = v.value; });
 
-      await createDocumentVersion(currentWorkspace.id, currentDocument.id, {
+      const payload = {
         title: titleRef.current || '',
         viewType: currentDocument.viewType,
         titleWidth: titleWidth,
         content: currentDocument.viewType === 'PAGE' ? (contentRef.current || '') : null,
         propertiesJson: JSON.stringify(propsSlim),
         propertyValuesJson: JSON.stringify(valuesObj),
-      });
+      };
+      vlog.debug('create payload', payload);
+      const res = await createDocumentVersion(currentWorkspace.id, currentDocument.id, payload);
+      vlog.info('created version id', res);
     } catch (e) {
-      console.error('버전 생성 실패:', e);
+      vlog.error('create failed', e);
     } finally {
-      // 다음 임계치 설정
-      setNextSnapshotMs((ms) => ms + SNAPSHOT_INTERVAL_MS);
+      // 다음 임계치: 방금 도달 지점 기준으로 재설정하고, 즉시 타이머 시작 유도
+      const base = typeof reachedMs === 'number' ? reachedMs : 0;
+      const next = base + SNAPSHOT_INTERVAL_MS;
+      setNextSnapshotMs(next);
+      vlog.debug('next target set', next);
     }
   };
 
-  const { elapsedMs } = usePageStayTimer({ enabled: !!currentDocument, onReachMs: handleReachTenMinutes, targetMs: nextSnapshotMs, debug: true, countWhenHidden: true });
-
-  // (removed) PAGE 내부에서 속성 추가/팝오버 상태 관리
+  const isTimerEnabled = Boolean(currentDocument);
+  const { elapsedMs } = usePageStayTimer({ enabled: isTimerEnabled, onReachMs: handleReachTenMinutes, targetMs: nextSnapshotMs });
 
   const { idSlug } = useParams();
   
@@ -103,11 +111,11 @@ const DocumentEditor = () => {
       const isSameDocId = String(currentUrlDocId) === String(currentDocument.id);
       
       if (isSameDocId && currentPath !== expectedPath) {
-        console.log(`URL slug 동기화: ${currentPath} -> ${expectedPath}`);
+        rlog.debug('slug sync', { from: currentPath, to: expectedPath });
         navigate(expectedPath, { replace: true });
       } else if (!isSameDocId) {
         // 완전히 다른 문서인 경우 (사이드바에서 선택한 경우)
-        console.log(`URL 문서 변경: ${currentPath} -> ${expectedPath}`);
+        rlog.info('doc change navigate', { from: currentPath, to: expectedPath });
         navigate(expectedPath, { replace: true });
       }
     }

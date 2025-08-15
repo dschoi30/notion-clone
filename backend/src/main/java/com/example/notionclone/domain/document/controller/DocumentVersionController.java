@@ -22,6 +22,9 @@ public class DocumentVersionController {
             @PathVariable Long documentId,
             @RequestBody DocumentVersionDtos.CreateRequest request
     ) {
+        if (userPrincipal == null) {
+            return ResponseEntity.status(401).build();
+        }
         Long id = versionService.createVersion(workspaceId, documentId, request, userPrincipal.getEmail());
         // 이미 존재하는 동일 스냅샷이면 204 No Content
         if (id == null) return ResponseEntity.noContent().build();
