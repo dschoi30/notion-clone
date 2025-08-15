@@ -2,6 +2,8 @@ package com.example.notionclone.domain.document.controller;
 
 import com.example.notionclone.domain.document.dto.DocumentVersionDtos;
 import com.example.notionclone.domain.document.service.DocumentVersionService;
+import com.example.notionclone.domain.permission.entity.PermissionType;
+import com.example.notionclone.domain.permission.service.PermissionService;
 import com.example.notionclone.security.CurrentUser;
 import com.example.notionclone.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class DocumentVersionController {
     private final DocumentVersionService versionService;
+    private final PermissionService permissionService;
 
     @PostMapping
     public ResponseEntity<Long> create(
@@ -48,6 +51,21 @@ public class DocumentVersionController {
             @PathVariable Long versionId
     ) {
         return ResponseEntity.ok(versionService.getVersion(versionId));
+    }
+
+    @PostMapping("/{versionId}/restore")
+    public ResponseEntity<Void> restore(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId,
+            @PathVariable Long documentId,
+            @PathVariable Long versionId
+    ) {
+        if (userPrincipal == null) {
+            return ResponseEntity.status(401).build();
+        }
+        permissionService.checkPermission(workspaceId, documentId, userPrincipal.getId(), PermissionType.WRITE);
+        versionService.restoreVersion(workspaceId, documentId, versionId, userPrincipal.getEmail());
+        return ResponseEntity.ok().build();
     }
 }
 
