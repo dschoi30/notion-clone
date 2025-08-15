@@ -1,4 +1,3 @@
-- 2025-08-12: P2.3 버전 관리 착수. 백엔드 `document_versions` 엔티티/리포지토리/서비스/컨트롤러 추가(해시 기반 중복 방지, 90일 보관 정리). FE에 체류 타이머 훅 `usePageStayTimer` 추가, `DocumentEditor` 자동 스냅샷 연동(개발 30초, 운영 10분). 우측 상단 `버전 기록` 버튼 및 `VersionHistoryPanel` 사이드패널 구현(목록/단건 조회, PAGE 미리보기). API 클라이언트 함수 3종 추가.
 - `DocumentList.jsx`에서 문서의 `viewType`이 `TABLE`일 경우, `FileText` 아이콘 대신 `Table` 아이콘을 표시하도록 수정하여 시각적 구분을 명확히 함.
 - DocumentEditor.jsx에 실시간 자동 저장(debounce 500ms) 기능 구현. 저장 버튼 제거, 저장 상태 UI만 표시. title/content 변경 시 자동 저장 트리거. 
 - useDocumentSocket.js에서 Stomp 클라이언트 생성 방식을 공식 권장 방식(Client + webSocketFactory)으로 변경하여 자동 재연결 지원 및 경고 해결. 
@@ -209,4 +208,12 @@
   - `shared/hooks/usePropertiesDnd.js` 추가: 컬럼/리스트 공용 속성 DnD 훅(기존 useColumnDnd 동작을 일반화)
   - `shared/constants.js` 추가: `SYSTEM_PROP_TYPES`, `DEFAULT_PROPERTY_WIDTH` 공용화
   - `DocumentTableView.jsx`에서 공통 훅/상수 사용하도록 수정, 기본 너비 상수 치환
-  - 린트 통과 확인, 테이블 컬럼 DnD/리사이즈 기존 동작 유지
+  - 린트 통과 확인, 테이블 컬럼 DnD/리사이즈 기존 동작 
+  - 2025-08-12: P2.3 버전 관리 착수. 백엔드 `document_versions` 엔티티/리포지토리/서비스/컨트롤러 추가(해시 기반 중복 방지, 90일 보관 정리). FE에 체류 타이머 훅 `usePageStayTimer` 추가, `DocumentEditor` 자동 스냅샷 연동(개발 30초, 운영 10분). 우측 상단 `버전 기록` 버튼 및 `VersionHistoryPanel` 사이드패널 구현(목록/단건 조회, PAGE 미리보기). API 클라이언트 함수 3종 추가.
+- 2025-08-12: 버전 관리 1차 안정화 및 디버깅 체계 도입
+  - FE 타이머 안정화: `usePageStayTimer`에 콜백 ref 적용, interval 재시작/cleanup 보강, 디버그 로그 추가. dev 모드 30초 간격 적용.
+  - 로깅 유틸: `src/lib/logger.js` 추가(VITE_DEBUG/VITE_DEBUG_NS, URL/localStorage 토글, 네임스페이스 지원). `stayTimer`/`version`/`router`에 적용.
+  - 라우팅 로그: `DocumentEditor.jsx`, `App.jsx`, `DocumentContext.jsx`에 `router` 네임스페이스 로깅 추가(slug sync/네비게이션/selectDocument).
+  - 버전 UI 로깅: `VersionHistoryPanel.jsx`에 목록/단건 조회 로깅 추가 및 소소한 스타일 정리.
+  - BE 보완: `DocumentVersionController` 인증 누락 시 401 명시. gradle assemble 확인.
+  - 테이블 뷰에서 “열기” 동작 시 URL 동기화 경합 완화(`DocumentEditor` slug 동기화 로직 보수).
