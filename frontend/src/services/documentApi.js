@@ -198,3 +198,8 @@ export async function getDocumentVersion(workspaceId, documentId, versionId) {
   const res = await api.get(`/api/workspaces/${workspaceId}/documents/${documentId}/versions/${versionId}`);
   return res.data;
 }
+
+export async function restoreDocumentVersion(workspaceId, documentId, versionId) {
+  const res = await api.post(`/api/workspaces/${workspaceId}/documents/${documentId}/versions/${versionId}/restore`);
+  return res.data;
+}

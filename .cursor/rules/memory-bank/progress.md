@@ -1,3 +1,12 @@
+### 2025-08-15
+- versioning Phase A 진행 시작
+  - 브랜치: `feature/versioning-be-restore`, `feature/versioning-fe-restore`
+  - BE: `POST /api/workspaces/{wid}/documents/{docId}/versions/{versionId}/restore` 추가
+    - 권한 체크: `PermissionService.checkPermission(..., WRITE)`
+    - 서비스: 문서 필드(title/content/viewType/titleWidth) 복구, 속성/값 단순 재작성 복구
+    - 빌드 성공(테스트 제외)
+  - FE: `restoreDocumentVersion` API 추가, `VersionHistoryPanel`에 복구 버튼/확인/로딩/재조회 연동
+  - 남은 일: 복구 후 속성/값/타이틀폭 UI 동기화 추가 검증, 권한 가드, 토스트로 교체, E2E 추가
 - `DocumentList.jsx`에서 문서의 `viewType`이 `TABLE`일 경우, `FileText` 아이콘 대신 `Table` 아이콘을 표시하도록 수정하여 시각적 구분을 명확히 함.
 - DocumentEditor.jsx에 실시간 자동 저장(debounce 500ms) 기능 구현. 저장 버튼 제거, 저장 상태 UI만 표시. title/content 변경 시 자동 저장 트리거. 
 - useDocumentSocket.js에서 Stomp 클라이언트 생성 방식을 공식 권장 방식(Client + webSocketFactory)으로 변경하여 자동 재연결 지원 및 경고 해결. 
