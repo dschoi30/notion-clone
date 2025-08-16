@@ -225,3 +225,14 @@
     - 빌드 성공(테스트 제외)
   - FE: `restoreDocumentVersion` API 추가, `VersionHistoryPanel`에 복구 버튼/확인/로딩/재조회 연동
   - 남은 일: 복구 후 속성/값/타이틀폭 UI 동기화 추가 검증, 권한 가드, 토스트로 교체, E2E 추가
+  ## 2025-08-16
+
+- 변경: `frontend/src/components/documents/VersionHistoryPanel.jsx` 우측 버전 기록 목록 무한 스크롤 방식을 `onScroll` 기반에서 `IntersectionObserver` 기반으로 전환.
+- 의도: 스크롤 이벤트 발생 시 매 렌더링/계산을 줄여 렌더링 빈도를 최소화하고, 불필요한 상태 업데이트를 방지하여 성능 최적화.
+- 주요 내용:
+  - `useRef`로 스크롤 컨테이너와 센티넬 엘리먼트 참조 추가.
+  - `handleScroll` 제거, `IntersectionObserver`를 통해 하단 센티넬이 보일 때 `loadPage(page + 1)` 호출.
+  - 기존 페이지네이션/로딩 상태(`page`, `hasMore`, `loadingMore`, `loading`) 로직은 유지.
+- 영향: UI/UX 동일, 렌더링/스크롤 처리 비용 감소.
+
+- 추가: `VersionHistoryPanel`을 `React.memo`로 래핑하고, `DocumentHeader`에서 `onClose` 콜백을 `useCallback`으로 안정화하여 상위 리렌더로 인한 불필요한 하위 리렌더 및 로그 출력 빈도를 감소.

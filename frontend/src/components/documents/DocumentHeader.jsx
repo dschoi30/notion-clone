@@ -1,4 +1,4 @@
-import React, { Fragment } from 'react';
+import React, { Fragment, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import VersionHistoryPanel from './VersionHistoryPanel';
 import DocumentSharePopover from './DocumentSharePopover';
@@ -20,6 +20,7 @@ export default function DocumentHeader({
   onPathClick
 }) {
   const [showVersions, setShowVersions] = React.useState(false);
+  const handleCloseVersions = useCallback(() => setShowVersions(false), []);
   return (
     <div className="flex flex-col w-full">
       {/* 경로 표시 */}
@@ -111,7 +112,7 @@ export default function DocumentHeader({
       </div>
       {showVersions && (
         <VersionHistoryPanel
-          onClose={() => setShowVersions(false)}
+          onClose={handleCloseVersions}
           workspaceId={currentWorkspace?.id}
           documentId={currentDocument?.id}
         />
