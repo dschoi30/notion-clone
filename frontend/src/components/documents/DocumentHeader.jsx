@@ -91,8 +91,8 @@ export default function DocumentHeader({
           )}
           <Button
             size="sm"
-            variant="secondary"
-            className="ml-1 text-sm"
+            variant="ghost"
+            className="text-sm text-gray-700"
             onClick={() => setShowVersions(true)}
           >
             버전 기록
