@@ -2,6 +2,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { createLogger } from '@/lib/logger';
 import LoginForm from './components/auth/LoginForm';
 import RegisterForm from './components/auth/RegisterForm';
 import { WorkspaceProvider, useWorkspace } from './contexts/WorkspaceContext';
@@ -16,6 +17,7 @@ const AppLayout = () => {
   const { currentWorkspace, loading: workspaceLoading } = useWorkspace();
   const location = useLocation();
   const navigate = useNavigate();
+  const rlog = createLogger('router');
 
   // 현재 URL에서 문서 ID 추출
   const getCurrentDocIdFromUrl = () => {
@@ -27,6 +29,7 @@ const AppLayout = () => {
   const navigateToCorrectDocument = (doc) => {
     const correctPath = `/${doc.id}-${slugify(doc.title)}`;
     if (location.pathname !== correctPath) {
+      rlog.info('navigateToCorrectDocument', { from: location.pathname, to: correctPath });
       navigate(correctPath, { replace: true });
     }
   };
@@ -41,7 +44,7 @@ const AppLayout = () => {
       const foundDoc = documents.find(d => String(d.id) === String(currentUrlDocId));
       if (!foundDoc) {
         // URL의 문서 ID가 현재 워크스페이스에 없으면 올바른 문서로 리다이렉트
-        console.warn(`URL의 문서 ID ${currentUrlDocId}가 현재 워크스페이스에 없습니다. 올바른 문서로 리다이렉트합니다.`);
+        rlog.warn('url doc not in workspace, redirecting', { currentUrlDocId, workspaceId: currentWorkspace.id });
         
         const lastId = localStorage.getItem(`lastDocumentId:${currentWorkspace.id}`);
         let targetDoc = null;

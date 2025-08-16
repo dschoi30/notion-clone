@@ -32,6 +32,16 @@ class DocumentPropertyValue {
     Long  id
     String  value
 }
+class DocumentVersion {
+    Long  id
+    String  title
+    ViewType  viewType
+    Integer  titleColumnWidth
+    String  content
+    String  propertiesJson
+    String  propertyValuesJson
+    String  snapshotHash
+}
 class Notification {
     Long  id
     NotificationType  type
@@ -103,6 +113,7 @@ BaseEntity  --|>  Document
 BaseEntity  --|>  DocumentProperty 
 BaseEntity  --|>  DocumentPropertyTagOption 
 BaseEntity  --|>  DocumentPropertyValue 
+BaseEntity  --|>  DocumentVersion 
 BaseEntity  --|>  Notification 
 BaseEntity  --|>  Permission 
 BaseEntity  --|>  User 
@@ -117,6 +128,9 @@ DocumentProperty "0..*" --> "0..1" PropertyType
 DocumentPropertyTagOption "0..*" --> "0..1" DocumentProperty 
 DocumentPropertyValue "0..*" --> "0..1" Document 
 DocumentPropertyValue "0..*" --> "0..1" DocumentProperty 
+DocumentVersion "0..*" --> "0..1" Document 
+DocumentVersion "0..*" --> "0..1" Workspace 
+DocumentVersion "0..*" --> "0..1" ViewType 
 Notification "0..*" --> "0..1" User 
 Notification "0..*" --> "0..1" NotificationType 
 Notification "0..*" --> "0..1" NotificationStatus 
