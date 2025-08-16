@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { getDocumentVersions, getDocumentVersion, restoreDocumentVersion, getProperties } from '@/services/documentApi';
 import { createLogger } from '@/lib/logger';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useDocument } from '@/contexts/DocumentContext';
 import { formatKoreanDateSmart } from '@/lib/utils';
 import { getColorObj } from '@/lib/colors';
@@ -75,7 +74,11 @@ export default function VersionHistoryPanel({ workspaceId, documentId, onClose }
   const [tagOptionsByPropId, setTagOptionsByPropId] = useState({});
   const log = createLogger('version');
   const { fetchDocument } = useDocument();
-  const { currentWorkspace } = useWorkspace();
+
+  const PAGE_SIZE = 20;
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Disable background scroll while open
   useEffect(() => {
@@ -86,21 +89,38 @@ export default function VersionHistoryPanel({ workspaceId, documentId, onClose }
     };
   }, []);
 
+  // Reset when dependencies change
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      setLoading(true);
-      try {
-        log.debug('fetch list');
-        const page = await getDocumentVersions(workspaceId, documentId, { page: 0, size: 20 });
-        if (!mounted) return;
-        setVersions(page.content || []);
-        log.info('list size', page.content?.length || 0);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => { mounted = false; };
+    setVersions([]);
+    setSelected(null);
+    setSelectedId(null);
+    setPage(0);
+    setHasMore(true);
+  }, [workspaceId, documentId]);
+
+  const loadPage = async (pageIndex) => {
+    if (loading || loadingMore) return;
+    if (pageIndex > 0) setLoadingMore(true); else setLoading(true);
+    try {
+      const res = await getDocumentVersions(workspaceId, documentId, { page: pageIndex, size: PAGE_SIZE });
+      const items = res?.content || [];
+      setVersions(prev => {
+        if (pageIndex === 0) return items;
+        const seen = new Set(prev.map(i => i.id));
+        const merged = prev.concat(items.filter(i => !seen.has(i.id)));
+        return merged;
+      });
+      setPage(res?.number ?? pageIndex);
+      setHasMore(res ? !res.last : items.length === PAGE_SIZE);
+    } finally {
+      if (pageIndex > 0) setLoadingMore(false); else setLoading(false);
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
+    if (!workspaceId || !documentId) return;
+    loadPage(0);
   }, [workspaceId, documentId]);
 
   const handleSelect = async (versionId) => {
@@ -118,6 +138,16 @@ export default function VersionHistoryPanel({ workspaceId, documentId, onClose }
       setTagOptionsByPropId({});
     }
   };
+
+  // Auto-select newest after first page loaded
+  useEffect(() => {
+    if (!selectedId && versions && versions.length > 0) {
+      const newest = versions[0];
+      if (newest?.id) {
+        handleSelect(newest.id);
+      }
+    }
+  }, [versions, selectedId]);
 
   const handleRestore = async () => {
     if (!selected) return;
@@ -137,13 +167,22 @@ export default function VersionHistoryPanel({ workspaceId, documentId, onClose }
     }
   };
 
+  const handleScroll = (e) => {
+    const el = e.currentTarget;
+    if (!el) return;
+    const threshold = 48; // px
+    if (hasMore && !loadingMore && el.scrollTop + el.clientHeight >= el.scrollHeight - threshold) {
+      loadPage(page + 1);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[60] flex justify-center items-center bg-black/30" onClick={onClose}>
       <div className="relative bg-white w-[1040px] h-[85vh] rounded-lg shadow-2xl flex" onClick={(e) => e.stopPropagation()}>
         {/* 메인 영역 */}
         <div className="overflow-auto flex-1 p-8">
           <div className="flex items-center mb-4">
-            <h3 className="text-2xl font-bold truncate">{selected ? selected.title : '버전을 선택하세요'}</h3>
+            <h3 className="text-2xl font-bold truncate">{selected ? selected.title : ''}</h3>
           </div>
           {!selected && <div className="text-sm text-gray-500">우측 목록에서 버전을 선택하세요.</div>}
           {selected && (
@@ -163,7 +202,7 @@ export default function VersionHistoryPanel({ workspaceId, documentId, onClose }
           <div className="mb-3 font-semibold">버전 기록</div>
           {loading && <div className="text-sm">불러오는 중...</div>}
           {!loading && versions.length === 0 && <div className="text-sm text-gray-500">기록 없음</div>}
-          <div className="overflow-auto flex-1">
+          <div className="overflow-auto flex-1" onScroll={handleScroll}>
             <ul className="space-y-2">
               {versions.map(v => {
                 const isActive = selectedId === v.id;
@@ -178,6 +217,9 @@ export default function VersionHistoryPanel({ workspaceId, documentId, onClose }
                   </li>
                 );
               })}
+              {loadingMore && (
+                <li className="px-2 py-1 text-xs text-gray-500">더 불러오는 중...</li>
+              )}
             </ul>
           </div>
           <div className="flex justify-end pt-3 border-t">
