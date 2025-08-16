@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { getDocumentVersions, getDocumentVersion, restoreDocumentVersion, getProperties } from '@/services/documentApi';
 import { createLogger } from '@/lib/logger';
@@ -65,7 +65,7 @@ function VersionProperties({ propertiesJson, valuesJson, tagOptionsByPropId }) {
   );
 }
 
-export default function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
+function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
   const [versions, setVersions] = useState([]);
   const [selected, setSelected] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
@@ -79,6 +79,8 @@ export default function VersionHistoryPanel({ workspaceId, documentId, onClose }
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const scrollContainerRef = useRef(null);
+  const sentinelRef = useRef(null);
 
   // Disable background scroll while open
   useEffect(() => {
@@ -167,15 +169,22 @@ export default function VersionHistoryPanel({ workspaceId, documentId, onClose }
     }
   };
 
-  const handleScroll = (e) => {
-    const el = e.currentTarget;
-    if (!el) return;
-    const threshold = 48; // px
-    if (hasMore && !loadingMore && el.scrollTop + el.clientHeight >= el.scrollHeight - threshold) {
-      loadPage(page + 1);
-    }
-  };
-
+  // Infinite scroll via IntersectionObserver (reduces re-rendering from scroll events)
+  useEffect(() => {
+    if (!hasMore || loadingMore || loading) return;
+    const root = scrollContainerRef.current;
+    const target = sentinelRef.current;
+    if (!root || !target) return;
+    const observer = new IntersectionObserver((entries) => {
+      const [entry] = entries;
+      if (entry.isIntersecting) {
+        loadPage(page + 1);
+      }
+    }, { root, rootMargin: '0px', threshold: 0.1 });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, loading, page]);
+  
   return (
     <div className="fixed inset-0 z-[60] flex justify-center items-center bg-black/30" onClick={onClose}>
       <div className="relative bg-white w-[1040px] h-[85vh] rounded-lg shadow-2xl flex" onClick={(e) => e.stopPropagation()}>
@@ -202,7 +211,7 @@ export default function VersionHistoryPanel({ workspaceId, documentId, onClose }
           <div className="mb-3 font-semibold">버전 기록</div>
           {loading && <div className="text-sm">불러오는 중...</div>}
           {!loading && versions.length === 0 && <div className="text-sm text-gray-500">기록 없음</div>}
-          <div className="overflow-auto flex-1" onScroll={handleScroll}>
+          <div className="overflow-auto flex-1" ref={scrollContainerRef}>
             <ul className="space-y-2">
               {versions.map(v => {
                 const isActive = selectedId === v.id;
@@ -220,6 +229,10 @@ export default function VersionHistoryPanel({ workspaceId, documentId, onClose }
               {loadingMore && (
                 <li className="px-2 py-1 text-xs text-gray-500">더 불러오는 중...</li>
               )}
+              {/* Sentinel for IntersectionObserver */}
+              <li>
+                <div ref={sentinelRef} className="h-8" />
+              </li>
             </ul>
           </div>
           <div className="flex justify-end pt-3 border-t">
@@ -244,4 +257,4 @@ export default function VersionHistoryPanel({ workspaceId, documentId, onClose }
   );
 }
 
-
+export default React.memo(VersionHistoryPanel);

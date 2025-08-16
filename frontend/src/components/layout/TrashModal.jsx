@@ -3,6 +3,7 @@ import { Dialog, DialogPortal, DialogContent, DialogHeader, DialogTitle } from '
 import { TrashIcon, Undo } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import useTrash from '@/hooks/useTrash';
+import { createLogger } from '@/lib/logger';
 
 // props: open, onClose, workspaceId, anchorRef, onRestore
 export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRestore }) {
@@ -31,8 +32,11 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
       console.warn('TrashModal: anchorRef의 getBoundingClientRect 값이 0입니다.', rect);
       return null;
     }
+    const anchorHeight = anchorEl.offsetHeight;
     const dialogHeight = dialogEl.offsetHeight;
+    console.log('anchorHeight', anchorHeight, 'dialogHeight', dialogHeight);
     let top = rect.bottom + window.scrollY;
+    console.log('top', top, 'window.innerHeight', window.innerHeight, 'window.scrollY', window.scrollY);
     if (top + dialogHeight > window.innerHeight + window.scrollY) {
       top = rect.top + window.scrollY - dialogHeight;
       if (top < 0) top = 0;
@@ -85,7 +89,7 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
             transformOrigin: 'bottom left',
           }}
           className={cn(
-            "shadow-xl border bg-white p-6 rounded-lg transition-none",
+            "p-6 bg-white rounded-lg border shadow-xl transition-none",
             open ? "animate-trash-dialog-in" : "animate-trash-dialog-out"
           )}
         >
@@ -97,9 +101,9 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
           ) : trashedDocuments.length === 0 ? (
             <div className="py-8 text-center text-gray-400">휴지통이 비어 있습니다.</div>
           ) : (
-            <ul className="overflow-y-auto divide-y max-h-80">
+            <ul className="overflow-y-auto max-h-80 divide-y">
               {trashedDocuments.map(doc => (
-                <li key={doc.id} className="flex items-center justify-between py-2">
+                <li key={doc.id} className="flex justify-between items-center py-2">
                   <span className="max-w-xs truncate">{doc.title || '(제목 없음)'}</span>
                   <div className="flex gap-2">
                     <button onClick={() => handleRestore(doc.id, onRestore)} title="복원" className="p-1 hover:text-blue-500">
@@ -115,7 +119,7 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
           )}
           <button
             onClick={handleDeleteAll}
-            className="w-full py-2 mt-4 text-white bg-red-700 rounded hover:bg-red-800 disabled:opacity-50"
+            className="py-2 mt-4 w-full text-white bg-red-700 rounded hover:bg-red-800 disabled:opacity-50"
             disabled={trashedDocuments.length === 0 || loading}
           >
             모두 비우기
