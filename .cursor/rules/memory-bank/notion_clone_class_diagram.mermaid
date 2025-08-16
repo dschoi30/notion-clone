@@ -71,6 +71,19 @@ classDiagram
         -String value
     }
 
+    class DocumentVersion {
+        -Long id
+        -Workspace workspace
+        -Document document
+        -String title
+        -ViewType viewType
+        -Integer titleColumnWidth
+        -String content
+        -String propertiesJson
+        -String propertyValuesJson
+        -String snapshotHash
+    }
+
     class DocumentPropertyTagOption {
         -Long id
         -DocumentProperty property
@@ -156,6 +169,7 @@ classDiagram
     BaseEntity <|-- Document
     BaseEntity <|-- DocumentProperty
     BaseEntity <|-- DocumentPropertyValue
+    BaseEntity <|-- DocumentVersion
     BaseEntity <|-- DocumentPropertyTagOption
     BaseEntity <|-- Permission
     BaseEntity <|-- Notification
@@ -172,6 +186,9 @@ classDiagram
     User "1" -- "*" Notification : receives
     Document "1" -- "1" ViewType : has
     DocumentProperty "1" -- "1" PropertyType : has
+    DocumentVersion "*" -- "1" Document : versionOf
+    DocumentVersion "*" -- "1" Workspace : in
+    DocumentVersion "*" -- "1" ViewType : has
     Permission "1" -- "1" PermissionType : has
     Permission "1" -- "1" PermissionStatus : has
     Notification "1" -- "1" NotificationType : has

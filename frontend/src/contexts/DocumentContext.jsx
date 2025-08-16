@@ -1,8 +1,8 @@
 // src/contexts/DocumentContext.jsx
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import * as documentApi from '@/services/documentApi';
+import { createLogger } from '@/lib/logger';
 import { useWorkspace } from './WorkspaceContext';
-import { slugify } from '@/lib/utils';
 
 const DocumentContext = createContext();
 
@@ -15,6 +15,7 @@ export function useDocument() {
 }
 
 export function DocumentProvider({ children }) {
+  const rlog = createLogger('router');
   const [documents, setDocuments] = useState([]);
   const [currentDocument, setCurrentDocument] = useState(null);
   const [documentsLoading, setDocumentsLoading] = useState(false);
@@ -123,6 +124,7 @@ export function DocumentProvider({ children }) {
     try {
       setDocumentLoading(true);
       setError(null);
+      rlog.info('selectDocument', { id: document.id });
       const fullDocument = await documentApi.getDocument(currentWorkspace.id, document.id);
       
       // 조회된 문서가 현재 워크스페이스에 속하는지 검증
