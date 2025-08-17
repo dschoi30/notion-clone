@@ -252,6 +252,11 @@
   - 원인: 버전(DocumentVersion) 및 권한(Permission) 정리 없이 삭제 시 제약/보안 충돌 가능성이 있어 간헐적 오류 발생
   - 백엔드 수정:
     - `DocumentVersionRepository.deleteByDocument(Document)` 추가
-    - `DocumentService.deleteDocumentPermanently()`에서 문서 삭제 전 버전/권한 선삭제 후 문서 삭제로 변경
-    - `DocumentService.emptyTrash()`에서 휴지통 문서 목록을 순회하며 버전/권한/문서 순으로 안전 삭제
-  - 영향: 속성 값/부모 여부와 관계없이 문서 영구삭제/전체비우기 일관 동작
+    - `DocumentService.deleteDocumentPermanently()`에서 값→버전→권한→문서 순으로 삭제, TABLE 문서는 자식부터 하드 삭제
+    - `DocumentService.emptyTrash()`에서 값 일괄 삭제 후 각 서브트리를 자식→부모 순으로 삭제
+  - 영향: 속성 값/부모 여부와 관계없이 문서 영구삭제/전체비우기 일관 동작, FK 제약 오류 해소
+
+- 2025-08-17: TABLE 문서 삭제 시 자식 일괄 처리 구현
+  - 소프트 삭제: `ViewType.TABLE` 문서 삭제 시 모든 하위 문서를 함께 휴지통 처리
+  - 영구 삭제: 하위 문서부터 값→버전→권한→문서 순으로 안전 삭제
+  - 전체 비우기: 휴지통 내 문서들의 값 일괄 삭제 후 서브트리를 자식→부모 순서로 삭제

@@ -34,6 +34,12 @@ import com.example.notionclone.domain.document.repository.DocumentPropertyTagOpt
 import com.example.notionclone.domain.document.repository.DocumentVersionRepository;
 import com.example.notionclone.domain.document.repository.DocumentPropertyRepository;
 import com.example.notionclone.domain.document.repository.DocumentPropertyValueRepository;
+import java.util.Deque;
+import java.util.ArrayDeque;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.HashMap;
 
 @Slf4j
 @Service
@@ -216,6 +222,14 @@ public class DocumentService {
       throw new org.springframework.security.access.AccessDeniedException("No permission to delete this document.");
     }
 
+    // TABLE 문서는 자식 문서까지 일괄 휴지통 처리
+    if (document.getViewType() == ViewType.TABLE) {
+      List<Document> descendants = collectDescendants(document);
+      for (Document child : descendants) {
+        child.setTrashed(true);
+        documentRepository.save(child);
+      }
+    }
     document.setTrashed(true);
     documentRepository.save(document);
   }
@@ -258,31 +272,81 @@ public class DocumentService {
     if (doc.getWorkspace() == null || !doc.getWorkspace().getId().equals(workspaceId)) {
       throw new ResourceNotFoundException("Document not found in workspace: " + workspaceId);
     }
-    // 1. 값/버전 삭제 (FK 제약 방지)
-    documentPropertyValueRepository.deleteByDocumentId(doc.getId());
-    documentVersionRepository.deleteByDocument(doc);
-    // 2. Permission 삭제
-    List<Permission> permissions = permissionRepository.findByDocument(doc);
-    permissionRepository.deleteAll(permissions);
-    // 3. 문서 삭제 (properties/values/tagOptions는 cascade + orphanRemoval)
-    documentRepository.delete(doc);
+    // TABLE 문서는 자식부터 하드 삭제
+    if (doc.getViewType() == ViewType.TABLE) {
+      List<Document> descendants = collectDescendants(doc);
+      for (int i = descendants.size() - 1; i >= 0; i--) {
+        hardDeleteSingleDocument(descendants.get(i));
+      }
+    }
+    hardDeleteSingleDocument(doc);
   }
 
   @Transactional
   public void emptyTrash(Long workspaceId) {
-    // 트랜잭션 내에서 안전하게 값/버전/권한 정리 후 문서 삭제
+    // 휴지통 문서 전체를 안전 순서(자식 -> 부모)로 삭제
     List<Document> trashedDocs = documentRepository.findByWorkspaceIdAndIsTrashedTrue(workspaceId);
+    if (trashedDocs.isEmpty()) return;
+
+    // 우선 모든 값은 일괄 삭제 (FK 제약 방지)
+    List<Long> trashedIds = trashedDocs.stream().map(Document::getId).toList();
+    documentPropertyValueRepository.deleteByDocumentIdIn(trashedIds);
+
+    // 트리 루트(부모가 휴지통이 아닌 노드)를 기준으로 각 서브트리를 자식부터 삭제
+    Set<Long> remaining = new HashSet<>(trashedIds);
+    Map<Long, Document> byId = new HashMap<>();
+    for (Document d : trashedDocs) byId.put(d.getId(), d);
+
     for (Document d : trashedDocs) {
-      // 값 삭제
-      documentPropertyValueRepository.deleteByDocumentId(d.getId());
-      // 버전 삭제
-      documentVersionRepository.deleteByDocument(d);
-      // 권한 삭제
-      List<Permission> permissions = permissionRepository.findByDocument(d);
-      permissionRepository.deleteAll(permissions);
-      // 문서 삭제
-      documentRepository.delete(d);
+      Long parentId = d.getParent() == null ? null : d.getParent().getId();
+      boolean parentIsAlsoTrashed = parentId != null && remaining.contains(parentId);
+      if (parentIsAlsoTrashed) continue; // 상위에서 함께 처리됨
+
+      // d를 루트로 하는 서브트리 수집 후 자식부터 삭제
+      List<Document> subtree = collectDescendants(d);
+      for (int i = subtree.size() - 1; i >= 0; i--) {
+        Document child = subtree.get(i);
+        if (remaining.contains(child.getId())) {
+          documentVersionRepository.deleteByDocument(child);
+          List<Permission> perms = permissionRepository.findByDocument(child);
+          permissionRepository.deleteAll(perms);
+          documentRepository.delete(child);
+          remaining.remove(child.getId());
+        }
+      }
+      if (remaining.contains(d.getId())) {
+        documentVersionRepository.deleteByDocument(d);
+        List<Permission> perms = permissionRepository.findByDocument(d);
+        permissionRepository.deleteAll(perms);
+        documentRepository.delete(d);
+        remaining.remove(d.getId());
+      }
     }
+  }
+
+  private List<Document> collectDescendants(Document root) {
+    List<Document> result = new ArrayList<>();
+    Deque<Document> stack = new ArrayDeque<>(documentRepository.findByParentId(root.getId()));
+    while (!stack.isEmpty()) {
+      Document cur = stack.pop();
+      result.add(cur);
+      List<Document> children = documentRepository.findByParentId(cur.getId());
+      for (Document c : children) {
+        stack.push(c);
+      }
+    }
+    return result;
+  }
+
+  private void hardDeleteSingleDocument(Document d) {
+    // 1. 값/버전 삭제 (FK 제약 방지)
+    documentPropertyValueRepository.deleteByDocumentId(d.getId());
+    documentVersionRepository.deleteByDocument(d);
+    // 2. 권한 삭제
+    List<Permission> permissions = permissionRepository.findByDocument(d);
+    permissionRepository.deleteAll(permissions);
+    // 3. 문서 삭제 (properties/values/tagOptions는 cascade + orphanRemoval)
+    documentRepository.delete(d);
   }
 
   public List<DocumentResponse> getAccessibleDocuments(Long workspaceId, User user) {
