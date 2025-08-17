@@ -1,14 +1,13 @@
 import React, { useEffect, useRef, useLayoutEffect } from 'react';
-import { Dialog, DialogPortal, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TrashIcon, Undo } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import useTrash from '@/hooks/useTrash';
 import { createLogger } from '@/lib/logger';
 
-// props: open, onClose, workspaceId, anchorRef, onRestore
 export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRestore }) {
   const dialogRef = useRef(null);
-  const [dialogPosition, setDialogPosition] = React.useState({ top: 0, left: 0 });
+  const [dialogPosition, setDialogPosition] = React.useState({ left: 0, bottom: 0, position: 'fixed' });
   const {
     trashedDocuments,
     loading,
@@ -17,33 +16,28 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
     handleDelete,
     handleDeleteAll,
   } = useTrash(workspaceId);
+  const log = createLogger('trash');
 
   // 휴지통 문서 목록 fetch (open, workspaceId 변경 시)
   useEffect(() => {
     if (!open || !workspaceId) return;
     fetchTrashedDocuments();
-    // eslint-disable-next-line
   }, [open, workspaceId]);
 
   // 위치 계산 함수 분리
-  function calculateDialogPosition(anchorEl, dialogEl) {
+  function calculateDialogPosition(anchorEl) {
     const rect = anchorEl.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) {
-      console.warn('TrashModal: anchorRef의 getBoundingClientRect 값이 0입니다.', rect);
+      log.warn('TrashModal: anchorRef의 getBoundingClientRect 값이 0입니다.', rect);
       return null;
     }
-    const anchorHeight = anchorEl.offsetHeight;
-    const dialogHeight = dialogEl.offsetHeight;
-    console.log('anchorHeight', anchorHeight, 'dialogHeight', dialogHeight);
-    let top = rect.bottom + window.scrollY;
-    console.log('top', top, 'window.innerHeight', window.innerHeight, 'window.scrollY', window.scrollY);
-    if (top + dialogHeight > window.innerHeight + window.scrollY) {
-      top = rect.top + window.scrollY - dialogHeight;
-      if (top < 0) top = 0;
-    }
+    // viewport 고정 기준으로 버튼의 bottom에 모달 bottom을 맞춤
+    const left = rect.right + 8;
+    const bottom = Math.max(0, window.innerHeight - rect.bottom);
     return {
-      top,
-      left: rect.right + 8 + window.scrollX,
+      left,
+      bottom,
+      position: 'fixed',
     };
   }
 
@@ -51,36 +45,38 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
   useLayoutEffect(() => {
     if (!open || !workspaceId) return;
     if (!anchorRef?.current) {
-      console.warn('TrashModal: anchorRef.current가 null입니다.');
+      log.warn('TrashModal: anchorRef.current가 null입니다.');
       return;
     }
-    if (!dialogRef.current) {
-      setTimeout(() => {
-        if (!dialogRef.current) {
-          console.warn('TrashModal: dialogRef.current가 null입니다. (재시도 후에도 null)');
-          return;
-        }
-        const pos = calculateDialogPosition(anchorRef.current, dialogRef.current);
-        if (pos) setDialogPosition(pos);
-      }, 0);
-      return;
-    }
-    const pos = calculateDialogPosition(anchorRef.current, dialogRef.current);
+    const pos = calculateDialogPosition(anchorRef.current);
     if (pos) setDialogPosition(pos);
   }, [open, anchorRef, workspaceId, trashedDocuments.length]);
 
+  // 창 리사이즈/애니메이션 종료 시 재측정 (fixed 기준이므로 scroll 핸들러 불필요)
+  useEffect(() => {
+    if (!open) return;
+    const handler = () => {
+      if (!anchorRef?.current) return;
+      const pos = calculateDialogPosition(anchorRef.current);
+      if (pos) setDialogPosition(pos);
+    };
+    window.addEventListener('resize', handler);
+    return () => {
+      window.removeEventListener('resize', handler);
+    };
+  }, [open, anchorRef]);
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogPortal>
-        {/* 오버레이(배경) 제거 */}
+        {/* 오버레이(배경) 제거, 포탈 사용 안 함 */}
         <DialogContent
           ref={dialogRef}
           overlay={false}
           noDefaultStyle={true}
           style={{
-            position: 'absolute',
-            top: dialogPosition.top,
+            position: dialogPosition.position,
             left: dialogPosition.left,
+            bottom: dialogPosition.bottom,
             margin: 0,
             transform: 'none',
             minWidth: 320,
@@ -88,6 +84,7 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
             zIndex: 50,
             transformOrigin: 'bottom left',
           }}
+          onOpenAutoFocus={(e) => e.preventDefault()}
           className={cn(
             "p-6 bg-white rounded-lg border shadow-xl transition-none",
             open ? "animate-trash-dialog-in" : "animate-trash-dialog-out"
@@ -125,7 +122,6 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
             모두 비우기
           </button>
         </DialogContent>
-      </DialogPortal>
     </Dialog>
   );
 } 
