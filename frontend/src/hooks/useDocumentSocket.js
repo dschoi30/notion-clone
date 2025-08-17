@@ -11,6 +11,12 @@ import { Client } from '@stomp/stompjs';
  */
 export default function useDocumentSocket(documentId, onRemoteEdit) {
   const stompClientRef = useRef(null);
+  const onRemoteEditRef = useRef(onRemoteEdit);
+
+  // 최신 콜백을 참조로 유지하여 이펙트 재실행 없이도 최신 로직을 사용
+  useEffect(() => {
+    onRemoteEditRef.current = onRemoteEdit;
+  }, [onRemoteEdit]);
 
   useEffect(() => {
     if (!documentId){
@@ -29,9 +35,8 @@ export default function useDocumentSocket(documentId, onRemoteEdit) {
       reconnectDelay: 5000,
       onConnect: () => {
         stompClient.subscribe(`/topic/document/${documentId}`, (msg) => {
-          if (msg.body) {
-            // console.log('useDocumentSocket: 서버에서 온 편집 메시지 수신');
-            onRemoteEdit(JSON.parse(msg.body));
+          if (msg.body && onRemoteEditRef.current) {
+            onRemoteEditRef.current(JSON.parse(msg.body));
           }
         });
       },
@@ -41,7 +46,7 @@ export default function useDocumentSocket(documentId, onRemoteEdit) {
     return () => {
       stompClient.deactivate();
     };
-  }, [documentId, onRemoteEdit]);
+  }, [documentId]);
 
   // 편집 메시지 전송 함수
   const sendEdit = (editData) => {
