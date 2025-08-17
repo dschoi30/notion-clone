@@ -236,3 +236,15 @@
 - 영향: UI/UX 동일, 렌더링/스크롤 처리 비용 감소.
 
 - 추가: `VersionHistoryPanel`을 `React.memo`로 래핑하고, `DocumentHeader`에서 `onClose` 콜백을 `useCallback`으로 안정화하여 상위 리렌더로 인한 불필요한 하위 리렌더 및 로그 출력 빈도를 감소.
+ - 2025-08-17: TrashModal 단순화 및 스크롤 점프 방지
+   - 버튼(bottom)을 기준으로 모달(bottom)을 고정 배치: viewport 기준 `position: fixed`, `left = rect.right + 8`, `bottom = window.innerHeight - rect.bottom`
+   - 초기 rAF 지연 제거, 스크롤 핸들러 제거(fixed 기준), 창 리사이즈 시에만 재측정
+   - Radix 자동 포커스에 의한 스크롤 이동 방지: `onOpenAutoFocus={(e) => e.preventDefault()}` 유지
+   - 애니메이션 종료 후 재측정 불필요: `onAnimationEnd` 제거
+   - DOM 포탈 사용 불필요: `portal` 옵션 제거
+   - 영향: 최초 오픈 시 document 영역 스크롤이 최하단으로 튀던 문제 해결, 사이드바 휴지통 버튼 위치와 일관된 정렬 보장
+ - 2025-08-17: TrashModal 높이/위치 계산 정확도 개선
+   - 문제: dialogHeight가 절반 수준으로 작게 측정되어(top 계산에 오차) 모달 위치가 어긋남
+   - 원인: 애니메이션/변형(scale) 적용 상태에서 `offsetHeight` 사용, 스크롤 보정 누락, 렌더 직후 타이밍 문제
+   - 수정: `getBoundingClientRect().height` 사용, `window.scrollY` 포함 보정, resize/scroll/애니메이션 종료 시 재측정, `requestAnimationFrame`으로 타이밍 안정화, 중첩 포탈 방지(`portal={false}`)
+   - 파일: `frontend/src/components/layout/TrashModal.jsx`
