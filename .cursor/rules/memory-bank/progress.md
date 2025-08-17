@@ -260,3 +260,7 @@
   - 소프트 삭제: `ViewType.TABLE` 문서 삭제 시 모든 하위 문서를 함께 휴지통 처리
   - 영구 삭제: 하위 문서부터 값→버전→권한→문서 순으로 안전 삭제
   - 전체 비우기: 휴지통 내 문서들의 값 일괄 삭제 후 서브트리를 자식→부모 순서로 삭제
+ - 2025-08-17: WebSocket 문서 정보 요청 과다(1초 간격) 및 재연결 루프 이슈 해결
+   - 원인: `useDocumentSocket` 이펙트 의존성에 `onRemoteEdit`가 포함되어 콜백이 리렌더마다 새로 생성될 때마다 SockJS가 재연결됨 → `/ws/document/...` 요청이 1초 간격으로 발생하고 백엔드 로그가 계속 출력됨
+   - 수정: 콜백을 `useRef`로 고정(`onRemoteEditRef`)하고, 구독 콜백에서 `onRemoteEditRef.current`를 사용. 이펙트 의존성 배열에서 `onRemoteEdit` 제거해 `documentId` 변경시에만 연결/해제 수행
+   - 결과: 문서 화면 활성화 시 불필요한 재연결/하트비트 제거, 서버 로그 스팸 해소. 린트 통과 확인(`frontend/src/hooks/useDocumentSocket.js`).
