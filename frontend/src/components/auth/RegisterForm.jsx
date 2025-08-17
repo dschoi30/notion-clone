@@ -67,6 +67,7 @@ export default function RegisterForm() {
         </Button>
         <div className="text-center">
           <Button
+            type="button"
             variant="link"
             onClick={() => navigate('/login')}
           >
