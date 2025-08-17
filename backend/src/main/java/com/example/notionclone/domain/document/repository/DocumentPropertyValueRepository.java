@@ -14,4 +14,6 @@ public interface DocumentPropertyValueRepository extends JpaRepository<DocumentP
     List<DocumentPropertyValue> findByPropertyId(Long propertyId);
     Optional<DocumentPropertyValue> findByDocumentIdAndPropertyId(Long documentId, Long propertyId);
     List<DocumentPropertyValue> findByDocumentIdIn(List<Long> documentIds);
+    long deleteByDocumentId(Long documentId);
+    long deleteByDocumentIdIn(List<Long> documentIds);
 } 

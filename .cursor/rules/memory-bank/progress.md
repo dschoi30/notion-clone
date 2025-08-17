@@ -248,3 +248,10 @@
    - 원인: 애니메이션/변형(scale) 적용 상태에서 `offsetHeight` 사용, 스크롤 보정 누락, 렌더 직후 타이밍 문제
    - 수정: `getBoundingClientRect().height` 사용, `window.scrollY` 포함 보정, resize/scroll/애니메이션 종료 시 재측정, `requestAnimationFrame`으로 타이밍 안정화, 중첩 포탈 방지(`portal={false}`)
    - 파일: `frontend/src/components/layout/TrashModal.jsx`
+- 2025-08-17: 휴지통 영구삭제/전체비우기 403 이슈 해결 및 참조 정리
+  - 원인: 버전(DocumentVersion) 및 권한(Permission) 정리 없이 삭제 시 제약/보안 충돌 가능성이 있어 간헐적 오류 발생
+  - 백엔드 수정:
+    - `DocumentVersionRepository.deleteByDocument(Document)` 추가
+    - `DocumentService.deleteDocumentPermanently()`에서 문서 삭제 전 버전/권한 선삭제 후 문서 삭제로 변경
+    - `DocumentService.emptyTrash()`에서 휴지통 문서 목록을 순회하며 버전/권한/문서 순으로 안전 삭제
+  - 영향: 속성 값/부모 여부와 관계없이 문서 영구삭제/전체비우기 일관 동작

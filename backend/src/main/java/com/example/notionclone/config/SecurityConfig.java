@@ -19,7 +19,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.core.annotation.Order;
-import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 
 import java.util.Arrays;
@@ -67,6 +66,7 @@ public class SecurityConfig {
                 "/",
                 "/assets/**",
                 "/static/**",
+                "/error",
                 "/favicon.ico",
                 "/manifest.json",
                 "/logo192.png",
