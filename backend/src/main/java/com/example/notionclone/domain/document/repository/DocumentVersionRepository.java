@@ -15,6 +15,7 @@ public interface DocumentVersionRepository extends JpaRepository<DocumentVersion
     Page<DocumentVersion> findByDocumentOrderByCreatedAtDesc(Document document, Pageable pageable);
     Optional<DocumentVersion> findFirstByDocumentAndSnapshotHash(Document document, String snapshotHash);
     long deleteByDocumentAndCreatedAtBefore(Document document, LocalDateTime threshold);
+    long deleteByDocument(Document document);
 }
 
 

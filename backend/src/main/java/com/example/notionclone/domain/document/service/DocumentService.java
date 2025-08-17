@@ -31,7 +31,9 @@ import com.example.notionclone.domain.document.entity.DocumentProperty;
 import com.example.notionclone.domain.document.dto.DocumentPropertyDto;
 import com.example.notionclone.domain.document.entity.DocumentPropertyTagOption;
 import com.example.notionclone.domain.document.repository.DocumentPropertyTagOptionRepository;
+import com.example.notionclone.domain.document.repository.DocumentVersionRepository;
 import com.example.notionclone.domain.document.repository.DocumentPropertyRepository;
+import com.example.notionclone.domain.document.repository.DocumentPropertyValueRepository;
 
 @Slf4j
 @Service
@@ -44,6 +46,8 @@ public class DocumentService {
   private final PermissionService permissionService;
   private final UserRepository userRepository;
   private final DocumentPropertyTagOptionRepository documentPropertyTagOptionRepository;
+  private final DocumentVersionRepository documentVersionRepository;
+  private final DocumentPropertyValueRepository documentPropertyValueRepository;
   @Autowired
   private DocumentPropertyRepository documentPropertyRepository;
 
@@ -196,12 +200,19 @@ public class DocumentService {
         .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + id));
 
     boolean isOwner = document.getUser().getId().equals(user.getId());
-    boolean hasWritePermission = permissionRepository.findByDocument(document).stream()
+    boolean hasWritePermissionOnDoc = permissionRepository.findByDocument(document).stream()
+        .anyMatch(p -> p.getUser().getId().equals(user.getId())
+            && p.getStatus() == PermissionStatus.ACCEPTED
+            && (p.getPermissionType() == PermissionType.WRITE || p.getPermissionType() == PermissionType.OWNER));
+    // 부모 문서 권한도 인정 (부모 소유자 또는 WRITE 권한 보유 시 자식 삭제 허용)
+    Document parent = document.getParent();
+    boolean isParentOwner = parent != null && parent.getUser().getId().equals(user.getId());
+    boolean hasWritePermissionOnParent = parent != null && permissionRepository.findByDocument(parent).stream()
         .anyMatch(p -> p.getUser().getId().equals(user.getId())
             && p.getStatus() == PermissionStatus.ACCEPTED
             && (p.getPermissionType() == PermissionType.WRITE || p.getPermissionType() == PermissionType.OWNER));
 
-    if (!isOwner && !hasWritePermission) {
+    if (!isOwner && !hasWritePermissionOnDoc && !isParentOwner && !hasWritePermissionOnParent) {
       throw new org.springframework.security.access.AccessDeniedException("No permission to delete this document.");
     }
 
@@ -247,16 +258,31 @@ public class DocumentService {
     if (doc.getWorkspace() == null || !doc.getWorkspace().getId().equals(workspaceId)) {
       throw new ResourceNotFoundException("Document not found in workspace: " + workspaceId);
     }
-    // 1. Permission 먼저 삭제
+    // 1. 값/버전 삭제 (FK 제약 방지)
+    documentPropertyValueRepository.deleteByDocumentId(doc.getId());
+    documentVersionRepository.deleteByDocument(doc);
+    // 2. Permission 삭제
     List<Permission> permissions = permissionRepository.findByDocument(doc);
     permissionRepository.deleteAll(permissions);
-    // 2. 문서 삭제
+    // 3. 문서 삭제 (properties/values/tagOptions는 cascade + orphanRemoval)
     documentRepository.delete(doc);
   }
 
   @Transactional
   public void emptyTrash(Long workspaceId) {
-    documentRepository.deleteAllTrashedByWorkspaceId(workspaceId);
+    // 트랜잭션 내에서 안전하게 값/버전/권한 정리 후 문서 삭제
+    List<Document> trashedDocs = documentRepository.findByWorkspaceIdAndIsTrashedTrue(workspaceId);
+    for (Document d : trashedDocs) {
+      // 값 삭제
+      documentPropertyValueRepository.deleteByDocumentId(d.getId());
+      // 버전 삭제
+      documentVersionRepository.deleteByDocument(d);
+      // 권한 삭제
+      List<Permission> permissions = permissionRepository.findByDocument(d);
+      permissionRepository.deleteAll(permissions);
+      // 문서 삭제
+      documentRepository.delete(d);
+    }
   }
 
   public List<DocumentResponse> getAccessibleDocuments(Long workspaceId, User user) {
