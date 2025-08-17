@@ -1,4 +1,3 @@
-// src/components/documents/DocumentList.jsx
 import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { PlusIcon, TrashIcon, GripVertical, ChevronRight, ChevronDown, FileText, Table } from 'lucide-react';
@@ -324,7 +323,7 @@ export default function DocumentList() {
         parentId: null,
         viewType: 'PAGE',
       });
-      selectDocument(newDocument);
+      handleSelectDocument(newDocument);
     } catch (err) {
       console.error('문서 생성 실패:', err);
     }
@@ -340,8 +339,8 @@ export default function DocumentList() {
 
   // 문서 클릭 시 라우팅
   const handleSelectDocument = (document) => {
+    navigate(`/${document.id}-${slugify(document.title || 'untitled')}`);
     selectDocument(document);
-    navigate(`/${document.id}-${slugify(document.title)}`);
   };
 
   if (!currentWorkspace) {
