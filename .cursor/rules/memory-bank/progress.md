@@ -264,3 +264,8 @@
    - 원인: `useDocumentSocket` 이펙트 의존성에 `onRemoteEdit`가 포함되어 콜백이 리렌더마다 새로 생성될 때마다 SockJS가 재연결됨 → `/ws/document/...` 요청이 1초 간격으로 발생하고 백엔드 로그가 계속 출력됨
    - 수정: 콜백을 `useRef`로 고정(`onRemoteEditRef`)하고, 구독 콜백에서 `onRemoteEditRef.current`를 사용. 이펙트 의존성 배열에서 `onRemoteEdit` 제거해 `documentId` 변경시에만 연결/해제 수행
    - 결과: 문서 화면 활성화 시 불필요한 재연결/하트비트 제거, 서버 로그 스팸 해소. 린트 통과 확인(`frontend/src/hooks/useDocumentSocket.js`).
+ - 2025-08-17: 새 문서 생성 직후 이전 문서로 되돌아가는 라우팅 경합 문제 해결
+   - 원인: `DocumentList.handleCreateDocument`에서 `selectDocument`가 먼저 실행되며, `App.jsx`/`DocumentEditor.jsx`의 URL 동기화/복원 로직과 경합하여 마지막 문서로 리디렉션되는 경우 발생
+   - 수정: 새 문서 생성 후 URL을 먼저 신규 문서 경로(`/:id-:slug`)로 이동시키고, 이어서 `selectDocument`로 상세 데이터를 로드하도록 순서 변경. 빈 제목일 경우 슬러그에 `untitled` 사용
+   - 추가: 문서 클릭 시 라우팅에서도 슬러그 생성 시 `untitled` 폴백 적용
+   - 파일: `frontend/src/components/documents/DocumentList.jsx`
