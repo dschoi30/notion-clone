@@ -269,3 +269,15 @@
    - 수정: 새 문서 생성 후 URL을 먼저 신규 문서 경로(`/:id-:slug`)로 이동시키고, 이어서 `selectDocument`로 상세 데이터를 로드하도록 순서 변경. 빈 제목일 경우 슬러그에 `untitled` 사용
    - 추가: 문서 클릭 시 라우팅에서도 슬러그 생성 시 `untitled` 폴백 적용
    - 파일: `frontend/src/components/documents/DocumentList.jsx`
+- 2025-08-17: 개발용 도커 구성 추가 및 FE/프록시 환경변수화
+- 2025-08-19: Docker/Vite 개발환경 안정화
+  - 프론트 Dockerfile을 Node 공식 Debian 이미지로 전환: `node:22-bookworm-slim`
+  - inotify 네이티브 빌드 실패 회피
+    - `.pnpmfile.cjs` 도입: `inotify` 패키지 install 스크립트 제거 (`frontend/.pnpmfile.cjs`)
+    - Dockerfile에서 `.npmrc`, `.pnpmfile.cjs`를 install 이전에 COPY
+    - `pnpm config set never-built-dependencies[] inotify`로 빌드 스킵 보강
+    - pnpm overrides로 `inotify`를 로컬 스텁(`frontend/tools/stubs/inotify`)으로 치환
+  - Vite dev 서버 안정화: `host: '0.0.0.0'`, `watch.usePolling: true`, 프록시 대상 `loadEnv` 적용
+  - pnpm hoisted 링크 모드 사용, devDependencies 포함 설치
+  - `frontend/.dockerignore` 추가로 컨텍스트/용량 최적화 (`node_modules`, 빌드 산출물, 로그, VCS/IDE 제외)
+  - 결과: 도커 빌드 중 `inotify` 컴파일 오류 제거, 컨테이너 내 Vite dev 정상 기동/HMR 폴링 동작

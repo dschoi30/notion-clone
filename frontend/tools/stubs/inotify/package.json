@@ -1,0 +1,8 @@
+{
+	"name": "inotify",
+	"version": "0.0.0-stub",
+	"description": "Stub package to bypass native inotify build on Node 22/24",
+	"main": "index.js",
+	"scripts": {},
+	"license": "MIT"
+}
