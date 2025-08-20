@@ -14,7 +14,10 @@ import io.github.cdimascio.dotenv.Dotenv;
 public class NotionCloneApplication {
     public static void main(String[] args)
     {
-        Dotenv dotenv = Dotenv.configure().load();
+        Dotenv dotenv = Dotenv.configure()
+            .ignoreIfMalformed()
+            .ignoreIfMissing()
+            .load();
         dotenv.entries().forEach(entry -> System.setProperty(entry.getKey(), entry.getValue()));
         SpringApplication.run(NotionCloneApplication.class, args);
     }
