@@ -288,3 +288,4 @@
   - `frontend/nginx.conf`: SPA `try_files`, `/api`는 `backend:8080` 프록시, `/ws`는 업그레이드 헤더 포함 WebSocket 프록시
   - `frontend/src/services/api.js`: 기본값을 `/api`로 단순화, VITE_API_BASE_URL로 오버라이드 가능
   - 효과: prod 실행 시 80 포트로 정적 제공, API/WS는 동일 도메인/포트에서 리버스 프록시
+  - 경고 정리: Compose v2에서 `version` 키가 더 이상 사용되지 않으므로 `docker-compose.yml` 상단의 `version: "3.9"` 항목 제거
