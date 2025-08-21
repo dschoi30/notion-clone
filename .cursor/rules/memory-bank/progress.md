@@ -281,3 +281,10 @@
   - pnpm hoisted 링크 모드 사용, devDependencies 포함 설치
   - `frontend/.dockerignore` 추가로 컨텍스트/용량 최적화 (`node_modules`, 빌드 산출물, 로그, VCS/IDE 제외)
   - 결과: 도커 빌드 중 `inotify` 컴파일 오류 제거, 컨테이너 내 Vite dev 정상 기동/HMR 폴링 동작
+
+- 2025-08-21 운영용 도커 구성 추가(Nginx 정적 배포 + API/WS 프록시)
+  - `docker-compose.yml`: `db + backend + frontend(Nginx)` 구성 추가
+  - `frontend/Dockerfile.prod`: 빌더(pnpm build) + Nginx 스테이지, dist 배포
+  - `frontend/nginx.conf`: SPA `try_files`, `/api`는 `backend:8080` 프록시, `/ws`는 업그레이드 헤더 포함 WebSocket 프록시
+  - `frontend/src/services/api.js`: 기본값을 `/api`로 단순화, VITE_API_BASE_URL로 오버라이드 가능
+  - 효과: prod 실행 시 80 포트로 정적 제공, API/WS는 동일 도메인/포트에서 리버스 프록시

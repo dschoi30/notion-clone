@@ -1,13 +1,9 @@
 // services/api.js
 import axios from 'axios';
 
-const resolvedBaseURL = (() => {
-  const envBase = import.meta.env?.VITE_API_BASE_URL;
-  if (!envBase || envBase === '/api') {
-    return 'http://localhost:8080';
-  }
-  return envBase;
-})();
+// 운영(Nginx) 및 개발(Vite proxy) 모두에서 '/api' 상대 경로 사용을 우선
+// 필요 시 VITE_API_BASE_URL로 오버라이드
+const resolvedBaseURL = import.meta.env?.VITE_API_BASE_URL || '/api';
 
 const api = axios.create({
   baseURL: resolvedBaseURL,
