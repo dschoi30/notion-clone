@@ -321,3 +321,7 @@
   - 수정: `DocumentTableView.jsx`에서 zustand 기반 속성 fetch/useEffect 제거. 속성/행/에러/로딩은 모두 `useTableData` 한 곳에서만 관리
   - 컬럼 폭 계산도 `fetchedProperties` 기준으로 통일하여 상태 일관성 확보
   - 영향: 테이블 진입 시 `/properties`, `/children`, `/children/property-values` 호출 횟수 감소. Dev 모드에서도 StrictMode 이중 마운트 영향 최소화
+ - Docker 컨테이너 TZ 설정 추가 (운영/개발 compose)
+   - `docker-compose.yml`/`docker-compose.dev.yml`에 `TZ=Asia/Seoul` 추가 (db, backend)
+   - backend에 `JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Seoul` 설정 추가
+   - 목적: 도커 환경에서 생성/업데이트 시간 9시간 지연 표시 문제 해소 (KST 고정)

@@ -5,6 +5,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-notion_clone}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      TZ: ${TZ:-Asia/Seoul}
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
@@ -25,6 +26,8 @@ services:
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
       CLOUDINARY_UPLOAD_PRESET: ${CLOUDINARY_UPLOAD_PRESET:-}
+      TZ: ${TZ:-Asia/Seoul}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Duser.timezone=Asia/Seoul}
     depends_on:
       - db
     ports:
