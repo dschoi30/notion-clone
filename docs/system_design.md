@@ -18,7 +18,6 @@ Database:
 Infrastructure:
 - WebSocket
 - JWT auth
-- Redis cache
 
 ## Architecture
 

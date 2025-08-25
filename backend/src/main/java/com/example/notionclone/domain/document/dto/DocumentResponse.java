@@ -70,4 +70,13 @@ public class DocumentResponse {
     public void setProperties(List<DocumentPropertyDto> properties) {
         this.properties = properties;
     }
+
+    // 최신 메타데이터 합성 적용을 위해 setter 추가
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public void setUpdatedBy(String updatedBy) {
+        this.updatedBy = updatedBy;
+    }
 } 

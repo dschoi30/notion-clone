@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   getProperties,
   addProperty,
@@ -16,7 +16,10 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [editingHeader, setEditingHeader] = useState({ id: null, name: '' });
-  const { createDocument, updateDocument } = useDocument();
+  const { createDocument, updateDocument, fetchDocument } = useDocument();
+
+  // 시스템 속성 맵은 참조 안정화를 위해 캡처
+  const stableSystemMap = useMemo(() => systemPropTypeMap || {}, [systemPropTypeMap]);
 
   async function fetchTableData() {
     setIsLoading(true);
@@ -63,10 +66,10 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
       const newProperty = await addProperty(workspaceId, documentId, { name, type, sortOrder: properties.length });
       setProperties((prev) => [...prev, newProperty]);
       if (rows.length > 0) {
-        if (systemPropTypeMap[type]) {
+        if (stableSystemMap[type]) {
           await Promise.all(
             rows.map(async (row) => {
-              const value = systemPropTypeMap[type](row);
+              const value = stableSystemMap[type](row);
               await addOrUpdatePropertyValue(workspaceId, row.id, newProperty.id, value);
               row.values[newProperty.id] = value;
             })
@@ -111,9 +114,9 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
       // 시스템/일반 속성 모두 초기 값 DB 반영
       const ops = properties.map((p) => {
         let value = '';
-        if (systemPropTypeMap[p.type]) {
+        if (stableSystemMap[p.type]) {
           // systemPropType 값 계산 (newDoc 메타데이터 기반)
-          value = systemPropTypeMap[p.type]({ document: newDoc });
+          value = stableSystemMap[p.type]({ document: newDoc });
         }
         newRow.values[p.id] = value;
         return addOrUpdatePropertyValue(workspaceId, newDoc.id, p.id, value);
@@ -133,14 +136,32 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     if (propertyId == null) {
       setRows((prev) => prev.map((row) => (row.id === rowId ? { ...row, title: value } : row)));
       try {
-        await updateDocument(rowId, { title: value });
+        const updated = await updateDocument(rowId, { title: value });
+        // 제목 변경 후 row.document 메타도 최신화
+        setRows((prev) => prev.map((row) => (
+          row.id === rowId 
+          ? { ...row, document: { ...row.document, ...updated } } 
+          : row
+        )));
       } catch (e) {
         alert('이름 저장 실패');
       }
     } else {
       setRows((prev) => prev.map((row) => (row.id === rowId ? { ...row, values: { ...row.values, [propertyId]: value } } : row)));
       try {
-        await addOrUpdatePropertyValue(workspaceId, rowId, propertyId, value);
+        // 낙관적: 즉시 화면에 최신 시간 반영
+        setRows((prev) => prev.map((row) => (
+          row.id === rowId
+            ? { ...row, document: { ...row.document, updatedAt: new Date().toISOString() } }
+            : row
+        )));
+        const resp = await addOrUpdatePropertyValue(workspaceId, rowId, propertyId, value);
+        // 서버가 알려준 최신 메타(updatedAt/updatedBy)로 해당 행 문서 메타 갱신
+        setRows((prev) => prev.map((row) => (
+          row.id === rowId
+            ? { ...row, document: { ...row.document, updatedAt: resp?.updatedAt || row.document?.updatedAt, updatedBy: resp?.updatedBy || row.document?.updatedBy } }
+            : row
+        )));
       } catch (e) {
         alert('값 저장 실패');
       }

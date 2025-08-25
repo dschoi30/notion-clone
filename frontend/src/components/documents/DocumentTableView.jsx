@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDocument } from '@/contexts/DocumentContext';
 import { Button } from '@/components/ui/button';
@@ -28,7 +28,7 @@ const DocumentTableView = ({ workspaceId, documentId }) => {
   const tagCellRefs = useRef({}); // {rowId_propertyId: ref}
   const [tagPopoverRect, setTagPopoverRect] = useState(null);
   
-  const systemPropTypeMap = buildSystemPropTypeMapForTable();
+  const systemPropTypeMap = useMemo(() => buildSystemPropTypeMapForTable(), []);
 
   // data hook
   const {
@@ -158,9 +158,9 @@ const DocumentTableView = ({ workspaceId, documentId }) => {
         </DndContext>
         <div className="relative">
           {selectedRowIds.size > 0 && (
-            <div className="absolute flex items-center gap-2 bg-white border rounded px-3 py-1 shadow-sm" style={{ top: -72 }}>
+            <div className="flex absolute gap-2 items-center px-3 py-1 bg-white rounded border shadow-sm" style={{ top: -72 }}>
               <span className="text-sm text-gray-600">{selectedRowIds.size}개 선택됨</span>
-              <button className="text-red-600 hover:text-red-700 inline-flex items-center gap-1" onClick={handleBulkDelete}>
+              <button className="inline-flex gap-1 items-center text-red-600 hover:text-red-700" onClick={handleBulkDelete}>
                 <Trash2 size={14} /> 삭제
               </button>
             </div>

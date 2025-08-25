@@ -10,8 +10,8 @@ import com.example.notionclone.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -39,6 +39,11 @@ public class DocumentPropertyValueService {
             propertyValue.setValue(value);
         }
         return valueRepository.save(propertyValue);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<DocumentPropertyValue> findLatestValue(Long documentId) {
+        return valueRepository.findTopByDocumentIdOrderByUpdatedAtDesc(documentId);
     }
 
     @Transactional(readOnly = true)

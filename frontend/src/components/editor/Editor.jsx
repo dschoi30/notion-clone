@@ -15,6 +15,7 @@ import EditorMenuBar from './EditorMenuBar';
 import './Editor.css';
 import CustomImage from './CustomImage';
 import { fetchImageViaProxy } from '../../services/documentApi';
+import { BlockDragHandle } from './extensions/BlockDragHandle';
 
 const lowlight = createLowlight(common);
 
@@ -108,6 +109,7 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
       Color,
       BackgroundColor,
       CustomImage,
+      BlockDragHandle,
     ],
     content: '',
     onUpdate: ({ editor }) => {

@@ -7,11 +7,13 @@ import {
   addOrUpdatePropertyValue,
 } from '@/services/documentApi';
 import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
+import { useDocument } from '@/contexts/DocumentContext';
 
 // PAGE 전용 데이터 훅: 속성/값 로딩, 추가/수정, 인라인 편집 상태 관리
 export function usePageData({ workspaceId, documentId, systemPropTypeMap }) {
   const properties = useDocumentPropertiesStore((state) => state.properties);
   const setProperties = useDocumentPropertiesStore((state) => state.setProperties);
+  const { fetchDocument } = useDocument();
 
   const [valuesByPropertyId, setValuesByPropertyId] = useState({});
   const [isLoading, setIsLoading] = useState(false);
@@ -33,6 +35,15 @@ export function usePageData({ workspaceId, documentId, systemPropTypeMap }) {
       valuesArr.forEach((v) => {
         valuesObj[v.propertyId] = v.value;
       });
+      // 시스템 속성은 문서 메타데이터로 덮어쓰기(표시 일관성)
+      if (systemPropTypeMap && Array.isArray(props)) {
+        props.forEach((p) => {
+          const fn = systemPropTypeMap[p.type];
+          if (typeof fn === 'function') {
+            valuesObj[p.id] = fn();
+          }
+        });
+      }
       setValuesByPropertyId(valuesObj);
     } catch (err) {
       setError(err);
@@ -45,6 +56,26 @@ export function usePageData({ workspaceId, documentId, systemPropTypeMap }) {
   useEffect(() => {
     fetchPageData();
   }, [workspaceId, documentId]);
+
+  // 문서 메타데이터 변경 시(= systemPropTypeMap 변경 시) 시스템 속성 표시값 동기화
+  useEffect(() => {
+    if (!systemPropTypeMap || !properties?.length) return;
+    setValuesByPropertyId((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      properties.forEach((p) => {
+        const fn = systemPropTypeMap[p.type];
+        if (typeof fn === 'function') {
+          const computed = fn();
+          if (next[p.id] !== computed) {
+            next[p.id] = computed;
+            changed = true;
+          }
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [systemPropTypeMap, properties]);
 
   const handleAddProperty = async (name, type) => {
     if (!name || !type) return;
@@ -88,6 +119,10 @@ export function usePageData({ workspaceId, documentId, systemPropTypeMap }) {
     setValuesByPropertyId((prev) => ({ ...prev, [propertyId]: value }));
     try {
       await addOrUpdatePropertyValue(workspaceId, documentId, propertyId, value);
+      // 시스템 속성 최신화 반영: 값 저장 후 문서 메타 재조회(silent, apply=false로 전역 오염 방지)
+      if (documentId) {
+        fetchDocument(documentId, { silent: true, apply: false });
+      }
     } catch (e) {
       alert('값 저장 실패');
     }

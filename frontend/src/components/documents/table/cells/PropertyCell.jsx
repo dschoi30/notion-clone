@@ -30,7 +30,18 @@ function PropertyCell({
   const value = property ? row.values[property.id] || '' : '';
   let content = value;
 
-  if (property.type === 'CREATED_AT' || property.type === 'LAST_UPDATED_AT' || property.type === 'DATE') {
+  // 시스템 속성은 row.document 메타데이터를 우선 사용(표시 일관성)
+  if (property.type === 'CREATED_AT') {
+    const v = row?.document?.createdAt || value;
+    content = formatKoreanDateSmart(v);
+  } else if (property.type === 'LAST_UPDATED_AT') {
+    const v = row?.document?.updatedAt || value;
+    content = formatKoreanDateSmart(v);
+  } else if (property.type === 'CREATED_BY') {
+    content = row?.document?.createdBy || value || '';
+  } else if (property.type === 'LAST_UPDATED_BY') {
+    content = row?.document?.updatedBy || value || '';
+  } else if (property.type === 'DATE') {
     content = formatKoreanDateSmart(value);
   }
 

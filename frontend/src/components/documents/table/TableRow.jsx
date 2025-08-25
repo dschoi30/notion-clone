@@ -31,7 +31,7 @@ function TableRow({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.7 : 1,
-  };
+  }; console.log('row', row)
   return (
     <div ref={setNodeRef} style={style} className={`flex items-center h-10 group relative ${isSelected ? 'bg-blue-100' : ''}`} >
       {/* 좌측 레일 (NameCell 바깥) */}
@@ -42,7 +42,7 @@ function TableRow({
       >
         <button
           type="button"
-          className="cursor-move text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 py-1 rounded hover:bg-gray-100 transition duration-150 transform -translate-x-2"
+          className="py-1 text-gray-400 rounded opacity-0 transition duration-150 transform -translate-x-2 cursor-move hover:text-gray-600 group-hover:opacity-100 hover:bg-gray-100"
           aria-label="drag handle"
           {...attributes}
           {...listeners}

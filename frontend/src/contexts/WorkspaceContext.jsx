@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import * as workspaceApi from '@/services/workspaceApi';
 import { useEffect } from 'react';
+import { createLogger } from '@/lib/logger';
 
 const WorkspaceContext = createContext();
 
@@ -17,21 +18,22 @@ export function WorkspaceProvider({ children }) {
   const [currentWorkspace, setCurrentWorkspace] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const wlog = createLogger('WorkspaceContext');
 
   const fetchWorkspaces = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      console.log(`🔄 fetchWorkspaces 시작`);
+      wlog.info(`🔄 fetchWorkspaces 시작`);
       const data = await workspaceApi.getAccessibleWorkspaces();
-      console.log(`📋 워크스페이스 목록 로드:`, data.map(ws => `${ws.id}(${ws.name})`).join(', '));
+      wlog.info(`📋 워크스페이스 목록 로드:`, data.map(ws => `${ws.id}(${ws.name})`).join(', '));
       setWorkspaces(data);
       
       // localStorage 기반 설정은 별도 useEffect에서 처리하므로 여기서는 자동 설정하지 않음
       // 이전 로직: if (data.length > 0 && !currentWorkspace) { setCurrentWorkspace(data[0]); }
       // 이는 잘못된 워크스페이스(data[0])를 임시로 설정하여 불필요한 API 호출을 유발함
       
-      console.log(`✅ fetchWorkspaces 완료: ${data.length}개 워크스페이스`);
+      wlog.info(`✅ fetchWorkspaces 완료: ${data.length}개 워크스페이스`);
     } catch (err) {
       console.error(`❌ fetchWorkspaces 에러:`, err);
       setError(err.message);
@@ -92,31 +94,31 @@ export function WorkspaceProvider({ children }) {
   }, [currentWorkspace, workspaces]);
 
   const selectWorkspace = useCallback((workspace) => {
-    console.log(`🔄 워크스페이스 선택: ${workspace.id}(${workspace.name})`);
+    wlog.info(`🔄 워크스페이스 선택: ${workspace.id}(${workspace.name})`);
     setCurrentWorkspace(workspace);
     localStorage.setItem('selectedWorkspace', workspace.id);
-    console.log(`💾 localStorage 저장: selectedWorkspace = ${workspace.id}`);
+    wlog.info(`💾 localStorage 저장: selectedWorkspace = ${workspace.id}`);
   }, []);
 
   useEffect(() => {
     const savedId = localStorage.getItem('selectedWorkspace');
-    console.log(`🏢 WorkspaceContext - savedId: ${savedId}, workspaces.length: ${workspaces.length}`);
-    console.log(`🏢 현재 workspaces:`, workspaces.map(ws => `${ws.id}(${ws.name})`).join(', '));
+    wlog.info(`🏢 WorkspaceContext - savedId: ${savedId}, workspaces.length: ${workspaces.length}`);
+    wlog.info(`🏢 현재 workspaces:`, workspaces.map(ws => `${ws.id}(${ws.name})`).join(', '));
     
     if (workspaces.length > 0) {
       if (savedId) {
         const found = workspaces.find(ws =>  String(ws.id) === String(savedId));
-        console.log(`🔍 savedId ${savedId}로 찾은 워크스페이스:`, found ? `${found.id}(${found.name})` : 'null');
+        wlog.info(`🔍 savedId ${savedId}로 찾은 워크스페이스:`, found ? `${found.id}(${found.name})` : 'null');
         
         if (found) {
-          console.log(`✅ 워크스페이스 설정: ${found.id}(${found.name})`);
+          wlog.info(`✅ 워크스페이스 설정: ${found.id}(${found.name})`);
           setCurrentWorkspace(found);
         } else {
-          console.log(`⚠️ 저장된 워크스페이스 못 찾음. 첫 번째 워크스페이스 사용: ${workspaces[0].id}(${workspaces[0].name})`);
+          wlog.info(`⚠️ 저장된 워크스페이스 못 찾음. 첫 번째 워크스페이스 사용: ${workspaces[0].id}(${workspaces[0].name})`);
           setCurrentWorkspace(workspaces[0]);
         }
       } else {
-        console.log(`📝 저장된 워크스페이스 없음. 첫 번째 워크스페이스 사용: ${workspaces[0].id}(${workspaces[0].name})`);
+        wlog.info(`📝 저장된 워크스페이스 없음. 첫 번째 워크스페이스 사용: ${workspaces[0].id}(${workspaces[0].name})`);
         setCurrentWorkspace(workspaces[0]);
       }
     }

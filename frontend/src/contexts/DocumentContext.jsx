@@ -87,13 +87,11 @@ export function DocumentProvider({ children }) {
 
     try {
       setError(null);
-      await documentApi.updateDocument(currentWorkspace.id, id, documentData);
-      setDocuments(prev => prev.map(doc =>
-        doc.id === id ? { ...doc, ...documentData } : doc
-      ));
-      if (currentDocument?.id === id) {
-        setCurrentDocument(prev => prev ? { ...prev, ...documentData } : prev);
-      }
+      const updated = await documentApi.updateDocument(currentWorkspace.id, id, documentData);
+      // 서버 응답을 신뢰하여 감사필드(updatedAt/updatedBy 등) 포함 반영
+      setDocuments(prev => prev.map(doc => (doc.id === id ? { ...doc, ...updated } : doc)));
+      if (currentDocument?.id === id) setCurrentDocument(updated);
+      return updated;
     } catch (err) {
       setError(err.message);
       throw err;
@@ -168,19 +166,23 @@ export function DocumentProvider({ children }) {
     }
   }, [currentWorkspace]);
 
-  // 단일 문서 정보 갱신용 fetchDocument 함수 추가
-  const fetchDocument = useCallback(async (documentId) => {
+  // 단일 문서 정보 갱신용 fetchDocument 함수 (silent 옵션 지원)
+  const fetchDocument = useCallback(async (documentId, options = {}) => {
     if (!currentWorkspace || !documentId) return;
+    const isSilent = options && options.silent === true;
+    const apply = options && options.apply !== false; // default true
     try {
-      setDocumentLoading(true);
+      if (!isSilent) setDocumentLoading(true);
       setError(null);
       const fullDocument = await documentApi.getDocument(currentWorkspace.id, documentId);
-      setCurrentDocument(fullDocument);
+      rlog.info('fetchDocument', { id: documentId, silent: isSilent, apply });
+      if (apply) setCurrentDocument(fullDocument);
+      return fullDocument;
     } catch (err) {
       setError(err.message);
       console.error('Failed to fetch document:', err);
     } finally {
-      setDocumentLoading(false);
+      if (!isSilent) setDocumentLoading(false);
     }
   }, [currentWorkspace]);
 
