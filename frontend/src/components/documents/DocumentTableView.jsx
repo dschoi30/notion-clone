@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDocument } from '@/contexts/DocumentContext';
 import { Button } from '@/components/ui/button';
 import AddPropertyPopover from './AddPropertyPopover';
 import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { updateChildDocumentOrder, deleteDocument } from '@/services/documentApi';
@@ -20,7 +18,6 @@ import { buildSystemPropTypeMapForTable } from '@/components/documents/shared/sy
 
 const DocumentTableView = ({ workspaceId, documentId }) => {
   const navigate = useNavigate(); // useNavigate 훅 추가
-  const [properties, setProperties] = useState([]);
   const [editingCell, setEditingCell] = useState(null);
   const [hoveredCell, setHoveredCell] = useState(null);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
@@ -48,10 +45,9 @@ const DocumentTableView = ({ workspaceId, documentId }) => {
   } = useTableData({ workspaceId, documentId, systemPropTypeMap });
 
   // column resize
-  const storeProperties = useDocumentPropertiesStore((state) => state.properties);
   const titleWidth = useDocumentPropertiesStore((state) => state.titleWidth);
   const updateTitleWidth = useDocumentPropertiesStore((state) => state.updateTitleWidth);
-  const propertyWidths = storeProperties.map((p) => p.width ?? DEFAULT_PROPERTY_WIDTH);
+  const propertyWidths = fetchedProperties.map((p) => p.width ?? DEFAULT_PROPERTY_WIDTH);
   const { colWidths, handleResizeMouseDown } = useColumnResize({
     properties: fetchedProperties,
     titleWidth,
@@ -69,21 +65,8 @@ const DocumentTableView = ({ workspaceId, documentId }) => {
     documentId,
   });
   
-  const propertiesForRender = fetchedProperties && fetchedProperties.length > 0 ? fetchedProperties : properties;
-
   const [selectedRowIds, setSelectedRowIds] = useState(new Set());
-
-  const { currentDocument } = useDocument();
-  const { currentWorkspace } = useWorkspace();
-  const fetchProperties = useDocumentPropertiesStore(state => state.fetchProperties);
-  const setDocumentId = useDocumentPropertiesStore(state => state.setDocumentId);
-
-  useEffect(() => {
-    if (currentWorkspace && currentDocument) {
-      fetchProperties(currentWorkspace.id, currentDocument.id);
-      setDocumentId(currentDocument.id);
-    }
-  }, [currentWorkspace, currentDocument, fetchProperties, setDocumentId]);
+  const propertiesForRender = fetchedProperties;
 
   const toggleSelect = (rowId) => {
     setSelectedRowIds((prev) => {
