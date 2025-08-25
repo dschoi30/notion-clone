@@ -22,6 +22,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useNavigate } from 'react-router-dom';
 import { slugify } from '@/lib/utils';
+import { createLogger } from '@/lib/logger';
 
 function SortableDocumentTreeItem({ document, currentDocument, onSelect, onDelete, openedIds, setOpenedIds, childrenMap, setChildrenMap, fetchChildDocuments, level = 0, idPath = [] }) {
   const [hovered, setHovered] = useState(false);
@@ -183,6 +184,7 @@ export default function DocumentList() {
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const dlog = createLogger('DocumentList');
 
   // dnd-kit 센서 설정
   const sensors = useSensors(
@@ -258,7 +260,7 @@ export default function DocumentList() {
   // 공유/개인 문서 분류 (최상위 문서만)
   // 백엔드에서 이미 접근 가능한 문서만 필터링해서 보내주므로, 프론트에서는 단순 분류만 수행
   const { sharedDocuments, personalDocuments } = useMemo(() => {
-    console.log('문서 분류 및 정렬 시작:', documents.length, '개 문서');
+    dlog.info('문서 분류 및 정렬 시작:', documents.length, '개 문서');
     
     const shared = documents.filter(doc =>
       doc.parentId == null &&
@@ -289,8 +291,8 @@ export default function DocumentList() {
       return sortOrderA - sortOrderB;
     });
     
-    console.log('공유 문서:', shared.map(d => ({ id: d.id, title: d.title, sortOrder: d.sortOrder })));
-    console.log('개인 문서:', personal.map(d => ({ id: d.id, title: d.title, sortOrder: d.sortOrder })));
+    dlog.info('공유 문서:', shared.map(d => ({ id: d.id, title: d.title, sortOrder: d.sortOrder })));
+    dlog.info('개인 문서:', personal.map(d => ({ id: d.id, title: d.title, sortOrder: d.sortOrder })));
     
     return { sharedDocuments: shared, personalDocuments: personal };
   }, [documents, user.id]);

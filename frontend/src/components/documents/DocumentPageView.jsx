@@ -1,4 +1,4 @@
-import { React, useState, useEffect, useRef } from 'react';
+import { React, useState, useEffect, useRef, useMemo } from 'react';
 import Editor from '@/components/editor/Editor';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useDocument } from '@/contexts/DocumentContext';
@@ -27,7 +27,14 @@ const DocumentPageView = ({
   const [editingValue, setEditingValue] = useState('');
   const [tagPopoverRect, setTagPopoverRect] = useState(null);
 
-  const systemPropTypeMap = buildSystemPropTypeMapForPage(currentDocument);
+  const systemPropTypeMap = useMemo(() => (
+    buildSystemPropTypeMapForPage(currentDocument)
+  ), [
+    currentDocument?.createdBy,
+    currentDocument?.updatedBy,
+    currentDocument?.createdAt,
+    currentDocument?.updatedAt,
+  ]);
 
   const {
     properties,

@@ -123,6 +123,7 @@ export async function updateProperty(workspaceId, propertyId, name) {
 // 속성 값 추가/수정
 export async function addOrUpdatePropertyValue(workspaceId, documentId, propertyId, value) {
   const res = await api.post(`/api/workspaces/${workspaceId}/documents/${documentId}/properties/${propertyId}/value`, { value });
+  // { id, documentId, propertyId, value, updatedAt, updatedBy }
   return res.data;
 }
 

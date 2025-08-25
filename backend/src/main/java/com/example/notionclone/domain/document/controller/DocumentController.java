@@ -25,6 +25,7 @@ import com.example.notionclone.domain.document.service.DocumentPropertyValueServ
 import com.example.notionclone.domain.document.entity.DocumentPropertyTagOption;
 import com.example.notionclone.domain.document.dto.AddPropertyRequest;
 import com.example.notionclone.domain.document.dto.AddOrUpdateValueRequest;
+import com.example.notionclone.domain.document.dto.AddOrUpdateValueResponse;
 import com.example.notionclone.domain.document.dto.UpdatePropertyRequest;
 import com.example.notionclone.domain.document.dto.WidthUpdateRequest;
 
@@ -32,6 +33,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -274,13 +277,33 @@ public class DocumentController {
 
     // 속성 값 추가/수정
     @PostMapping("/{documentId}/properties/{propertyId}/value")
-    public DocumentPropertyValueDto addOrUpdateValue(@PathVariable Long documentId, @PathVariable Long propertyId, @RequestBody AddOrUpdateValueRequest request) {
+    public AddOrUpdateValueResponse addOrUpdateValue(@PathVariable Long documentId, @PathVariable Long propertyId, @RequestBody AddOrUpdateValueRequest request) {
         var value = documentPropertyValueService.addOrUpdateValue(documentId, propertyId, request.getValue());
-        return DocumentPropertyValueDto.builder()
+        // 최신 메타 합성: 문서 vs 값 중 더 최신(updatedAt/by)
+        var docOpt = documentRepository.findById(documentId);
+        LocalDateTime latestAt = null;
+        String latestBy = null;
+        if (docOpt.isPresent()) {
+            var doc = docOpt.get();
+            latestAt = doc.getUpdatedAt();
+            latestBy = doc.getUpdatedBy();
+        }
+        var latestValueOpt = documentPropertyValueService.findLatestValue(documentId);
+        if (latestValueOpt.isPresent()) {
+            var pv = latestValueOpt.get();
+            var pvAt = pv.getUpdatedAt();
+            if (pvAt != null && (latestAt == null || pvAt.isAfter(latestAt))) {
+                latestAt = pvAt;
+                latestBy = pv.getUpdatedBy();
+            }
+        }
+        return AddOrUpdateValueResponse.builder()
                 .id(value.getId())
                 .documentId(documentId)
                 .propertyId(propertyId)
                 .value(value.getValue())
+                .updatedAt(latestAt)
+                .updatedBy(latestBy)
                 .build();
     }
 

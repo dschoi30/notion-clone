@@ -34,6 +34,7 @@ import com.example.notionclone.domain.document.repository.DocumentPropertyTagOpt
 import com.example.notionclone.domain.document.repository.DocumentVersionRepository;
 import com.example.notionclone.domain.document.repository.DocumentPropertyRepository;
 import com.example.notionclone.domain.document.repository.DocumentPropertyValueRepository;
+import java.time.LocalDateTime;
 import java.util.Deque;
 import java.util.ArrayDeque;
 import java.util.Set;
@@ -79,7 +80,8 @@ public class DocumentService {
     return allDocuments.stream()
         .map(doc -> {
           boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(doc.getId());
-          return DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, doc.getPermissions(), hasChildren);
+          DocumentResponse resp = DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, doc.getPermissions(), hasChildren);
+          return applyLatestMeta(resp, doc);
         })
         .collect(Collectors.toList());
   }
@@ -110,7 +112,8 @@ public class DocumentService {
             return dto;
           })
           .collect(Collectors.toList());
-      return DocumentResponse.fromDocumentWithPermissionsAndChildren(document, permissions, hasChildren, propertyDtos);
+      DocumentResponse resp = DocumentResponse.fromDocumentWithPermissionsAndChildren(document, permissions, hasChildren, propertyDtos);
+      return applyLatestMeta(resp, document);
     } else {
       throw new org.springframework.security.access.AccessDeniedException("No permission to access this document.");
     }
@@ -121,7 +124,8 @@ public class DocumentService {
         .map(doc -> {
           List<Permission> permissions = permissionRepository.findByDocument(doc);
           boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(doc.getId());
-          return DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, permissions, hasChildren);
+          DocumentResponse resp = DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, permissions, hasChildren);
+          return applyLatestMeta(resp, doc);
         })
         .collect(Collectors.toList());
   }
@@ -131,7 +135,8 @@ public class DocumentService {
         .map(doc -> {
           List<Permission> permissions = permissionRepository.findByDocument(doc);
           boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(doc.getId());
-          return DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, permissions, hasChildren);
+          DocumentResponse resp = DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, permissions, hasChildren);
+          return applyLatestMeta(resp, doc);
         })
         .collect(Collectors.toList());
   }
@@ -173,8 +178,8 @@ public class DocumentService {
         .build();
     permissionRepository.save(ownerPermission);
 
-    return DocumentResponse.fromDocumentWithPermissionsAndChildren(savedDocument, savedDocument.getPermissions(),
-        hasChildren);
+    DocumentResponse resp = DocumentResponse.fromDocumentWithPermissionsAndChildren(savedDocument, savedDocument.getPermissions(), hasChildren);
+    return applyLatestMeta(resp, savedDocument);
   }
 
   @Transactional
@@ -196,7 +201,8 @@ public class DocumentService {
     }
 
     boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(document.getId());
-    return DocumentResponse.fromDocumentWithPermissionsAndChildren(document, document.getPermissions(), hasChildren);
+    DocumentResponse resp = DocumentResponse.fromDocumentWithPermissionsAndChildren(document, document.getPermissions(), hasChildren);
+    return applyLatestMeta(resp, document);
   }
 
   @Transactional
@@ -249,7 +255,8 @@ public class DocumentService {
         .map(doc -> {
           List<Permission> permissions = permissionRepository.findByDocument(doc);
           boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(doc.getId());
-          return DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, permissions, hasChildren);
+          DocumentResponse resp = DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, permissions, hasChildren);
+          return applyLatestMeta(resp, doc);
         })
         .collect(Collectors.toList());
   }
@@ -366,7 +373,8 @@ public class DocumentService {
     return allDocs.stream().map(doc -> {
       List<Permission> permissions = permissionRepository.findByDocument(doc);
       boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(doc.getId());
-      return DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, permissions, hasChildren);
+      DocumentResponse resp = DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, permissions, hasChildren);
+      return applyLatestMeta(resp, doc);
     }).collect(Collectors.toList());
   }
 
@@ -386,7 +394,8 @@ public class DocumentService {
         .map(doc -> {
           List<Permission> permissions = permissionRepository.findByDocument(doc);
           boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(doc.getId());
-          return DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, permissions, hasChildren);
+          DocumentResponse resp = DocumentResponse.fromDocumentWithPermissionsAndChildren(doc, permissions, hasChildren);
+          return applyLatestMeta(resp, doc);
         })
         .collect(Collectors.toList());
   }
@@ -406,5 +415,30 @@ public class DocumentService {
         .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId));
     document.setTitleColumnWidth(width);
     documentRepository.save(document);
+  }
+
+  // 문서/속성값 최신 수정 메타데이터(At/By) 합성
+  private DocumentResponse applyLatestMeta(DocumentResponse response, Document document) {
+    try {
+      LocalDateTime docUpdatedAt = document.getUpdatedAt();
+      String docUpdatedBy = document.getUpdatedBy();
+      var latestOpt = documentPropertyValueRepository.findTopByDocumentIdOrderByUpdatedAtDesc(document.getId());
+      if (latestOpt.isPresent()) {
+        var pv = latestOpt.get();
+        LocalDateTime pvUpdatedAt = pv.getUpdatedAt();
+        if (pvUpdatedAt != null && (docUpdatedAt == null || pvUpdatedAt.isAfter(docUpdatedAt))) {
+          response.setUpdatedAt(pvUpdatedAt);
+          response.setUpdatedBy(pv.getUpdatedBy());
+          return response;
+        }
+      }
+      // 기본: 문서 메타 유지
+      response.setUpdatedAt(docUpdatedAt);
+      response.setUpdatedBy(docUpdatedBy);
+      return response;
+    } catch (Exception e) {
+      // 방어적으로 실패 시 원본 응답 반환
+      return response;
+    }
   }
 }

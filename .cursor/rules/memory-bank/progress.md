@@ -289,3 +289,28 @@
   - `frontend/src/services/api.js`: 기본값을 `/api`로 단순화, VITE_API_BASE_URL로 오버라이드 가능
   - 효과: prod 실행 시 80 포트로 정적 제공, API/WS는 동일 도메인/포트에서 리버스 프록시
   - 경고 정리: Compose v2에서 `version` 키가 더 이상 사용되지 않으므로 `docker-compose.yml` 상단의 `version: "3.9"` 항목 제거
+ - 2025-08-23: Editor 블록 DnD 1차 도입 시작
+   - FE: `BlockDragHandle` 확장 추가(`frontend/src/components/editor/extensions/BlockDragHandle.js`)
+     - 블록 시작 위치에 드래그 핸들 위젯 데코레이션 표시, 클릭 시 `NodeSelection` 설정
+     - 드래그 시작 시 선택 노드 DOM을 Drag Image로 사용, 드롭 시 블록 단위 이동 처리(초기 단일 블록)
+   - FE: `Editor.jsx`에 확장 통합, `Editor.css`에 핸들 스타일 추가
+   - 린트 통과 확인
+
+## 2025-08-24
+- 시스템 속성 최신화 일관 처리(문서/속성값 변경 반영)
+  - BE: `DocumentPropertyValueRepository`에 최신값 조회 추가
+    - `findTopByDocumentIdOrderByUpdatedAtDesc(Long)`
+    - `findLatestUpdatedAtByDocumentIds(List<Long>)` (목록 최적화용 집계 쿼리)
+  - BE: `DocumentService`에 `applyLatestMeta` 도입
+    - `DocumentResponse.updatedAt/updatedBy`를 문서 vs 속성값 중 더 최신 메타로 합성
+    - 단건/워크스페이스 목록/전체/워크스페이스 없음/접근 가능 문서/자식 목록/휴지통/생성/수정 응답에 적용
+  - DTO: `DocumentResponse`에 `setUpdatedAt`, `setUpdatedBy` 추가
+  - FE(Page): `usePageData.handleValueChange`에서 값 저장 후 `fetchDocument(documentId, { silent: true, apply: false })`로 메타 갱신(전역 오염 방지)
+  - FE(Table): 시스템 속성 맵/표시 안정화(`useMemo`, `PropertyCell`에서 `row.document` 우선)
+  - 효과: LAST_UPDATED_BY/AT 시스템 속성이 문서/속성값 변경 시 페이지/테이블 모두 자동 최신 반영
+
+## 2025-08-24 (추가)
+- 값 저장 API 응답 확장 및 테이블 즉시반영
+  - BE: `POST /documents/{docId}/properties/{propertyId}/value` 응답에 `{ updatedAt, updatedBy }` 포함(문서 vs 값 최신 기준)
+  - FE: `useTableData`가 응답의 메타로 해당 행 `row.document.updatedAt/updatedBy` 즉시 갱신 (저장 직전 낙관적 now → 응답 도착 시 정확값 덮어쓰기)
+  - FE(Context): `fetchDocument`에 `apply` 옵션 추가, PAGE에서 부모 이동 시 무한 로딩 방지
