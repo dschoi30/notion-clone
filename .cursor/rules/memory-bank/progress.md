@@ -314,3 +314,10 @@
   - BE: `POST /documents/{docId}/properties/{propertyId}/value` 응답에 `{ updatedAt, updatedBy }` 포함(문서 vs 값 최신 기준)
   - FE: `useTableData`가 응답의 메타로 해당 행 `row.document.updatedAt/updatedBy` 즉시 갱신 (저장 직전 낙관적 now → 응답 도착 시 정확값 덮어쓰기)
   - FE(Context): `fetchDocument`에 `apply` 옵션 추가, PAGE에서 부모 이동 시 무한 로딩 방지
+  
+## 2025-08-25
+- TableView 중복 API 호출 최소화 리팩토링
+  - 원인: `DocumentTableView`가 zustand `fetchProperties`로 `/properties`를 호출하고, 동시에 `useTableData`가 동일 자원을 로딩 → 중복 요청 + React StrictMode로 2배 호출
+  - 수정: `DocumentTableView.jsx`에서 zustand 기반 속성 fetch/useEffect 제거. 속성/행/에러/로딩은 모두 `useTableData` 한 곳에서만 관리
+  - 컬럼 폭 계산도 `fetchedProperties` 기준으로 통일하여 상태 일관성 확보
+  - 영향: 테이블 진입 시 `/properties`, `/children`, `/children/property-values` 호출 횟수 감소. Dev 모드에서도 StrictMode 이중 마운트 영향 최소화
