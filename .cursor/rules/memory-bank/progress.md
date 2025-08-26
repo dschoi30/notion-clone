@@ -333,3 +333,16 @@
     - `dragover`에서 `preventDefault()`로 브라우저 드롭 허용 유지
     - 드래그 시작 처리 일원화: `handleDragStart`에서만 처리, 핸들 요소에 한해 drag image 설정 및 `dataTransfer` 초기화
   - 결과: 1행→2행 이동 불가, 3행→2행 시 1행으로 오입력되던 문제 해결. 상하 인접 이동이 기대대로 동작
+## 2025-08-26 (추가)
+- Editor 블록 DnD UI/UX 개선
+  - 행 호버 시 좌측 드래그 핸들 표시, 호버 종료 시 자동 숨김
+  - 드래그 중 블록 내용이 반투명(0.6) 프리뷰로 포인터를 따라 이동
+  - 드롭 커서 실선 두께 2배로 증대, 색상은 Tailwind `bg-blue-300`(#93c5fd) 적용
+  - 드롭 완료 후 해당 블록에 일시적 하이라이트(Tailwind `bg-blue-50`=#eff6ff) 표시
+  - 파일: `frontend/src/components/editor/extensions/BlockDragHandle.js`, `frontend/src/components/editor/Editor.css`
+
+## 2025-08-26 (마무리)
+- Editor DnD 시각효과 정리(진행 중):
+  - Dropcursor는 StarterKit 옵션(`dropcursor`)으로 색상/두께 적용 완료
+  - 반투명 드래그 프리뷰/드롭 후 하이라이트는 일부 환경에서 미표시 이슈 확인 → 후속 과제로 이관
+  - 후속 과제: 프리뷰 z-index/크기/스타일 강제 일관화, 드롭 직후 DOM 탐색 보강, 특정 블록(리스트/헤딩/문단)별 스타일 보정

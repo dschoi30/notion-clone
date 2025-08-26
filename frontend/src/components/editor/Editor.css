@@ -37,10 +37,17 @@
 }
 
 /* 호버 시 핸들 표시: 일반 형제(~) 선택자 제거로 과도 노출 방지 */
-.pm-block-handle:hover,
-.pm-block-handle:focus {
-  opacity: 1;
-}
+.pm-block-handle.visible { opacity: 1; }
+.pm-block-handle:hover, .pm-block-handle:focus { opacity: 1; }
+
+/* 드래그 프리뷰 */
+.pm-drag-preview { opacity: 0.6; }
+
+/* 드롭 커서 강조: 두께 2배, blue-300 */
+.ProseMirror-dropcursor { border-top: 4px solid #93c5fd !important; }
+
+/* 드롭된 블록 하이라이트: bg-blue-50 */
+.pm-block-dropped { background-color: #eff6ff; transition: background-color 0.8s ease; }
 
 .ProseMirror h1 {
   font-size: 2.5em;
