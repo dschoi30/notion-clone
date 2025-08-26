@@ -42,7 +42,7 @@ function TableRow({
       >
         <button
           type="button"
-          className="py-1 text-gray-400 rounded opacity-0 transition duration-150 transform -translate-x-2 cursor-move hover:text-gray-600 group-hover:opacity-100 hover:bg-gray-100"
+          className="py-1 text-gray-400 rounded opacity-0 transition duration-150 transform -translate-x-2 cursor-grab hover:text-gray-600 group-hover:opacity-100 hover:bg-gray-100"
           aria-label="drag handle"
           {...attributes}
           {...listeners}
