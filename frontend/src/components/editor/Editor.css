@@ -122,6 +122,12 @@
   flex: 1 1 auto;
 }
 
+/* 체크박스 선택 시 행에 취소선 및 회색 폰트 적용 */
+.ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+  text-decoration: line-through;
+  color: #9ca3af; /* gray-400 */
+}
+
 .ProseMirror p.is-empty::before {
   color: #adb5bd;
   content: attr(data-placeholder);
