@@ -33,7 +33,12 @@ export const BlockDragHandle = Extension.create({
             const decorations = [];
             tr.doc.descendants((node, pos) => {
               if (!node.isBlock) return;
-
+              const $pos = tr.doc.resolve(pos);
+              // 리스트 아이템(taskItem/listItem)의 내부 문단에는 핸들을 붙이지 않음
+              const parent = $pos.parent;
+              if (node.type.name === 'paragraph' && parent && (parent.type.name === 'taskItem' || parent.type.name === 'listItem')) {
+                return;
+              }
               const deco = Decoration.widget(
                 pos,
                 () => {
@@ -66,8 +71,19 @@ export const BlockDragHandle = Extension.create({
 
               const posAttr = target.getAttribute('data-pos');
               if (!posAttr) return false;
-              const pos = Number(posAttr);
+              let pos = Number(posAttr);
               if (Number.isNaN(pos)) return false;
+              // 문단이 리스트 아이템 내부인 경우, 상위 taskItem/listItem 전체를 선택하도록 승격
+              try {
+                const $pos = view.state.doc.resolve(pos);
+                for (let d = $pos.depth; d > 0; d -= 1) {
+                  const nodeAtDepth = $pos.node(d);
+                  if (nodeAtDepth && (nodeAtDepth.type.name === 'taskItem' || nodeAtDepth.type.name === 'listItem')) {
+                    pos = $pos.before(d);
+                    break;
+                  }
+                }
+              } catch (_e) {}
 
               const tr = view.state.tr.setSelection(NodeSelection.create(view.state.doc, pos));
               view.dispatch(tr);
@@ -177,7 +193,7 @@ export const BlockDragHandle = Extension.create({
             const { from, node } = dragInfo;
             if (!node) { dragInfo = null; return false; }
 
-            // 원위치와 동일/바로 인접 위치 드롭은 무시
+            // 원위치와 동일/바로 인접 위치 드롭은 무시 (리스트 아이템 전체 이동 고려)
             if (found.pos >= from && found.pos <= from + node.nodeSize) { dragInfo = null; return true; }
             let tr = view.state.tr;
 
@@ -188,7 +204,9 @@ export const BlockDragHandle = Extension.create({
             const mappedPos = tr.mapping.map(found.pos);
 
             // 드롭 지점에 유효한 삽입 위치 계산
-            const slice = new Slice(Fragment.from(node.type.create(node.attrs, node.content, node.marks)), 0, 0);
+            // 리스트 아이템/태스크 아이템은 노드 전체를 보존하여 이동
+            const sliceNode = node.type.name === 'paragraph' && node.firstChild ? node.firstChild : node;
+            const slice = new Slice(Fragment.from(sliceNode.type.create(sliceNode.attrs, sliceNode.content, sliceNode.marks)), 0, 0);
             const dropPos = dropPoint(tr.doc, mappedPos, slice);
             if (dropPos == null) {
               dragInfo = null;
