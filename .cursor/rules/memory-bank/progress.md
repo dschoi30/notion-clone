@@ -325,3 +325,11 @@
    - `docker-compose.yml`/`docker-compose.dev.yml`에 `TZ=Asia/Seoul` 추가 (db, backend)
    - backend에 `JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Seoul` 설정 추가
    - 목적: 도커 환경에서 생성/업데이트 시간 9시간 지연 표시 문제 해소 (KST 고정)
+## 2025-08-26
+- Editor 블록 DnD 정밀 동작 수정(행 이동 1↔2 문제 해결)
+  - `BlockDragHandle.js` 개선:
+    - 드롭 시 삭제 이후 좌표를 `tr.mapping.map(found.pos)`로 매핑하여 위치 어긋남 방지
+    - 스키마 유효 삽입점 계산에 `dropPoint` + `Slice` 사용하여 리스트/중첩 컨텍스트에서도 안전 삽입
+    - `dragover`에서 `preventDefault()`로 브라우저 드롭 허용 유지
+    - 드래그 시작 처리 일원화: `handleDragStart`에서만 처리, 핸들 요소에 한해 drag image 설정 및 `dataTransfer` 초기화
+  - 결과: 1행→2행 이동 불가, 3행→2행 시 1행으로 오입력되던 문제 해결. 상하 인접 이동이 기대대로 동작

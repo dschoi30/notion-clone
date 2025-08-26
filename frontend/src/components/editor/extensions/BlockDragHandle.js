@@ -1,6 +1,8 @@
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey, NodeSelection } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import { dropPoint } from '@tiptap/pm/transform';
+import { Fragment, Slice } from '@tiptap/pm/model';
 
 /**
  * BlockDragHandle
@@ -68,35 +70,34 @@ export const BlockDragHandle = Extension.create({
               view.dispatch(tr);
               return true;
             },
-            dragstart(view, event) {
-              const target = event.target;
-              if (!(target instanceof HTMLElement)) return false;
-              if (!target.classList.contains('pm-block-handle')) return false;
-
-              const sel = view.state.selection;
-              if (!(sel instanceof NodeSelection)) return false;
-
-              if (event.dataTransfer) {
-                event.dataTransfer.effectAllowed = 'move';
-                // 일부 브라우저에서 drag가 시작되도록 임의 데이터가 필요
-                event.dataTransfer.setData('text/plain', 'block');
-              }
-
-              dragInfo = { from: sel.from, node: sel.node }; // 드래그 정보 저장
+            dragover(view, event) {
+              // 드롭 가능 상태 유지 (일부 브라우저에서 필수)
+              event.preventDefault();
+              if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
               return true;
             },
           },
           handleDragStart(view, event) {
+            const target = event.target;
+            if (!(target instanceof HTMLElement)) return false;
+            if (!target.classList.contains('pm-block-handle')) return false;
+
             const sel = view.state.selection;
-            if (sel instanceof NodeSelection) {
-              const dom = view.nodeDOM(sel.from);
-              if (dom instanceof HTMLElement && event.dataTransfer) {
-                // 기본 드래그 프리뷰를 선택 노드로 설정
-                event.dataTransfer.setDragImage(dom, 10, 10);
-              }
-              return false; // PM 기본 동작 허용
+            if (!(sel instanceof NodeSelection)) return true;
+
+            if (event.dataTransfer) {
+              event.dataTransfer.effectAllowed = 'move';
+              // 일부 브라우저에서 drag가 시작되도록 임의 데이터가 필요
+              event.dataTransfer.setData('text/plain', 'block');
             }
-            return false;
+
+            const dom = view.nodeDOM(sel.from);
+            if (dom instanceof HTMLElement && event.dataTransfer) {
+              event.dataTransfer.setDragImage(dom, 10, 10);
+            }
+
+            dragInfo = { from: sel.from, node: sel.node };
+            return true; // 우리가 처리했음을 명시
           },
           handleDrop(view, event) {
             // 우리가 시작한 블록 드래그만 처리
@@ -112,20 +113,23 @@ export const BlockDragHandle = Extension.create({
 
             // 원위치와 동일/바로 인접 위치 드롭은 무시
             if (found.pos >= from && found.pos <= from + node.nodeSize) { dragInfo = null; return true; }
+            let tr = view.state.tr;
 
-            let tr = view.state.tr.delete(from, from + node.nodeSize);
+            // 먼저 원본 노드 삭제
+            tr = tr.delete(from, from + node.nodeSize);
 
-            // 드롭 위치를 블록 경계로 스냅
-            const $pos = tr.doc.resolve(Math.min(found.pos, tr.doc.content.size));
-            // 가능한 한 현재 깊이에서 블록 앞 위치를 찾음
-            let insertPos;
-            try {
-              insertPos = $pos.before($pos.depth);
-            } catch (e) {
-              insertPos = $pos.start($pos.depth);
+            // 삭제 후 좌표를 현재 트랜잭션 기준으로 매핑
+            const mappedPos = tr.mapping.map(found.pos);
+
+            // 드롭 지점에 유효한 삽입 위치 계산
+            const slice = new Slice(Fragment.from(node.type.create(node.attrs, node.content, node.marks)), 0, 0);
+            const dropPos = dropPoint(tr.doc, mappedPos, slice);
+            if (dropPos == null) {
+              dragInfo = null;
+              return true; // 유효 위치 없으면 아무 것도 하지 않음
             }
 
-            tr = tr.insert(insertPos, node.type.create(node.attrs, node.content, node.marks));
+            tr = tr.replace(dropPos, dropPos, slice);
             view.dispatch(tr.scrollIntoView());
             dragInfo = null;
             return true;
