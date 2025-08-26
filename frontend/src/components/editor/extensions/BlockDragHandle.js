@@ -15,6 +15,9 @@ export const BlockDragHandle = Extension.create({
   addProseMirrorPlugins() {
     const key = new PluginKey('blockDragHandle');
     let dragInfo = null; // { from: number, node }
+    let hoverHandlePos = null; // 현재 호버 중인 블록 시작 pos
+    let dragPreviewEl = null; // 커스텀 드래그 프리뷰 엘리먼트
+    let lastDroppedEl = null; // 마지막 드랍된 블록 DOM 참조(지속 하이라이트)
 
     return [
       new Plugin({
@@ -70,11 +73,46 @@ export const BlockDragHandle = Extension.create({
               view.dispatch(tr);
               return true;
             },
+            mousemove(view, event) {
+              const coords = { left: event.clientX, top: event.clientY };
+              const found = view.posAtCoords(coords);
+              if (!found || found.pos == null) return false;
+
+              const $pos = view.state.doc.resolve(found.pos);
+              // 가장 가까운 블록 노드 깊이 탐색
+              let depth = $pos.depth;
+              while (depth > 0 && !$pos.node(depth).isBlock) depth -= 1;
+              if (depth <= 0) return false;
+
+              const startPos = $pos.before(depth);
+              if (hoverHandlePos === startPos) return false;
+
+              // 이전 핸들 숨김
+              if (hoverHandlePos != null) {
+                const prev = view.dom.parentElement?.querySelector?.(`.pm-block-handle[data-pos="${hoverHandlePos}"]`);
+                if (prev) prev.classList.remove('visible');
+              }
+
+              // 새 핸들 표시
+              const next = view.dom.parentElement?.querySelector?.(`.pm-block-handle[data-pos="${startPos}"]`);
+              if (next) next.classList.add('visible');
+              hoverHandlePos = next ? startPos : null;
+              return false;
+            },
+            mouseleave(view, _event) {
+              if (hoverHandlePos != null) {
+                const prev = view.dom.parentElement?.querySelector?.(`.pm-block-handle[data-pos="${hoverHandlePos}"]`);
+                if (prev) prev.classList.remove('visible');
+                hoverHandlePos = null;
+              }
+              return false;
+            },
             dragover(view, event) {
               // 드롭 가능 상태 유지 (일부 브라우저에서 필수)
               event.preventDefault();
               if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-              return true;
+              // false를 반환하여 dropcursor 등 다른 플러그인이 dragover를 처리할 수 있게 함
+              return false;
             },
           },
           handleDragStart(view, event) {
@@ -90,14 +128,42 @@ export const BlockDragHandle = Extension.create({
               // 일부 브라우저에서 drag가 시작되도록 임의 데이터가 필요
               event.dataTransfer.setData('text/plain', 'block');
             }
-
+            
+            // *TODO: 현재 드래그 프리뷰 미반영 중 - 차후 수정 필요
             const dom = view.nodeDOM(sel.from);
-            if (dom instanceof HTMLElement && event.dataTransfer) {
-              event.dataTransfer.setDragImage(dom, 10, 10);
+            if (event.dataTransfer) {
+              const baseEl = dom instanceof HTMLElement ? dom : null;
+              if (baseEl) {
+                try {
+                  const clone = baseEl.cloneNode(true);
+                  const wrapper = document.createElement('div');
+                  wrapper.className = 'pm-drag-preview';
+                  wrapper.style.position = 'fixed';
+                  wrapper.style.top = '-10000px';
+                  wrapper.style.left = '-10000px';
+                  wrapper.style.opacity = '0.6';
+                  wrapper.style.pointerEvents = 'none';
+                  wrapper.style.background = 'white';
+                  wrapper.style.boxShadow = '0 2px 6px rgba(0,0,0,0.15)';
+                  wrapper.appendChild(clone);
+                  document.body.appendChild(wrapper);
+                  dragPreviewEl = wrapper;
+                  event.dataTransfer.setDragImage(wrapper, 10, 10);
+                } catch (_e) {
+                  if (baseEl) event.dataTransfer.setDragImage(baseEl, 10, 10);
+                }
+              }
             }
 
             dragInfo = { from: sel.from, node: sel.node };
             return true; // 우리가 처리했음을 명시
+          },
+          handleDragEnd(_view, _event) {
+            if (dragPreviewEl && dragPreviewEl.parentNode) {
+              dragPreviewEl.parentNode.removeChild(dragPreviewEl);
+            }
+            dragPreviewEl = null;
+            return false;
           },
           handleDrop(view, event) {
             // 우리가 시작한 블록 드래그만 처리
@@ -131,6 +197,21 @@ export const BlockDragHandle = Extension.create({
 
             tr = tr.replace(dropPos, dropPos, slice);
             view.dispatch(tr.scrollIntoView());
+
+            // 드롭된 블록에 지속 하이라이트 적용(이전 하이라이트 해제 후 적용)
+            // *TODO: 현재 하이라이트 미반영 중 - 차후 수정 필요
+            setTimeout(() => {console.log('lastDroppedEl',lastDroppedEl);
+              if (lastDroppedEl && lastDroppedEl.classList) {
+                lastDroppedEl.classList.remove('pm-block-dropped');
+              }
+              const droppedDom = view.nodeDOM(dropPos);
+              if (droppedDom instanceof HTMLElement) {
+                droppedDom.classList.add('pm-block-dropped');
+                lastDroppedEl = droppedDom;
+              } else {
+                lastDroppedEl = null;
+              }
+            }, 30);
             dragInfo = null;
             return true;
           },
