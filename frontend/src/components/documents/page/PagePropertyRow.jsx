@@ -147,13 +147,13 @@ function PagePropertyRow({
     >
       {/* 좌측 핸들 바 */}
       <div
-        className="absolute top-0 h-full flex items-center pl-1 pr-1 transition-opacity opacity-0 group-hover:opacity-100"
+        className="flex absolute top-0 items-center pr-1 pl-1 h-full opacity-0 transition-opacity group-hover:opacity-100"
         style={{ width: 28, zIndex: 2, left: -40 }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
-          className="cursor-move text-gray-400 hover:text-gray-600 py-1 rounded hover:bg-gray-100 transition duration-150"
+          className="py-1 text-gray-400 rounded transition duration-150 cursor-grab hover:text-gray-600 hover:bg-gray-100"
           aria-label="drag handle"
           {...attributes}
           {...listeners}

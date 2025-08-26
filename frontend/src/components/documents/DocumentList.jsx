@@ -91,7 +91,7 @@ function SortableDocumentTreeItem({ document, currentDocument, onSelect, onDelet
         <div
           {...attributes}
           {...listeners}
-          className="flex justify-center items-center p-0 mr-1 w-8 h-8 rounded cursor-move hover:bg-gray-200"
+          className="flex justify-center items-center p-0 mr-1 w-8 h-8 rounded cursor-grab hover:bg-gray-200"
           style={{ minWidth: 32 }}
         >
           <GripVertical className="w-4 h-4 text-gray-400" />
