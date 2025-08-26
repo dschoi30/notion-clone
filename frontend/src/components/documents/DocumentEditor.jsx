@@ -25,7 +25,7 @@ const DocumentEditor = () => {
   const location = useLocation();
   const isMyWorkspace = currentWorkspace && currentWorkspace.ownerId === user.id;
   const isGuest = !isMyWorkspace;
-  const { currentDocument, updateDocument, documentLoading, fetchChildDocuments, documents, selectDocument } = useDocument();
+  const { currentDocument, updateDocument, documentLoading, documents, selectDocument } = useDocument();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
@@ -184,11 +184,18 @@ const DocumentEditor = () => {
     setContent(newContent);
     setSaveStatus('unsaved');
     triggerAutoSave();
-    sendEdit({ content: newContent, userId: currentDocument.userId });
+    // 현재 로그인 사용자 기준으로 송신자 식별, 자기 자신 에코 무시 용도
+    sendEdit({ content: newContent, userId: user?.id });
   };
 
   const handleRemoteEdit = (msg) => {
-    if (msg.content !== content) setContent(msg.content);
+    // 자신이 보낸 에코 메시지는 무시
+    if (msg?.userId && user?.id && String(msg.userId) === String(user.id)) {
+      return;
+    }
+    if (typeof msg?.content === 'string' && msg.content !== content) {
+      setContent(msg.content);
+    }
   };
   const { sendEdit } = useDocumentSocket(currentDocument?.id, handleRemoteEdit);
 
