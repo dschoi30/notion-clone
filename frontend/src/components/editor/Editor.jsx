@@ -90,6 +90,10 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
     extensions: [
       StarterKit.configure({
         codeBlock: false,
+        dropcursor: {
+          color: '#93c5fd',
+          width: 4,
+        },
       }),
       Placeholder.configure({
         placeholder: '내용을 입력하세요...',
