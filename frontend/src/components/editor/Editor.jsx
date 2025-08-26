@@ -305,10 +305,19 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
   };
 
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
+    // IME 조합 중에는 외부 content 동기화를 적용하지 않음
+    if (!editor) return;
+    if (isComposing) return;
+    // 사용자가 현재 입력 중(focus)일 때는 불필요한 되감기 방지
+    if (editor.isFocused) {
+      // 최신 에디터 내용과 동일한 경우만 무시, 다른 경우에도 포커스 중이면 건너뜀
+      return;
+    }
+    const currentHtml = editor.getHTML();
+    if (typeof content === 'string' && content !== currentHtml) {
       editor.commands.setContent(content);
     }
-  }, [content, editor]);
+  }, [content, editor, isComposing]);
 
   const setLink = useCallback(() => {
     const previousUrl = editor.getAttributes('link').href ?? '';
