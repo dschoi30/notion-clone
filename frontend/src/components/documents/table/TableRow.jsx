@@ -31,7 +31,7 @@ function TableRow({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.7 : 1,
-  }; console.log('row', row)
+  };
   return (
     <div ref={setNodeRef} style={style} className={`flex items-center h-10 group relative ${isSelected ? 'bg-blue-100' : ''}`} >
       {/* 좌측 레일 (NameCell 바깥) */}

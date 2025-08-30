@@ -22,8 +22,9 @@ function PagePropertyRow({
   tagPopoverRect,
   setTagPopoverRect,
   setEditingValueId,
+  isReadOnly = false,
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: property.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: property.id, disabled: isReadOnly });
   const style = { transform: CSS.Transform.toString(transform), transition };
 
   const tagCellRef = useRef(null);
@@ -145,22 +146,24 @@ function PagePropertyRow({
       style={{ ...style, opacity: isDragging ? 0.7 : 1, minHeight: 36 }}
       className="flex items-center min-w-[120px] py-1 px-2 rounded group relative"
     >
-      {/* 좌측 핸들 바 */}
-      <div
-        className="flex absolute top-0 items-center pr-1 pl-1 h-full opacity-0 transition-opacity group-hover:opacity-100"
-        style={{ width: 28, zIndex: 2, left: -40 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          type="button"
-          className="py-1 text-gray-400 rounded transition duration-150 cursor-grab hover:text-gray-600 hover:bg-gray-100"
-          aria-label="drag handle"
-          {...attributes}
-          {...listeners}
+      {/* 좌측 핸들 바 (읽기 전용에서는 표시하지 않음) */}
+      {!isReadOnly && (
+        <div
+          className="flex absolute top-0 items-center pr-1 pl-1 h-full opacity-0 transition-opacity group-hover:opacity-100"
+          style={{ width: 28, zIndex: 2, left: -40 }}
+          onClick={(e) => e.stopPropagation()}
         >
-          <GripVertical size={16} />
-        </button>
-      </div>
+          <button
+            type="button"
+            className={`py-1 text-gray-400 rounded transition duration-150 cursor-grab hover:text-gray-600 hover:bg-gray-100`}
+            aria-label="drag handle"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical size={16} />
+          </button>
+        </div>
+      )}
       <span
         className="text-sm text-gray-500 font-medium mr-4 w-[140px] text-ellipsis"
         onClick={() => {
@@ -170,7 +173,7 @@ function PagePropertyRow({
           }
         }}
       >
-        {isEditingHeader && !SYSTEM_PROP_TYPES.includes(property.type) ? (
+        {isEditingHeader && !SYSTEM_PROP_TYPES.includes(property.type) && !isReadOnly ? (
           <input
             autoFocus
             className="px-2 py-1 w-[140px] rounded border outline-none"
@@ -189,6 +192,7 @@ function PagePropertyRow({
         className="relative flex-1 text-sm text-gray-900 break-all"
         onClick={() => {
           if (SYSTEM_PROP_TYPES.includes(property.type)) return;
+          if (isReadOnly) return;
           if (property.type === 'TAG') {
             const rect = tagCellRef.current?.getBoundingClientRect();
             if (rect) {

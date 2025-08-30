@@ -81,18 +81,27 @@ const DocumentPageView = ({
           onValueCommit={handleValueChange}
           tagPopoverRect={tagPopoverRect}
           setTagPopoverRect={setTagPopoverRect}
+          isReadOnly={isReadOnly}
         />
       )}
 
+      {/* Read-only일 때 목록과 에디터 사이 구분선 */}
+      {isReadOnly && properties.length > 0 && (
+        <div className="my-4 border-t border-gray-200" />
+      )}
+
       {/* 속성 추가 버튼: 리스트 하단 고정 */}
-      <PageHeaderArea
-        addBtnRef={addPropBtnRef}
-        isAddOpen={isAddOpen}
-        setIsAddOpen={setIsAddOpen}
-        AddPropertyPopoverComponent={() => (
-          <AddPropertyPopover onAddProperty={(...args) => { setIsAddOpen(false); return handleAddProperty(...args); }} />
-        )}
-      />
+      {!isReadOnly && (
+        <PageHeaderArea
+          addBtnRef={addPropBtnRef}
+          isAddOpen={isAddOpen}
+          setIsAddOpen={setIsAddOpen}
+          AddPropertyPopoverComponent={() => (
+            <AddPropertyPopover onAddProperty={(...args) => { setIsAddOpen(false); return handleAddProperty(...args); }} />
+          )}
+          disabled={false}
+        />
+      )}
 
       {/* 에디터 */}
       <Editor 
