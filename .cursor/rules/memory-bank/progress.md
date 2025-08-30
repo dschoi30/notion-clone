@@ -356,3 +356,15 @@
   - `Editor.jsx`: `content` → 에디터 동기화 시 IME 조합 중(`isComposing`) 또는 에디터 포커스 중(`editor.isFocused()`)엔 적용하지 않도록 가드. 현재 HTML과 다를 때만 `setContent` 수행.
   - `DocumentEditor.jsx`: WebSocket 전송 페이로드의 `userId`를 실제 로그인 사용자 `user.id`로 송신. 수신 시 `msg.userId === user.id` 에코 메시지는 무시하여 자체 입력 덮어쓰기 방지.
 - 결과: 빠른 입력 및 한글 IME 조합 시 마지막 글자 잘림/유실 현상 재현 불가. 린트 무오류.
+## 2025-08-28
+- 부모 권한에 따른 자식 문서 접근 허용
+  - BE: `DocumentService.getChildDocuments`에서 자식 문서 필터 시 부모 문서의 소유자이거나 부모에 대해 `PermissionStatus.ACCEPTED` 권한이 있는 사용자에게 접근 허용 로직 추가
+  - 영향: 부모 문서에 초대된 사용자가 동일 워크스페이스 내 해당 부모의 직계 자식 문서를 목록에서 확인 가능
+ - FE: 초대 사용자 onOpenRow로 자식 문서 직접 진입 시 목록에 없더라도 단건 조회로 로드
+   - `DocumentEditor.jsx`의 URL id 슬러그 처리 이펙트에서 `documents`에 문서가 없을 때도 `selectDocument({ id })`로 단건 조회 트리거
+   - 영향: 공유받은 사용자도 테이블 행 클릭으로 상세 페이지 진입 가능
+ - BE: 단건 조회(GET /documents/{id})에서도 부모 권한 소유 시 접근 허용
+   - `DocumentService.getDocument`에 부모 소유/부모에 대한 ACCEPTED 권한을 읽기 허용 조건에 포함
+   - 영향: 목록엔 없지만 부모로 권한을 받은 자식 문서를 직접 URL 또는 onOpenRow로 접근할 때 403 대신 200 반환
+ - FE: 공유 팝오버 권한 변경은 문서 소유자만 가능하도록 제한
+   - `DocumentSharePopover.jsx`에 `isDocOwner` 도입, 초대 버튼/드롭다운/핸들러에서 소유자 아닐 때 비활성/차단
