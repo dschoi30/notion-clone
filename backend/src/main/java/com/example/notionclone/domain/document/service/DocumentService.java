@@ -92,8 +92,41 @@ public class DocumentService {
 
     boolean hasPermission = permissionRepository.existsByUserAndDocumentAndStatus(user, document,
         PermissionStatus.ACCEPTED);
-    if (document.getUser().getId().equals(user.getId()) || hasPermission) { // 유저가 소유한 문서이거나 공유받은 문서일 경우
+    // 부모 문서 권한(혹은 소유권)으로 자식 문서 접근 허용
+    boolean hasParentPermission = false;
+    Document parent = document.getParent();
+    if (!hasPermission && parent != null) {
+      if (parent.getUser().getId().equals(user.getId())) {
+        hasParentPermission = true;
+      } else {
+        hasParentPermission = permissionRepository.existsByUserAndDocumentAndStatus(user, parent, PermissionStatus.ACCEPTED);
+      }
+    }
+    if (document.getUser().getId().equals(user.getId()) || hasPermission || hasParentPermission) { // 유저가 소유/직접권한/부모권한
       List<Permission> permissions = permissionRepository.findByDocument(document);
+      // 부모 권한으로 접근한 경우, 프론트 hasWritePermission 계산을 위해 효과적인 권한을 permissions에 주입
+      if (!hasPermission && parent != null) {
+        boolean alreadyHasEntry = permissions.stream().anyMatch(p -> p.getUser().getId().equals(user.getId()));
+        if (!alreadyHasEntry) {
+          PermissionType inheritedType = null;
+          if (parent.getUser().getId().equals(user.getId())) {
+            inheritedType = PermissionType.OWNER;
+          } else {
+            var parentPermOpt = permissionRepository.findByUserAndDocument(user, parent);
+            if (parentPermOpt.isPresent() && parentPermOpt.get().getStatus() == PermissionStatus.ACCEPTED) {
+              inheritedType = parentPermOpt.get().getPermissionType();
+            }
+          }
+          if (inheritedType != null) {
+            permissions.add(Permission.builder()
+                .user(user)
+                .document(document)
+                .permissionType(inheritedType)
+                .status(PermissionStatus.ACCEPTED)
+                .build());
+          }
+        }
+      }
       boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(document.getId());
       boolean hasParent = document.getParent() != null;
 
@@ -387,7 +420,19 @@ public class DocumentService {
         return true;
       }
       // 공유받은 문서
-      return permissionRepository.existsByUserAndDocumentAndStatus(user, doc, PermissionStatus.ACCEPTED);
+      boolean hasDirectPermission = permissionRepository.existsByUserAndDocumentAndStatus(user, doc, PermissionStatus.ACCEPTED);
+      if (hasDirectPermission) {
+        return true;
+      }
+      // 부모 문서 권한으로 자식 문서 접근 허용
+      Document parent = doc.getParent();
+      if (parent != null) {
+        if (parent.getUser().getId().equals(user.getId())) { // 부모 문서 소유자
+          return true;
+        }
+        return permissionRepository.existsByUserAndDocumentAndStatus(user, parent, PermissionStatus.ACCEPTED);
+      }
+      return false;
     }).collect(Collectors.toList());
 
     return accessibleChildren.stream()

@@ -23,8 +23,6 @@ const DocumentEditor = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const isMyWorkspace = currentWorkspace && currentWorkspace.ownerId === user.id;
-  const isGuest = !isMyWorkspace;
   const { currentDocument, updateDocument, documentLoading, documents, selectDocument } = useDocument();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -40,7 +38,8 @@ const DocumentEditor = () => {
   const shareButtonRef = useRef(null);
 
   const myPermission = currentDocument?.permissions?.find(p => p.userId === user.id);
-  const isReadOnly = myPermission && myPermission.permissionType === 'WRITE';
+  const hasWritePermission = myPermission?.permissionType === 'WRITE' || myPermission?.permissionType === 'OWNER';
+  const isReadOnly = !hasWritePermission;
 
   const viewers = useDocumentPresence(currentDocument?.id, user);
   const { properties, titleWidth } = useDocumentPropertiesStore(state => ({ properties: state.properties, titleWidth: state.titleWidth }));
@@ -123,18 +122,14 @@ const DocumentEditor = () => {
 
   // idSlug가 바뀔 때마다 해당 id의 문서를 선택
   useEffect(() => {
-    if (!docId || !documents.length || !currentWorkspace) return;
-    
+    if (!docId || !currentWorkspace) return;
+
     const found = documents.find(doc => String(doc.id) === String(docId));
-    if (found) {
-      // URL의 문서가 현재 워크스페이스에 있는 경우
-      if (!currentDocument || String(currentDocument.id) !== String(docId)) {
-        selectDocument(found);
-      }
-    } else if (docId) {
-      // URL의 문서가 현재 워크스페이스에 없는 경우 - 이미 App.jsx에서 처리됨
-      console.warn(`DocumentEditor: 문서 ID ${docId}가 현재 워크스페이스(${currentWorkspace.id})의 문서 목록에 존재하지 않습니다.`);
+
+    if (!currentDocument || String(currentDocument.id) !== String(docId)) {
+      selectDocument(found ? found : { id: Number(docId) }); // 문서 목록에 없더라도(부모 권한으로 접근 가능한 자식 등) 단건 조회로 진입 허용
     }
+      
   }, [docId, documents, currentWorkspace, currentDocument]);
 
   // 경로 계산 유틸
@@ -292,7 +287,7 @@ const DocumentEditor = () => {
           onTitleChange={handleTitleChange}
           onTitleKeyDown={handleTitleKeyDown}
           saveStatus={saveStatus}
-          isGuest={isGuest}
+          isReadOnly={isReadOnly}
           showShareModal={showShareModal}
           setShowShareModal={setShowShareModal}
           shareButtonRef={shareButtonRef}

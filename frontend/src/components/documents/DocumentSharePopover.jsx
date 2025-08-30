@@ -12,39 +12,48 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ChevronDown } from 'lucide-react';
 
-function PermissionDropdown({ value, onChange, disabled, loading }) {
+function PermissionDropdown({ value, onChange, disabled, loading, menuEnabled = true }) {
   const options = [
     { value: 'WRITE', label: '전체 허용' },
     { value: 'READ', label: '읽기 허용' },
     { value: 'REMOVE', label: '제거' },
   ];
+  const isOwner = value === 'OWNER';
   const selected = options.find(o => o.value === value);
+  const displayLabel = isOwner ? '작성자' : (selected?.label || value);
+  const [open, setOpen] = useState(false);
   return (
-    <DropdownMenu>
+    <DropdownMenu open={menuEnabled ? open : false} onOpenChange={(next) => { if (menuEnabled) setOpen(next); }}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className={`text-xs border rounded px-2 py-1 bg-white min-w-[80px] text-left flex items-center justify-between ${disabled ? 'opacity-60 cursor-not-allowed' : 'hover:border-gray-400'} ${loading ? 'opacity-60' : ''}`}
-          disabled={disabled || loading}
+          className={`text-xs border rounded px-2 py-1 bg-white min-w-[80px] text-left flex items-center justify-between ${(disabled || isOwner || !menuEnabled) ? 'opacity-60 cursor-not-allowed' : 'hover:border-gray-400'} ${loading ? 'opacity-60' : ''}`}
+          disabled={disabled || loading || isOwner || !menuEnabled}
         >
-          <span>{selected?.label || value}</span>
-          <ChevronDown className="w-4 h-4 ml-1" />
+          <span>{displayLabel}</span>
+          <ChevronDown className="ml-1 w-4 h-4" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-[100px]">
-        {options.map(opt => (
-          <DropdownMenuItem
-            key={opt.value}
-            onSelect={() => {
-              if (opt.value !== value) onChange(opt.value);
-            }}
-            disabled={opt.value === value}
-            className={opt.value === value ? 'font-bold text-blue-600' : ''}
-          >
-            {opt.label}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
+      {!isOwner && menuEnabled && (
+        <DropdownMenuContent align="end" className="min-w-[100px]">
+          {options.map(opt => (
+            <DropdownMenuItem
+              key={opt.value}
+              onSelect={(e) => {
+                if (disabled || loading) {
+                  e.preventDefault();
+                  return;
+                }
+                if (opt.value !== value) onChange(opt.value);
+              }}
+              disabled={disabled || loading || opt.value === value}
+              className={opt.value === value ? 'font-bold text-blue-600' : ''}
+            >
+              {opt.label}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      )}
     </DropdownMenu>
   );
 }
@@ -60,6 +69,7 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
   const { user } = useAuth();
   const [loadingUserId, setLoadingUserId] = useState(null);
   const { fetchDocument } = useDocument();
+  const isDocOwner = currentDocument && String(currentDocument.userId) === String(user.id);
 
   useEffect(() => {
     if (open && dialogRef.current) {
@@ -68,7 +78,6 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
         setPopoverWidth(width);
       }
     }
-    // eslint-disable-next-line
   }, [open, dialogRef.current]);
 
   useLayoutEffect(() => {
@@ -85,7 +94,7 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
   }, [open, anchorRef, workspaceId, documentId, popoverWidth]);
 
   const handleInvite = async () => {
-    if (!inviteEmail || !workspaceId || !documentId) return;
+    if (!inviteEmail || !workspaceId || !documentId || !isDocOwner) return;
     try {
       await inviteToDocument(workspaceId, documentId, inviteEmail);
       setInviteStatus('success');
@@ -96,6 +105,7 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
   };
 
   const handlePermissionChange = async (userId, value) => {
+    if (!isDocOwner) return;
     setLoadingUserId(userId);
     try {
       if (value === 'REMOVE') {
@@ -136,7 +146,7 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
               opacity: 0,
               pointerEvents: 'none',
             }}
-            className="p-6 transition-none bg-white border rounded-lg shadow-xl"
+            className="p-6 bg-white rounded-lg border shadow-xl transition-none"
           >
           </DialogContent>
         </DialogPortal>
@@ -161,7 +171,7 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
             zIndex: 50,
             transformOrigin: 'top right',
           }}
-          className="p-6 transition-none bg-white border rounded-lg shadow-xl"
+          className="p-6 bg-white rounded-lg border shadow-xl transition-none"
         >
           <DialogHeader>
             <DialogTitle>문서 공유</DialogTitle>
@@ -169,7 +179,7 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
           <div className="flex gap-2 my-2">
             <input
               type="email"
-              className="flex-1 px-2 py-1 border rounded"
+              className="flex-1 px-2 py-1 rounded border"
               placeholder="초대할 이메일 입력"
               value={inviteEmail}
               onChange={e => {
@@ -180,7 +190,7 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
             <Button
               size="sm"
               onClick={handleInvite}
-              disabled={!inviteEmail}
+              disabled={!inviteEmail || !isDocOwner}
             >
               초대
             </Button>
@@ -191,9 +201,9 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
             ) : (
               <ul className="divide-y">
                 {permissions.map((p) => (
-                  <li key={p.userId} className="flex items-center justify-between py-1">
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center justify-center w-8 h-8 text-base font-bold text-gray-700 bg-gray-200 rounded-full select-none">
+                  <li key={p.userId} className="flex justify-between items-center py-1">
+                    <div className="flex gap-2 items-center">
+                      <div className="flex justify-center items-center w-8 h-8 text-base font-bold text-gray-700 bg-gray-200 rounded-full select-none">
                         {p.name ? p.name.charAt(0).toUpperCase() : '?'}
                       </div>
                       <div className="flex flex-col justify-center">
@@ -204,7 +214,8 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
                     <PermissionDropdown
                       value={p.permissionType}
                       onChange={val => handlePermissionChange(p.userId, val)}
-                      disabled={p.userId === user.id}
+                      disabled={!isDocOwner || p.userId === user.id}
+                      menuEnabled={isDocOwner}
                       loading={loadingUserId === p.userId}
                     />
                   </li>

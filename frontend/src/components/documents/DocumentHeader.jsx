@@ -8,7 +8,7 @@ export default function DocumentHeader({
   onTitleChange,
   onTitleKeyDown,
   saveStatus,
-  isGuest,
+  isReadOnly,
   showShareModal,
   setShowShareModal,
   shareButtonRef,
@@ -44,7 +44,7 @@ export default function DocumentHeader({
           onKeyDown={onTitleKeyDown}
           placeholder="제목 없음"
           className="w-full text-3xl font-bold bg-transparent border-none outline-none"
-          disabled={isGuest}
+          disabled={isReadOnly}
         />
         {/* 공유/저장 상태/권한자 이니셜 영역을 fixed로 분리 */}
         <div className="flex fixed top-2 right-4 z-50 items-center px-2 py-1 space-x-2">
@@ -78,8 +78,8 @@ export default function DocumentHeader({
             saveStatus === 'error' ? '저장 실패' :
             saveStatus === 'unsaved' ? '저장 대기' : '저장됨'}
           </span>
-          {/* 게스트가 아닐 때만 공유 버튼 노출 */}
-          {!isGuest && (
+          {/* 읽기 전용이 아닐 때만 공유 버튼 노출 */}
+          {!isReadOnly && (
             <Button
               ref={shareButtonRef}
               size="sm"
@@ -100,7 +100,7 @@ export default function DocumentHeader({
           </Button>
         </div>
         {/* 공유 팝오버 */}
-        {showShareModal && !isGuest && (
+        {showShareModal && !isReadOnly && (
           <DocumentSharePopover
             open={showShareModal}
             onClose={() => setShowShareModal(false)}
