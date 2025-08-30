@@ -368,9 +368,6 @@ export default function DocumentList() {
         <div>
           <div className="flex justify-between items-center mb-2">
             <h2 className="text-lg font-semibold">공유 문서</h2>
-            <Button onClick={handleCreateDocument} size="sm">
-              <PlusIcon className="mr-1 w-4 h-4" /> 새 문서
-            </Button>
           </div>
           {sharedDocuments.length === 0 ? (
             <div className="text-center text-gray-500">공유 문서가 없습니다.</div>
@@ -407,6 +404,9 @@ export default function DocumentList() {
         <div>
           <div className="flex justify-between items-center mb-2">
             <h2 className="text-lg font-semibold">개인 문서</h2>
+            <Button onClick={handleCreateDocument} size="sm">
+              <PlusIcon className="mr-1 w-4 h-4" /> 새 문서
+            </Button>
           </div>
           {personalDocuments.length === 0 ? (
             <div className="text-center text-gray-500">개인 문서가 없습니다.</div>
