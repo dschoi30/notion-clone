@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 
-function PageHeaderArea({ addBtnRef, isAddOpen, setIsAddOpen, AddPropertyPopoverComponent, stickToBottom = false }) {
+function PageHeaderArea({ addBtnRef, isAddOpen, setIsAddOpen, AddPropertyPopoverComponent }) {
   const popoverRef = useRef(null);
 
   useEffect(() => {
@@ -20,7 +20,8 @@ function PageHeaderArea({ addBtnRef, isAddOpen, setIsAddOpen, AddPropertyPopover
 
   return (
     <div className="relative py-2">
-      <Button ref={addBtnRef} size="sm" variant="ghost" className="px-2 text-sm text-gray-500" onClick={() => setIsAddOpen((v) => !v)}>
+      <Button ref={addBtnRef} size="sm" variant="ghost" className={'px-2 text-sm text-gray-500'} 
+        onClick={() => setIsAddOpen((v) => !v)}>
         + 속성 추가
       </Button>
       {isAddOpen && (

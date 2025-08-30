@@ -18,6 +18,7 @@ function PagePropertyList({
   onValueCommit,
   tagPopoverRect,
   setTagPopoverRect,
+  isReadOnly = false,
 }) {
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
@@ -39,6 +40,7 @@ function PagePropertyList({
               tagPopoverRect={tagPopoverRect}
               setTagPopoverRect={setTagPopoverRect}
               setEditingValueId={setEditingValueId}
+              isReadOnly={isReadOnly}
             />
           ))}
         </div>
