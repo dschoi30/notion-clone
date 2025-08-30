@@ -28,7 +28,6 @@ function SortableDocumentTreeItem({ document, currentDocument, onSelect, onDelet
   const [hovered, setHovered] = useState(false);
   const [loading, setLoading] = useState(false);
   const children = childrenMap[document.id] || [];
-  const hasChildren = children.length > 0;
 
   const {
     attributes,
@@ -257,13 +256,15 @@ export default function DocumentList() {
     }
   }, [currentWorkspace, fetchDocuments]);
 
-  // 공유/개인 문서 분류 (최상위 문서만)
-  // 백엔드에서 이미 접근 가능한 문서만 필터링해서 보내주므로, 프론트에서는 단순 분류만 수행
+  // 공유/개인 문서 분류 (루트 후보: 부모가 없거나, 부모에 접근 불가한 문서 포함)
+  // 백엔드에서 접근 가능한 문서만 오므로, 부모 미접근 자식 문서는 최상위로 승격해 표시
   const { sharedDocuments, personalDocuments } = useMemo(() => {
     dlog.info('문서 분류 및 정렬 시작:', documents.length, '개 문서');
-    
+    const accessibleIds = new Set(documents.map(d => d.id));
+    const isRootCandidate = (doc) => (doc.parentId == null) || !accessibleIds.has(doc.parentId);
+
     const shared = documents.filter(doc =>
-      doc.parentId == null &&
+      isRootCandidate(doc) &&
       (doc.userId !== user.id || (doc.permissions && doc.permissions.some(p => p.userId !== user.id)))
     ).sort((a, b) => {
       // sortOrder로 정렬 (null 값은 맨 뒤로)
@@ -275,9 +276,8 @@ export default function DocumentList() {
       if (sortOrderB == null) return -1;
       return sortOrderA - sortOrderB;
     });
-    
     const personal = documents.filter(doc =>
-      doc.parentId == null &&
+      isRootCandidate(doc) &&
       doc.userId === user.id &&
       (!doc.permissions || !doc.permissions.some(p => p.userId !== user.id))
     ).sort((a, b) => {
@@ -404,9 +404,11 @@ export default function DocumentList() {
         <div>
           <div className="flex justify-between items-center mb-2">
             <h2 className="text-lg font-semibold">개인 문서</h2>
-            <Button onClick={handleCreateDocument} size="sm">
-              <PlusIcon className="mr-1 w-4 h-4" /> 새 문서
-            </Button>
+            {currentWorkspace.ownerId === user.id && (
+              <Button onClick={handleCreateDocument} size="sm">
+                <PlusIcon className="mr-1 w-4 h-4" /> 새 문서
+              </Button>
+            )}
           </div>
           {personalDocuments.length === 0 ? (
             <div className="text-center text-gray-500">개인 문서가 없습니다.</div>

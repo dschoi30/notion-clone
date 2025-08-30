@@ -368,3 +368,12 @@
    - 영향: 목록엔 없지만 부모로 권한을 받은 자식 문서를 직접 URL 또는 onOpenRow로 접근할 때 403 대신 200 반환
  - FE: 공유 팝오버 권한 변경은 문서 소유자만 가능하도록 제한
    - `DocumentSharePopover.jsx`에 `isDocOwner` 도입, 초대 버튼/드롭다운/핸들러에서 소유자 아닐 때 비활성/차단
+## 2025-08-31
+- FE(Page): 읽기 전용 모드 UX 강화
+  - `PagePropertyList`/`PagePropertyRow`: `isReadOnly`로 값/헤더 편집, TAG 팝오버, DnD 차단 및 핸들 미표시
+  - `PageHeaderArea`: 읽기 전용 시 버튼 숨김(`DocumentPageView`에서 조건부 렌더)
+  - `DocumentPageView`: 읽기 전용일 때 속성 리스트와 에디터 사이 구분선 추가
+- FE(Editor): 읽기 전용 시 플러그인/툴바 숨김 및 붙여넣기 차단
+  - `Editor.jsx`: `BlockDragHandle`은 editable일 때만 등록, 메뉴바 editable 조건부 렌더, `handlePaste`는 `!view.editable`이면 즉시 false 반환
+- FE(List): 부모 미접근 자식 문서를 루트로 승격해 표시
+  - `DocumentList.jsx`: 루트 후보 조건을 `parentId == null || !accessibleIds.has(parentId)`로 확장해 자식만 공유된 문서도 최상위에 노출
