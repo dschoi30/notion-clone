@@ -52,12 +52,19 @@ public class DocumentVersionService {
             return null; // 이미 존재 → 생성 스킵
         }
 
+        // 필수 필드 누락 방지: 요청값이 없으면 문서의 현재 값을 기본으로 사용
+        String effectiveTitle = (req.getTitle() != null) ? req.getTitle() : document.getTitle();
+        var effectiveViewType = (req.getViewType() != null) ? req.getViewType() : document.getViewType();
+        Integer effectiveTitleWidth = (req.getTitleWidth() != null)
+                ? req.getTitleWidth()
+                : (document.getTitleColumnWidth() != null ? document.getTitleColumnWidth() : 288);
+
         DocumentVersion version = DocumentVersion.builder()
                 .document(document)
                 .workspace(document.getWorkspace())
-                .title(req.getTitle())
-                .viewType(req.getViewType())
-                .titleColumnWidth(req.getTitleWidth())
+                .title(effectiveTitle)
+                .viewType(effectiveViewType)
+                .titleColumnWidth(effectiveTitleWidth)
                 .content(req.getContent())
                 .propertiesJson(req.getPropertiesJson())
                 .propertyValuesJson(req.getPropertyValuesJson())

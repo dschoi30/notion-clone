@@ -3,11 +3,13 @@ package com.example.notionclone.domain.permission.service;
 import com.example.notionclone.domain.permission.entity.*;
 import com.example.notionclone.domain.permission.repository.PermissionRepository;
 import com.example.notionclone.domain.user.entity.User;
+import com.example.notionclone.domain.document.repository.DocumentRepository;
 import com.example.notionclone.domain.document.entity.Document;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.lang.Nullable;
+import org.springframework.security.access.AccessDeniedException;
 import com.example.notionclone.exception.ResourceNotFoundException;
 import com.example.notionclone.domain.workspace.entity.Workspace;
 import com.example.notionclone.domain.workspace.repository.WorkspaceRepository;
@@ -21,6 +23,7 @@ public class PermissionService {
     private final PermissionRepository permissionRepository;
     private final WorkspaceRepository workspaceRepository;
     private final UserRepository userRepository;
+    private final DocumentRepository documentRepository;
 
     @Transactional
     public Permission invite(User user, Document document, PermissionType type) {
@@ -101,13 +104,33 @@ public class PermissionService {
             return; 
         }
 
-        // 문서에 대한 특정 권한 확인
-        Permission permission = permissionRepository.findByUserIdAndDocumentId(userId, documentId)
-                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException("문서에 접근할 권한이 없습니다."));
-
-        // PermissionType enum: READ, WRITE, FULL_ACCESS
-        if (permission.getPermissionType().ordinal() < requiredPermission.ordinal()) {
-            throw new org.springframework.security.access.AccessDeniedException("요청한 작업을 수행할 권한이 없습니다.");
+        // 문서에 대한 특정 권한 확인 (직접 권한 우선)
+        var directOpt = permissionRepository.findByUserIdAndDocumentId(userId, documentId);
+        if (directOpt.isPresent()) {
+            Permission permission = directOpt.get();
+            if (permission.getStatus() != PermissionStatus.ACCEPTED ||
+                permission.getPermissionType().ordinal() < requiredPermission.ordinal()) {
+                throw new AccessDeniedException("요청한 작업을 수행할 권한이 없습니다.");
+            }
+            return;
         }
+
+        // 부모 문서 권한으로 상속 허용 (즉시 상위 부모만 인정)
+        var docOpt = documentRepository.findById(documentId);
+        if (docOpt.isPresent() && docOpt.get().getParent() != null) {
+            Document parent = docOpt.get().getParent();
+            // 부모 소유자면 통과
+            if (parent.getUser().getId().equals(userId)) return;
+            var parentPermOpt = permissionRepository.findByUserIdAndDocumentId(userId, parent.getId());
+            if (parentPermOpt.isPresent()) {
+                Permission pperm = parentPermOpt.get();
+                if (pperm.getStatus() == PermissionStatus.ACCEPTED &&
+                    pperm.getPermissionType().ordinal() >= requiredPermission.ordinal()) {
+                    return;
+                }
+            }
+        }
+
+        throw new AccessDeniedException("문서에 접근할 권한이 없습니다.");
     }
 } 
