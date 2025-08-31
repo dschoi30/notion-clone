@@ -377,3 +377,7 @@
   - `Editor.jsx`: `BlockDragHandle`은 editable일 때만 등록, 메뉴바 editable 조건부 렌더, `handlePaste`는 `!view.editable`이면 즉시 false 반환
 - FE(List): 부모 미접근 자식 문서를 루트로 승격해 표시
   - `DocumentList.jsx`: 루트 후보 조건을 `parentId == null || !accessibleIds.has(parentId)`로 확장해 자식만 공유된 문서도 최상위에 노출
+## 2025-08-31 (추가)
+- BE: 자식 문서 단건 조회 시 부모 권한을 유효 권한으로 병합하여 응답
+  - `DocumentService.getDocument`: 부모 문서의 ACCEPTED 권한(OWNER/WRITE/READ)을 자식 문서 `permissions`에 누락 사용자만 주입
+  - 효과: 작성자 화면 `DocumentHeader`의 권한자 이니셜/뷰어 표시가 부모-자식 간 일관되게 반영(부모 권한만 있는 유저도 자식 문서에서 표시/강조)
