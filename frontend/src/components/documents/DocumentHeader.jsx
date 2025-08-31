@@ -1,4 +1,5 @@
 import React, { Fragment, useCallback } from 'react';
+import UserBadge from '@/components/documents/shared/UserBadge';
 import { Button } from '@/components/ui/button';
 import VersionHistoryPanel from './VersionHistoryPanel';
 import DocumentSharePopover from './DocumentSharePopover';
@@ -57,15 +58,8 @@ export default function DocumentHeader({
             {currentDocument?.permissions?.map((p) => {
               const isPresent = viewers?.some(v => String(v.userId) === String(p.userId));
               return (
-                <div
-                  key={p.userId}
-                  className={
-                    'flex items-center justify-center w-8 h-8 mr-1 text-base font-bold rounded-full select-none bg-blue-500 text-white ring-2 ring-blue-400 ' +
-                    (isPresent ? 'opacity-100' : 'opacity-40')
-                  }
-                  title={p.name || p.email || ''}
-                >
-                  {p.name ? p.name.charAt(0).toUpperCase() : '?'}
+                <div key={p.userId} className={isPresent ? 'opacity-100' : 'opacity-40'}>
+                  <UserBadge name={p.name} email={p.email} profileImageUrl={p.profileImageUrl} size={32} showLabel={false} />
                 </div>
               );
             })}

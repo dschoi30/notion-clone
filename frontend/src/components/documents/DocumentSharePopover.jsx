@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import { ChevronDown } from 'lucide-react';
+import UserBadge from '@/components/documents/shared/UserBadge';
 
 function PermissionDropdown({ value, onChange, disabled, loading, menuEnabled = true }) {
   const options = [
@@ -193,9 +194,7 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
                 {permissions.map((p) => (
                   <li key={p.userId} className="flex justify-between items-center py-1">
                     <div className="flex gap-2 items-center">
-                      <div className="flex justify-center items-center w-8 h-8 text-base font-bold text-gray-700 bg-gray-200 rounded-full select-none">
-                        {p.name ? p.name.charAt(0).toUpperCase() : '?'}
-                      </div>
+                      <UserBadge name={p.name} email={p.email} profileImageUrl={p.profileImageUrl} size={32} showLabel={false} />
                       <div className="flex flex-col justify-center">
                         <span className="font-medium leading-tight">{p.name}</span>
                         <span className="text-xs leading-tight text-gray-500">{p.email}</span>

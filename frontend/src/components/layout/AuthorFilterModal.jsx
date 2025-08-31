@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
+import UserBadge from '@/components/documents/shared/UserBadge';
 
 export default function AuthorFilterModal({ open, onClose, authors = [], onSelectAuthor, selectedAuthor, anchorRef }) {
   const [search, setSearch] = useState('');
@@ -83,9 +84,7 @@ export default function AuthorFilterModal({ open, onClose, authors = [], onSelec
             className={`py-2 px-2 cursor-pointer rounded flex items-center gap-2 ${selectedAuthor === author.userId ? 'bg-gray-100' : 'hover:bg-gray-200'}`}
             onClick={() => { onSelectAuthor(author.userId); onClose(); }}
           >
-            <div className="flex items-center justify-center w-8 h-8 text-base font-bold text-gray-700 bg-gray-200 rounded-full select-none">
-              {author.name ? author.name.charAt(0).toUpperCase() : '?'}
-            </div>
+            <UserBadge name={author.name} email={author.email} profileImageUrl={author.profileImageUrl} size={32} showLabel={false} />
             <span>{author.name}</span>
           </li>
         ))}

@@ -5,6 +5,8 @@ import { createLogger } from '@/lib/logger';
 import { useDocument } from '@/contexts/DocumentContext';
 import { formatKoreanDateSmart } from '@/lib/utils';
 import { getColorObj } from '@/lib/colors';
+import UserBadge from '@/components/documents/shared/UserBadge';
+import { resolveUserDisplay } from '@/components/documents/shared/resolveUserDisplay';
 
 function VersionProperties({ propertiesJson, valuesJson, tagOptionsByPropId }) {
   const props = useMemo(() => {
@@ -73,7 +75,7 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
   const [restoring, setRestoring] = useState(false);
   const [tagOptionsByPropId, setTagOptionsByPropId] = useState({});
   const log = createLogger('version');
-  const { fetchDocument } = useDocument();
+  const { fetchDocument, currentDocument } = useDocument();
 
   const PAGE_SIZE = 20;
   const [page, setPage] = useState(0);
@@ -215,6 +217,7 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
             <ul className="space-y-2">
               {versions.map(v => {
                 const isActive = selectedId === v.id;
+                const display = resolveUserDisplay(v.createdBy, currentDocument?.permissions);
                 return (
                   <li
                     key={v.id}
@@ -222,7 +225,9 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
                     onClick={() => handleSelect(v.id)}
                   >
                     <div className="text-sm truncate">{v.createdAt ? formatKoreanDateSmart(v.createdAt) : ''}</div>
-                    <div className="text-xs text-gray-500 truncate">{v.createdBy}</div>
+                    <div className="mt-0.5 flex items-center gap-2">
+                      <UserBadge name={display.name} email={display.email} profileImageUrl={display.profileImageUrl} size={20} showLabel={true} />
+                    </div>
                   </li>
                 );
               })}
