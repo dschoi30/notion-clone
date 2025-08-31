@@ -104,24 +104,21 @@ public class DocumentService {
     }
     if (document.getUser().getId().equals(user.getId()) || hasPermission || hasParentPermission) { // 유저가 소유/직접권한/부모권한
       List<Permission> permissions = permissionRepository.findByDocument(document);
-      // 부모 권한으로 접근한 경우, 프론트 hasWritePermission 계산을 위해 효과적인 권한을 permissions에 주입
-      if (!hasPermission && parent != null) {
-        boolean alreadyHasEntry = permissions.stream().anyMatch(p -> p.getUser().getId().equals(user.getId()));
-        if (!alreadyHasEntry) {
-          PermissionType inheritedType = null;
-          if (parent.getUser().getId().equals(user.getId())) {
-            inheritedType = PermissionType.OWNER;
-          } else {
-            var parentPermOpt = permissionRepository.findByUserAndDocument(user, parent);
-            if (parentPermOpt.isPresent() && parentPermOpt.get().getStatus() == PermissionStatus.ACCEPTED) {
-              inheritedType = parentPermOpt.get().getPermissionType();
-            }
-          }
-          if (inheritedType != null) {
+      // 부모 문서 권한을 자식에 효과 권한으로 병합하여 프론트 표시/계산 일치화
+      if (parent != null) {
+        List<Permission> parentPerms = permissionRepository.findByDocument(parent).stream()
+            .filter(p -> p.getStatus() == PermissionStatus.ACCEPTED)
+            .collect(Collectors.toList());
+        // 부모 소유자도 OWNER로 포함 (이미 자식 소유자일 수 있으나 중복 방지)
+        // 위 parentPerms에 OWNER 포함됨
+        for (Permission pp : parentPerms) {
+          boolean exists = permissions.stream()
+              .anyMatch(cp -> cp.getUser().getId().equals(pp.getUser().getId()));
+          if (!exists) {
             permissions.add(Permission.builder()
-                .user(user)
+                .user(pp.getUser())
                 .document(document)
-                .permissionType(inheritedType)
+                .permissionType(pp.getPermissionType())
                 .status(PermissionStatus.ACCEPTED)
                 .build());
           }
