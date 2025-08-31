@@ -111,7 +111,7 @@ const DocumentPageView = ({
         editable={!isReadOnly}
       />
       {/* 최초 생성 상태에서만 하단 버튼 노출 */}
-      {isInitial && (
+      {isInitial && !isReadOnly && (
         <div className="flex gap-2 mt-4">
           <Button onClick={() => handleChangeViewType('TABLE')} variant="outline">테이블</Button>
           <Button onClick={() => handleChangeViewType('GALLERY')} variant="outline">갤러리</Button>

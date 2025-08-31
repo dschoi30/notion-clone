@@ -19,6 +19,7 @@ function TableHeader({
   isAllSelected,
   isSomeSelected,
   onToggleAll,
+  isReadOnly = false,
 }) {
   const popoverRef = useRef(null);
 
@@ -45,19 +46,21 @@ function TableHeader({
   }, [isPopoverOpen, setIsPopoverOpen, addBtnRef]);
 
   return (
-    <div className="flex items-center group relative">
-      {/* 헤더 좌측 레일: 호버 시 표시 */}
-      <div
-        className={`absolute top-0 h-full flex items-center pl-1 pr-1 transition duration-150 ${isAllSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-        style={{ width: 28, left: -32, zIndex: 2 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <Checkbox
-          checked={!!isAllSelected}
-          onCheckedChange={onToggleAll}
-          className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500 data-[state=checked]:text-white"
-        />
-      </div>
+    <div className="flex relative items-center group">
+      {/* 헤더 좌측 레일: 읽기 전용이 아닐 때만 표시 */}
+      {!isReadOnly && (
+        <div
+          className={`absolute top-0 h-full flex items-center pl-1 pr-1 transition duration-150 ${isAllSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+          style={{ width: 28, left: -32, zIndex: 2 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Checkbox
+            checked={!!isAllSelected}
+            onCheckedChange={onToggleAll}
+            className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500 data-[state=checked]:text-white"
+          />
+        </div>
+      )}
       <div
         className="flex relative items-center text-gray-500"
         style={{ minWidth: colWidths[0], width: colWidths[0], padding: '8px', borderLeft: 'none', borderRight: properties.length === 0 ? 'none' : '1px solid #e9e9e7' }}
@@ -77,19 +80,22 @@ function TableHeader({
             editingHeader={editingHeader}
             setEditingHeader={setEditingHeader}
             colWidths={colWidths}
+            isReadOnly={isReadOnly}
           />
         ))}
       </SortableContext>
-      <div className="relative">
-        <button ref={addBtnRef} className="ml-2 text-sm text-gray-700 hover:bg-gray-100 px-2 py-1 rounded" onClick={() => setIsPopoverOpen((prev) => !prev)}>
-          + 속성 추가
-        </button>
-        {isPopoverOpen && (
-          <div ref={popoverRef} className="absolute left-0 top-full z-10 mt-1">
-            <AddPropertyPopoverComponent />
-          </div>
-        )}
-      </div>
+      {!isReadOnly && (
+        <div className="relative">
+          <button ref={addBtnRef} className="px-2 py-1 ml-2 text-sm text-gray-700 rounded hover:bg-gray-100" onClick={() => setIsPopoverOpen((prev) => !prev)}>
+            + 속성 추가
+          </button>
+          {isPopoverOpen && (
+            <div ref={popoverRef} className="absolute left-0 top-full z-10 mt-1">
+              <AddPropertyPopoverComponent />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

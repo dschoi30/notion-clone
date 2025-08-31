@@ -21,6 +21,7 @@ function PropertyCell({
   setTagPopoverRect,
   onTagOptionsUpdate,
   isSelected,
+  isReadOnly = false,
 }) {
   const rowId = row.id;
   const propertyId = property?.id;
@@ -104,15 +105,15 @@ function PropertyCell({
         whiteSpace: 'normal',
         wordBreak: 'break-word',
         background: isEditing ? '#e9e9e7' : undefined,
-        cursor: isEditing ? (isSystemProp ? 'default' : 'text') : isSystemProp ? 'default' : 'pointer',
+        cursor: isReadOnly ? 'default' : isEditing ? (isSystemProp ? 'default' : 'text') : isSystemProp ? 'default' : 'pointer',
       }}
       onClick={() => {
-        if (!isSystemProp) setEditingCell({ rowId, propertyId });
+        if (!isSystemProp && !isReadOnly) setEditingCell({ rowId, propertyId });
       }}
-      onMouseEnter={() => setHoveredCell({ rowId, propertyId })}
-      onMouseLeave={() => setHoveredCell(null)}
+      onMouseEnter={() => { if (!isReadOnly) setHoveredCell({ rowId, propertyId }); }}
+      onMouseLeave={() => { if (!isReadOnly) setHoveredCell(null); }}
     >
-      {isEditing && !isSystemProp ? (
+      {isEditing && !isSystemProp && !isReadOnly ? (
         property.type === 'TEXT' ? (
           <input
             autoFocus

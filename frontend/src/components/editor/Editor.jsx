@@ -86,35 +86,44 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
   const [isComposing, setIsComposing] = useState(false);
   const latestHTML = useRef('');
 
+  const baseExtensions = [
+    StarterKit.configure({
+      codeBlock: false,
+      dropcursor: {
+        color: '#93c5fd',
+        width: 4,
+      },
+    }),
+    Placeholder.configure({
+      placeholder: '내용을 입력하세요...',
+    }),
+    TaskList,
+    TaskItem.configure({
+      nested: true,
+    }),
+    CodeBlockLowlight.configure({
+      lowlight,
+    }),
+    Highlight,
+    Link.configure({
+      autolink: true,
+      openOnClick: true,
+      HTMLAttributes: {
+        target: '_blank',
+        rel: 'noopener noreferrer nofollow',
+      },
+    }),
+    TextStyle,
+    Color,
+    BackgroundColor,
+    CustomImage,
+  ];
+  if (editable) {
+    baseExtensions.push(BlockDragHandle);
+  }
+
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        codeBlock: false,
-        dropcursor: {
-          color: '#93c5fd',
-          width: 4,
-        },
-      }),
-      Placeholder.configure({
-        placeholder: '내용을 입력하세요...',
-      }),
-      TaskList,
-      TaskItem.configure({
-        nested: true,
-      }),
-      CodeBlockLowlight.configure({
-        lowlight,
-      }),
-      Highlight,
-      Link.configure({
-        openOnClick: false,
-      }),
-      TextStyle,
-      Color,
-      BackgroundColor,
-      CustomImage,
-      BlockDragHandle,
-    ],
+    extensions: baseExtensions,
     content: '',
     onUpdate: ({ editor }) => {
       latestHTML.current = editor.getHTML();
@@ -125,6 +134,7 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
     editorProps: {
       // handlePaste를 async 함수로 변경
       async handlePaste(view, event) {
+        if (!view?.editable) return false;
         const items = event.clipboardData?.items;
         if (!items) return false;
         console.log('Available Clipboard Types:', Array.from(items).map(item => item.type));
@@ -341,7 +351,7 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
 
   return (
     <div className="pb-4 editor">
-      <EditorMenuBar editor={editor} setLink={setLink} />
+      {editable && <EditorMenuBar editor={editor} setLink={setLink} />}
       <EditorContent 
         editor={editor}
         onCompositionStart={handleCompositionStart}

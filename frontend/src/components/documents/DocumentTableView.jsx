@@ -16,7 +16,7 @@ import { useTableData } from './table/hooks/useTableData';
 import { DEFAULT_PROPERTY_WIDTH, SYSTEM_PROP_TYPES } from '@/components/documents/shared/constants';
 import { buildSystemPropTypeMapForTable } from '@/components/documents/shared/systemPropTypeMap';
 
-const DocumentTableView = ({ workspaceId, documentId }) => {
+const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   const navigate = useNavigate(); // useNavigate 훅 추가
   const [editingCell, setEditingCell] = useState(null);
   const [hoveredCell, setHoveredCell] = useState(null);
@@ -78,6 +78,7 @@ const DocumentTableView = ({ workspaceId, documentId }) => {
   };
 
   const handleRowDragEnd = async (event) => {
+    if (isReadOnly) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = rows.findIndex((r) => r.id === active.id);
@@ -114,7 +115,7 @@ const DocumentTableView = ({ workspaceId, documentId }) => {
     <div className="px-20 space-y-4 min-w-0">
       {/* 테이블 UI */}
       <div style={{ minWidth: 'max-content' }}>
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleColumnDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={isReadOnly ? undefined : handleColumnDragEnd}>
           <TableHeader
             colWidths={colWidths}
             properties={propertiesForRender}
@@ -126,7 +127,8 @@ const DocumentTableView = ({ workspaceId, documentId }) => {
             addBtnRef={addBtnRef}
             isPopoverOpen={isPopoverOpen}
             setIsPopoverOpen={setIsPopoverOpen}
-            AddPropertyPopoverComponent={() => <AddPropertyPopover onAddProperty={handleAddProperty} />}
+            AddPropertyPopoverComponent={() => (isReadOnly ? null : <AddPropertyPopover onAddProperty={handleAddProperty} />)}
+            isReadOnly={isReadOnly}
             // selection controls
             isAllSelected={rows.length > 0 && selectedRowIds.size === rows.length}
             isSomeSelected={selectedRowIds.size > 0 && selectedRowIds.size < rows.length}
@@ -153,7 +155,7 @@ const DocumentTableView = ({ workspaceId, documentId }) => {
           {rows.length === 0 && !isLoading && !error ? (
             <div className="flex items-center h-10 text-gray-400">빈 행</div>
           ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleRowDragEnd}>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={isReadOnly ? undefined : handleRowDragEnd}>
               <SortableContext items={rows.map((r) => r.id)} strategy={verticalListSortingStrategy}>
                 {rows.map((row, rowIdx) => (
                   <TableRow
@@ -166,7 +168,7 @@ const DocumentTableView = ({ workspaceId, documentId }) => {
                     hoveredCell={hoveredCell}
                     setEditingCell={setEditingCell}
                     setHoveredCell={setHoveredCell}
-                    handleCellValueChange={handleCellValueChange}
+                    handleCellValueChange={isReadOnly ? () => {} : handleCellValueChange}
                     onOpenRow={(r) => {
                       const slug = slugify(r.title || 'untitled');
                       navigate(`/${r.id}-${slug}`);
@@ -176,20 +178,23 @@ const DocumentTableView = ({ workspaceId, documentId }) => {
                     tagPopoverRect={tagPopoverRect}
                     setTagPopoverRect={setTagPopoverRect}
                     onTagOptionsUpdate={(property, updatedTagOptions) => {
-                      setFetchedProperties((prev) =>
-                        prev.map((p) => (p.id === property.id ? { ...p, tagOptions: updatedTagOptions } : p))
-                      );
-                      setRows((prev) =>
-                        prev.map((rowItem) => {
-                          if (!(property.id in rowItem.values)) {
-                            return { ...rowItem, values: { ...rowItem.values, [property.id]: '' } };
-                          }
-                          return rowItem;
-                        })
-                      );
+                      if (!isReadOnly) {
+                        setFetchedProperties((prev) =>
+                          prev.map((p) => (p.id === property.id ? { ...p, tagOptions: updatedTagOptions } : p))
+                        );
+                        setRows((prev) =>
+                          prev.map((rowItem) => {
+                            if (!(property.id in rowItem.values)) {
+                              return { ...rowItem, values: { ...rowItem.values, [property.id]: '' } };
+                            }
+                            return rowItem;
+                          })
+                        );
+                      }
                     }}
                     isSelected={selectedRowIds.has(row.id)}
                     onToggleSelect={toggleSelect}
+                    isReadOnly={isReadOnly}
                   />
                 ))}
               </SortableContext>
@@ -197,7 +202,9 @@ const DocumentTableView = ({ workspaceId, documentId }) => {
           )}
         </div>
         <div className="py-2">
-          <Button size="sm" variant="ghost" onClick={handleAddRow}>+ 새 페이지</Button>
+          {!isReadOnly && (
+            <Button size="sm" variant="ghost" onClick={handleAddRow}>+ 새 페이지</Button>
+          )}
         </div>
       </div>
     </div>

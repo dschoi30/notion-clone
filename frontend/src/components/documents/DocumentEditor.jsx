@@ -37,7 +37,7 @@ const DocumentEditor = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const shareButtonRef = useRef(null);
 
-  const isOwner = String(currentDocument?.userId) === String(user?.id); console.log('currentDocument.userId',currentDocument.userId, 'user.id', user.id); console.log('currentDocument.permissions',currentDocument.permissions)
+  const isOwner = String(currentDocument?.userId) === String(user?.id);
   const myPermission = currentDocument?.permissions?.find(p => String(p.userId) === String(user?.id));
   const hasWritePermission = isOwner || myPermission?.permissionType === 'WRITE' || myPermission?.permissionType === 'OWNER';
   const isReadOnly = !hasWritePermission;
@@ -335,6 +335,7 @@ const DocumentEditor = () => {
           <DocumentTableView
             workspaceId={currentWorkspace.id}
             documentId={currentDocument.id}
+            isReadOnly={isReadOnly}
           />
         )}
         {currentDocument.viewType === 'GALLERY' && (

@@ -25,8 +25,9 @@ function TableRow({
   // selection
   isSelected,
   onToggleSelect,
+  isReadOnly = false,
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: row.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: row.id, disabled: isReadOnly });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -40,21 +41,25 @@ function TableRow({
         style={{ width: 28, zIndex: 2, left: -54 }}
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          type="button"
-          className="py-1 text-gray-400 rounded opacity-0 transition duration-150 transform -translate-x-2 cursor-grab hover:text-gray-600 group-hover:opacity-100 hover:bg-gray-100"
-          aria-label="drag handle"
-          {...attributes}
-          {...listeners}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <GripVertical size={18} />
-        </button>
-        <Checkbox
-          checked={!!isSelected}
-          onCheckedChange={() => onToggleSelect(row.id)}
-          className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500 data-[state=checked]:text-white"
-        />
+        {!isReadOnly && (
+          <>
+            <button
+              type="button"
+              className="py-1 text-gray-400 rounded opacity-0 transition duration-150 transform -translate-x-2 cursor-grab hover:text-gray-600 group-hover:opacity-100 hover:bg-gray-100"
+              aria-label="drag handle"
+              {...attributes}
+              {...listeners}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical size={18} />
+            </button>
+            <Checkbox
+              checked={!!isSelected}
+              onCheckedChange={() => onToggleSelect(row.id)}
+              className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500 data-[state=checked]:text-white"
+            />
+          </>
+        )}
       </div>
       {/* 좌측 레일은 음수 오프셋으로 표시하므로 별도 여백을 추가하지 않음 */}
       <NameCell
@@ -68,6 +73,7 @@ function TableRow({
         handleCellValueChange={handleCellValueChange}
         onOpenRow={onOpenRow}
         isSelected={isSelected}
+        isReadOnly={isReadOnly}
       />
       {properties.map((p, idx) => (
         <PropertyCell
@@ -88,6 +94,7 @@ function TableRow({
           setTagPopoverRect={setTagPopoverRect}
           onTagOptionsUpdate={onTagOptionsUpdate}
           isSelected={isSelected}
+          isReadOnly={isReadOnly}
         />
       ))}
     </div>
