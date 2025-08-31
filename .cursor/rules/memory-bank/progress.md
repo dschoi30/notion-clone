@@ -406,3 +406,9 @@
  - FE(Header): `DocumentHeader.jsx`에 뷰 타입별 패딩 분기 추가
    - TABLE 뷰일 때 `px-20` 고정, 그 외에는 반응형(`px-6 sm:px-8 md:px-[10vw] lg:px-[14vw] xl:px-[18vw]`)
    - 의도: 테이블 화면은 넓은 캔버스 확보, 페이지/갤러리는 화면 크기별 균형 잡힌 여백 유지
+ - FE(UI): 시스템 속성 '생성자/최종 편집자'에 사용자 뱃지(UserBadge) 도입
+   - 공용 컴포넌트 `frontend/src/components/documents/shared/UserBadge.jsx` 추가 (프로필 이미지 또는 이니셜 + 이름)
+   - PAGE: `PagePropertyRow.jsx`에서 `CREATED_BY`/`LAST_UPDATED_BY` 값에 `UserBadge` 렌더
+   - TABLE: `PropertyCell.jsx`에서 행의 `row.document.permissions`에서 이메일 매칭해 `name/profileImageUrl` 매핑 후 `UserBadge` 렌더
+   - BE: `PermissionInfo` DTO에 `profileImageUrl` 필드 추가로 아바타 URL 제공
+   - 린트 통과, 기존 동작과 호환(프로필 이미지 없을 경우 이니셜 표시)
