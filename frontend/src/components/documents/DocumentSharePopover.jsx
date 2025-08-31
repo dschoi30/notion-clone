@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState, useLayoutEffect } from 'react';
-import { Dialog, DialogPortal, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import React, { useEffect, useRef, useState, useLayoutEffect, useId } from 'react';
+import { Dialog, DialogPortal, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { inviteToDocument, updateDocumentPermission, removeDocumentPermission } from '@/services/documentApi';
 import { useDocument } from '@/contexts/DocumentContext';
@@ -60,6 +60,8 @@ function PermissionDropdown({ value, onChange, disabled, loading, menuEnabled = 
 
 export default function DocumentSharePopover({ open, onClose, workspaceId, documentId, anchorRef }) {
   const dialogRef = useRef(null);
+  const descriptionId = useId();
+  const inviteInputRef = useRef(null);
   const [popoverWidth, setPopoverWidth] = useState(280);
   const [dialogPosition, setDialogPosition] = useState({ top: 0, left: 0 });
   const [inviteEmail, setInviteEmail] = useState('');
@@ -79,6 +81,12 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
       }
     }
   }, [open, dialogRef.current]);
+
+  useEffect(() => {
+    if (open && inviteInputRef.current) {
+      inviteInputRef.current.focus();
+    }
+  }, [open, dialogPosition]);
 
   useLayoutEffect(() => {
     if (!open || !workspaceId || !documentId || !anchorRef?.current) return;
@@ -126,33 +134,6 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
   };
 
   if (!open) return null;
-  if (!dialogRef.current && open) {
-    return (
-      <Dialog open={open} onOpenChange={onClose}>
-        <DialogPortal>
-          <DialogContent
-            ref={dialogRef}
-            overlay={false}
-            noDefaultStyle={true}
-            style={{
-              position: 'absolute',
-              top: dialogPosition.top,
-              left: dialogPosition.left,
-              margin: 0,
-              transform: 'none',
-              minWidth: 280,
-              zIndex: 50,
-              transformOrigin: 'top right',
-              opacity: 0,
-              pointerEvents: 'none',
-            }}
-            className="p-6 bg-white rounded-lg border shadow-xl transition-none"
-          >
-          </DialogContent>
-        </DialogPortal>
-      </Dialog>
-    );
-  }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -172,16 +153,25 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
             transformOrigin: 'top right',
           }}
           className="p-6 bg-white rounded-lg border shadow-xl transition-none"
+          aria-describedby={descriptionId}
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+          }}
         >
           <DialogHeader>
             <DialogTitle>문서 공유</DialogTitle>
           </DialogHeader>
+          <DialogDescription id={descriptionId} className="sr-only">
+            문서 공유 설정
+          </DialogDescription>
           <div className="flex gap-2 my-2">
             <input
               type="email"
               className="flex-1 px-2 py-1 rounded border"
               placeholder="초대할 이메일 입력"
               value={inviteEmail}
+              ref={inviteInputRef}
+              autoFocus
               onChange={e => {
                 setInviteEmail(e.target.value);
                 setInviteStatus(null);

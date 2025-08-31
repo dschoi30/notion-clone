@@ -397,3 +397,4 @@
 - BE(Document): 단건 조회/수정 응답 로직 중복 제거 및 일관화 (`DocumentService`)
   - `buildResponseWithMergedPermissions(Document)` 헬퍼 추가: 부모의 ACCEPTED 권한을 병합하고, 부모가 있으면 부모 속성 기준으로 `propertyDtos` 구성 후 최신 메타 적용.
   - `getDocument`, `updateDocument` 모두 동일 헬퍼 사용 → 업데이트 응답에도 부모 상속 권한이 포함되어 FE 헤더 아바타/공유 버튼/쓰기 가드 상태가 일관 유지.
+ - FE(접근성): 공유 팝오버 `DialogContent`에 필수 `DialogTitle`/`DialogDescription` 연결 추가로 경고 제거 (`DocumentSharePopover.jsx`). 측정 렌더 브랜치와 본 렌더 모두에 `aria-describedby`와 `sr-only` 설명 제공.
