@@ -15,7 +15,7 @@ function getInitials(name, email) {
   return base.substring(0, 2).toUpperCase();
 }
 
-export default function UserBadge({ name, email, profileImageUrl, size = 20 }) {
+export default function UserBadge({ name, email, profileImageUrl, size = 20, showLabel = true }) {
   const initials = getInitials(name, email);
   const dimension = typeof size === 'number' ? `${size}px` : size;
   return (
@@ -29,15 +29,17 @@ export default function UserBadge({ name, email, profileImageUrl, size = 20 }) {
       ) : (
         <span
           aria-hidden
-          className="inline-flex justify-center items-center text-base font-bold text-white bg-blue-500 rounded-full opacity-60 select-none"
-          style={{ width: dimension, height: dimension, fontSize: '0.70rem' }}
+          className="inline-flex justify-center items-center text-base font-bold text-white bg-blue-700 rounded-full opacity-60 select-none"
+          style={{ width: dimension, height: dimension, fontSize: '0.75rem' }}
         >
           {initials}
         </span>
       )}
-      <span className="text-sm text-gray-900 truncate" title={name || email}>
-        {name || email || ''}
-      </span>
+      {showLabel && (
+        <span className="text-sm text-gray-900 truncate" title={name || email}>
+          {name || email || ''}
+        </span>
+      )}
     </span>
   );
 }
