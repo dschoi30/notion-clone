@@ -381,3 +381,19 @@
 - BE: 자식 문서 단건 조회 시 부모 권한을 유효 권한으로 병합하여 응답
   - `DocumentService.getDocument`: 부모 문서의 ACCEPTED 권한(OWNER/WRITE/READ)을 자식 문서 `permissions`에 누락 사용자만 주입
   - 효과: 작성자 화면 `DocumentHeader`의 권한자 이니셜/뷰어 표시가 부모-자식 간 일관되게 반영(부모 권한만 있는 유저도 자식 문서에서 표시/강조)
+ - FE: 상단 경로(breadcrumb) 표시가 부모만 접근 가능한 계정에서도 최소 현재 문서는 보이도록 개선
+   - `DocumentEditor.jsx`의 경로 계산 로직을 보강하여 `documents` 목록에 현재 문서/부모가 없더라도 `currentDocument`로 1단계 이상 표시
+   - 경로 클릭 시 목록에서 문서를 찾지 못하면 `/:id`로 안전 이동 후 슬러그 동기화 이펙트로 보정
+   - 의도: 부모 권한만으로 접근한 자식 문서에서 경로가 비어 UI가 깨지는 문제 완화 및 예기치 않은 라우팅 전환 가능성 축소
+
+## 2025-08-31 (추가)
+- FE(Router): URL 문서가 목록에 없더라도 이미 `currentDocument`로 로드된 경우 리다이렉트하지 않도록 허용 (`App.jsx`). 부모 권한 계정에서 자식 페이지 편집 시 테이블로 되돌아가던 현상 해결.
+- FE(Editor): 쓰기 권한 판정 보강 (`DocumentEditor.jsx`)
+  - `isOwner`를 write-capable로 간주, `userId` 비교는 문자열 기준으로 통일.
+  - 부모 상속 WRITE 사용자에 대해 `isReadOnly`가 잘못 true가 되는 문제 수정.
+- FE(Context): 문서 업데이트 응답에 `permissions`가 누락된 경우 기존 `currentDocument.permissions`를 유지하도록 병합 처리 (`DocumentContext.updateDocument`). 상속 권한이 저장 중 사라지지 않도록 보존.
+- BE(Versioning): 버전 생성 시 누락 필드를 문서 현재값으로 보정하여 500 방지 (`DocumentVersionService.createVersion`)
+  - `title/viewType/titleWidth`가 null이면 문서 값(및 기본 288)으로 대체.
+- BE(Document): 단건 조회/수정 응답 로직 중복 제거 및 일관화 (`DocumentService`)
+  - `buildResponseWithMergedPermissions(Document)` 헬퍼 추가: 부모의 ACCEPTED 권한을 병합하고, 부모가 있으면 부모 속성 기준으로 `propertyDtos` 구성 후 최신 메타 적용.
+  - `getDocument`, `updateDocument` 모두 동일 헬퍼 사용 → 업데이트 응답에도 부모 상속 권한이 포함되어 FE 헤더 아바타/공유 버튼/쓰기 가드 상태가 일관 유지.

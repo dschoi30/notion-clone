@@ -22,6 +22,7 @@ export function DocumentProvider({ children }) {
   const [documentLoading, setDocumentLoading] = useState(false);
   const [error, setError] = useState(null);
   const { currentWorkspace } = useWorkspace();
+  const lastSelectRef = React.useRef({ id: null, at: 0 });
 
   // currentWorkspace 변경 시 즉시 상태 초기화 후 문서 목록 fetch
   useEffect(() => {
@@ -88,10 +89,17 @@ export function DocumentProvider({ children }) {
     try {
       setError(null);
       const updated = await documentApi.updateDocument(currentWorkspace.id, id, documentData);
+      // 백엔드 응답에 permissions가 누락되면 기존 currentDocument.permissions를 유지(부모 권한 병합분 보존)
+      const mergedUpdated = {
+        ...updated,
+        permissions: (Array.isArray(updated?.permissions) && updated.permissions.length > 0)
+          ? updated.permissions
+          : (currentDocument?.permissions || []),
+      };
       // 서버 응답을 신뢰하여 감사필드(updatedAt/updatedBy 등) 포함 반영
-      setDocuments(prev => prev.map(doc => (doc.id === id ? { ...doc, ...updated } : doc)));
-      if (currentDocument?.id === id) setCurrentDocument(updated);
-      return updated;
+      setDocuments(prev => prev.map(doc => (doc.id === id ? { ...doc, ...mergedUpdated } : doc)));
+      if (currentDocument?.id === id) setCurrentDocument(mergedUpdated);
+      return mergedUpdated;
     } catch (err) {
       setError(err.message);
       throw err;
@@ -117,12 +125,36 @@ export function DocumentProvider({ children }) {
     }
   }, [currentWorkspace, currentDocument, documents]);
 
-  const selectDocument = useCallback(async (document) => {
+  const selectDocument = useCallback(async (document, options = {}) => {
     if (!currentWorkspace || !document) return;
+    if (documentLoading && currentDocument?.id === document.id) {
+      rlog.info('selectDocument skip (in-flight same id)', { id: document.id, src: options.source });
+      return;
+    }
+    if (currentDocument?.id === document.id) {
+      rlog.info('selectDocument skip (already current)', { id: document.id, src: options.source });
+      return;
+    }
+    // 중복 호출 스로틀 (2s)
+    const now = Date.now();
+    if (lastSelectRef.current.id === document.id && now - lastSelectRef.current.at < 2000) {
+      rlog.warn('selectDocument throttled', { id: document.id, src: options.source });
+      return;
+    }
+    // URL id와 불일치 시 방어 (외부 호출로 다른 문서로 이동되는 현상 차단)
+    try {
+      const urlDocId = window.location.pathname.match(/^\/(\d+)(?:-.+)?$/)?.[1];
+      if (urlDocId && String(urlDocId) !== String(document.id)) {
+        rlog.warn('selectDocument blocked by URL guard', { target: document.id, urlDocId, src: options.source });
+        return;
+      }
+    } catch {}
     try {
       setDocumentLoading(true);
       setError(null);
-      rlog.info('selectDocument', { id: document.id });
+      rlog.info('selectDocument', { id: document.id, ws: currentWorkspace?.id, src: options.source });
+      // 호출 경로 추적
+      try { console.trace(`[router] selectDocument trace id=${document.id} src=${options.source ?? ''}`); } catch {}
       const fullDocument = await documentApi.getDocument(currentWorkspace.id, document.id);
       
       // 조회된 문서가 현재 워크스페이스에 속하는지 검증
@@ -132,14 +164,12 @@ export function DocumentProvider({ children }) {
       }
       
       setCurrentDocument(fullDocument);
+      lastSelectRef.current = { id: document.id, at: Date.now() };
       localStorage.setItem(`lastDocumentId:${currentWorkspace.id}`, document.id);
     } catch (err) {
       setError(err.message);
       console.error('Failed to fetch document:', err);
-      // 에러 발생 시 현재 문서를 null로 설정
-      setCurrentDocument(null);
-      // localStorage에서 잘못된 documentId 제거
-      localStorage.removeItem(`lastDocumentId:${currentWorkspace.id}`);
+      // 에러 발생 시 현재 문서를 유지 (예기치 않은 문서 전환 방지)
     } finally {
       setDocumentLoading(false);
     }

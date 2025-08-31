@@ -103,47 +103,7 @@ public class DocumentService {
       }
     }
     if (document.getUser().getId().equals(user.getId()) || hasPermission || hasParentPermission) { // 유저가 소유/직접권한/부모권한
-      List<Permission> permissions = permissionRepository.findByDocument(document);
-      // 부모 문서 권한을 자식에 효과 권한으로 병합하여 프론트 표시/계산 일치화
-      if (parent != null) {
-        List<Permission> parentPerms = permissionRepository.findByDocument(parent).stream()
-            .filter(p -> p.getStatus() == PermissionStatus.ACCEPTED)
-            .collect(Collectors.toList());
-        // 부모 소유자도 OWNER로 포함 (이미 자식 소유자일 수 있으나 중복 방지)
-        // 위 parentPerms에 OWNER 포함됨
-        for (Permission pp : parentPerms) {
-          boolean exists = permissions.stream()
-              .anyMatch(cp -> cp.getUser().getId().equals(pp.getUser().getId()));
-          if (!exists) {
-            permissions.add(Permission.builder()
-                .user(pp.getUser())
-                .document(document)
-                .permissionType(pp.getPermissionType())
-                .status(PermissionStatus.ACCEPTED)
-                .build());
-          }
-        }
-      }
-      boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(document.getId());
-      boolean hasParent = document.getParent() != null;
-
-      List<DocumentProperty> properties = documentPropertyRepository
-          .findByDocument(hasParent ? document.getParent() : document);
-      List<DocumentPropertyDto> propertyDtos = properties.stream()
-          .map(property -> {
-            DocumentPropertyDto dto = DocumentPropertyDto.from(property);
-            if ("TAG".equals(property.getType().name())) {
-              List<DocumentPropertyTagOption> tagOptions = documentPropertyTagOptionRepository
-                  .findByPropertyId(property.getId());
-              List<DocumentPropertyDto.TagOptionDto> tagOptionDtos = tagOptions.stream()
-                  .map(tagOption -> new DocumentPropertyDto.TagOptionDto(tagOption)).collect(Collectors.toList());
-              dto.setTagOptions(tagOptionDtos);
-            }
-            return dto;
-          })
-          .collect(Collectors.toList());
-      DocumentResponse resp = DocumentResponse.fromDocumentWithPermissionsAndChildren(document, permissions, hasChildren, propertyDtos);
-      return applyLatestMeta(resp, document);
+      return buildResponseWithMergedPermissions(document);
     } else {
       throw new org.springframework.security.access.AccessDeniedException("No permission to access this document.");
     }
@@ -230,8 +190,48 @@ public class DocumentService {
       document.setViewType(ViewType.valueOf(request.getViewType()));
     }
 
+    return buildResponseWithMergedPermissions(document);
+  }
+
+  private DocumentResponse buildResponseWithMergedPermissions(Document document) {
+    List<Permission> permissions = permissionRepository.findByDocument(document);
+    Document parent = document.getParent();
+    if (parent != null) {
+      List<Permission> parentPerms = permissionRepository.findByDocument(parent).stream()
+          .filter(p -> p.getStatus() == PermissionStatus.ACCEPTED)
+          .collect(Collectors.toList());
+      for (Permission pp : parentPerms) {
+        boolean exists = permissions.stream()
+            .anyMatch(cp -> cp.getUser().getId().equals(pp.getUser().getId()));
+        if (!exists) {
+          permissions.add(Permission.builder()
+              .user(pp.getUser())
+              .document(document)
+              .permissionType(pp.getPermissionType())
+              .status(PermissionStatus.ACCEPTED)
+              .build());
+        }
+      }
+    }
     boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(document.getId());
-    DocumentResponse resp = DocumentResponse.fromDocumentWithPermissionsAndChildren(document, document.getPermissions(), hasChildren);
+    boolean hasParent = document.getParent() != null;
+
+    List<DocumentProperty> properties = documentPropertyRepository
+        .findByDocument(hasParent ? document.getParent() : document);
+    List<DocumentPropertyDto> propertyDtos = properties.stream()
+        .map(property -> {
+          DocumentPropertyDto dto = DocumentPropertyDto.from(property);
+          if ("TAG".equals(property.getType().name())) {
+            List<DocumentPropertyTagOption> tagOptions = documentPropertyTagOptionRepository
+                .findByPropertyId(property.getId());
+            List<DocumentPropertyDto.TagOptionDto> tagOptionDtos = tagOptions.stream()
+                .map(tagOption -> new DocumentPropertyDto.TagOptionDto(tagOption)).collect(Collectors.toList());
+            dto.setTagOptions(tagOptionDtos);
+          }
+          return dto;
+        })
+        .collect(Collectors.toList());
+    DocumentResponse resp = DocumentResponse.fromDocumentWithPermissionsAndChildren(document, permissions, hasChildren, propertyDtos);
     return applyLatestMeta(resp, document);
   }
 

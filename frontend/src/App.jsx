@@ -13,7 +13,7 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import { slugify } from './lib/utils';
 
 const AppLayout = () => {
-  const { documents, documentsLoading } = useDocument();
+  const { documents, documentsLoading, currentDocument } = useDocument();
   const { currentWorkspace, loading: workspaceLoading } = useWorkspace();
   const location = useLocation();
   const navigate = useNavigate();
@@ -43,6 +43,11 @@ const AppLayout = () => {
     if (currentUrlDocId) {
       const foundDoc = documents.find(d => String(d.id) === String(currentUrlDocId));
       if (!foundDoc) {
+        // 현재 URL의 문서가 목록에 없더라도 이미 currentDocument로 로드되어 있다면 허용
+        if (currentDocument && String(currentDocument.id) === String(currentUrlDocId)) {
+          rlog.info('url doc allowed though not in list (currentDocument loaded)', { currentUrlDocId });
+          return;
+        }
         // URL의 문서 ID가 현재 워크스페이스에 없으면 올바른 문서로 리다이렉트
         rlog.warn('url doc not in workspace, redirecting', { currentUrlDocId, workspaceId: currentWorkspace.id });
         
@@ -84,7 +89,7 @@ const AppLayout = () => {
         navigateToCorrectDocument(targetDoc);
       }
     }
-  }, [currentWorkspace, documents, workspaceLoading, documentsLoading]); // location.pathname 의존성 제거
+  }, [currentWorkspace, documents, workspaceLoading, documentsLoading, currentDocument]); // location.pathname 의존성 제거
 
   // 로딩이 완료된 후에만 리다이렉트 경로 결정
   const getDefaultDocPath = () => {

@@ -37,8 +37,9 @@ const DocumentEditor = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const shareButtonRef = useRef(null);
 
-  const myPermission = currentDocument?.permissions?.find(p => p.userId === user.id);
-  const hasWritePermission = myPermission?.permissionType === 'WRITE' || myPermission?.permissionType === 'OWNER';
+  const isOwner = String(currentDocument?.userId) === String(user?.id); console.log('currentDocument.userId',currentDocument.userId, 'user.id', user.id); console.log('currentDocument.permissions',currentDocument.permissions)
+  const myPermission = currentDocument?.permissions?.find(p => String(p.userId) === String(user?.id));
+  const hasWritePermission = isOwner || myPermission?.permissionType === 'WRITE' || myPermission?.permissionType === 'OWNER';
   const isReadOnly = !hasWritePermission;
 
   const viewers = useDocumentPresence(currentDocument?.id, user);
@@ -123,22 +124,36 @@ const DocumentEditor = () => {
   // idSlug가 바뀔 때마다 해당 id의 문서를 선택
   useEffect(() => {
     if (!docId || !currentWorkspace) return;
-
     const found = documents.find(doc => String(doc.id) === String(docId));
-
-    if (!currentDocument || String(currentDocument.id) !== String(docId)) {
-      selectDocument(found ? found : { id: Number(docId) }); // 문서 목록에 없더라도(부모 권한으로 접근 가능한 자식 등) 단건 조회로 진입 허용
+    const needsSelect = !currentDocument || String(currentDocument.id) !== String(docId);
+    const reason = needsSelect ? (found ? 'found' : 'byId') : 'noop';
+    rlog.info('idSlug select check', { docId, currentId: currentDocument?.id, reason });
+    if (needsSelect) {
+      // URL 가드: 현재 경로의 id와만 동작
+      const urlDocId = location.pathname.match(/^\/(\d+)(?:-.+)?$/)?.[1];
+      if (urlDocId && String(urlDocId) !== String(docId)) {
+        rlog.warn('idSlug select blocked by URL guard', { docId, urlDocId });
+        return;
+      }
+      rlog.info('selectDocument', { id: found ? found.id : Number(docId), src: 'idSlugEffect' });
+      selectDocument(found ? found : { id: Number(docId) }, { source: 'idSlugEffect' }); // 문서 목록에 없더라도(부모 권한으로 접근 가능한 자식 등) 단건 조회로 진입 허용
     }
       
   }, [docId, documents, currentWorkspace, currentDocument]);
 
-  // 경로 계산 유틸
+  // 경로 계산 유틸: 목록에 없더라도 currentDocument로 최소 1단계 표시
   function getDocumentPath(documentId, documentList) {
     const path = [];
-    let doc = documentList.find(d => d.id === documentId);
+    let doc = documentList.find(d => String(d.id) === String(documentId));
+    if (!doc && currentDocument && String(currentDocument.id) === String(documentId)) {
+      doc = currentDocument;
+    }
     while (doc) {
       path.unshift(doc);
-      doc = doc.parentId ? documentList.find(d => d.id === doc.parentId) : null;
+      if (!doc.parentId) break;
+      const parent = documentList.find(d => String(d.id) === String(doc.parentId));
+      if (!parent) break; // 부모가 목록에 없으면 여기까지 표시
+      doc = parent;
     }
     return path;
   }
@@ -180,6 +195,7 @@ const DocumentEditor = () => {
     setSaveStatus('unsaved');
     triggerAutoSave();
     // 현재 로그인 사용자 기준으로 송신자 식별, 자기 자신 에코 무시 용도
+    rlog.debug('sendEdit', { docId: currentDocument?.id, length: newContent?.length, path: location.pathname });
     sendEdit({ content: newContent, userId: user?.id });
   };
 
@@ -188,6 +204,7 @@ const DocumentEditor = () => {
     if (msg?.userId && user?.id && String(msg.userId) === String(user.id)) {
       return;
     }
+    rlog.debug('remoteEdit', { docId: currentDocument?.id, length: msg?.content?.length, path: location.pathname });
     if (typeof msg?.content === 'string' && msg.content !== content) {
       setContent(msg.content);
     }
@@ -198,6 +215,7 @@ const DocumentEditor = () => {
     if (!currentDocument) return;
     try {
       setSaveStatus('saving');
+      rlog.info('updateDocument(save)', { id: currentDocument.id });
       await updateDocument(currentDocument.id, {
         title: titleRef.current || '',
         content: contentRef.current,
@@ -263,7 +281,12 @@ const DocumentEditor = () => {
       // 문서 목록에서 해당 문서 객체 찾기
       const targetDoc = documents.find(d => d.id === docId);
       if (targetDoc) {
-        navigate(`/${docId}-${slugify(targetDoc.title || 'untitled')}`);
+        navigate(`/${docId}-${slugify(targetDoc.title || '제목 없음')}`);
+      } else if (currentDocument && String(currentDocument.id) === String(docId)) {
+        navigate(`/${docId}-${slugify(currentDocument.title || '제목 없음')}`);
+      } else {
+        // 목록/제목을 모르면 우선 id만으로 이동 → 이후 슬러그 동기화 이펙트가 정정
+        navigate(`/${docId}`);
       }
     } catch (err) {
       console.error('경로 클릭 문서 이동 실패:', err);
