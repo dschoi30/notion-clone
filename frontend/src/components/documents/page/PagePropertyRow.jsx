@@ -7,6 +7,9 @@ import TagPopover from '../TagPopover';
 import { getColorObj } from '@/lib/colors';
 import { SYSTEM_PROP_TYPES } from '@/components/documents/shared/constants';
 import { GripVertical } from 'lucide-react';
+import UserBadge from '@/components/documents/shared/UserBadge';
+import { useDocument } from '@/contexts/DocumentContext';
+import { resolveUserDisplay } from '@/components/documents/shared/resolveUserDisplay';
 
 function PagePropertyRow({
   property,
@@ -24,6 +27,7 @@ function PagePropertyRow({
   setEditingValueId,
   isReadOnly = false,
 }) {
+  const { currentDocument } = useDocument();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: property.id, disabled: isReadOnly });
   const style = { transform: CSS.Transform.toString(transform), transition };
 
@@ -99,6 +103,12 @@ function PagePropertyRow({
     // 시스템/날짜 표시 시 한국어 포맷 적용
     const display = valueStr ? formatKoreanDateSmart(valueStr) : '';
     content = <span className="inline-flex items-center min-h-[28px]">{display}</span>;
+  } else if (property.type === 'CREATED_BY') {
+    const { name, email, profileImageUrl } = resolveUserDisplay(valueStr, currentDocument?.permissions);
+    content = <UserBadge name={name} email={email} profileImageUrl={profileImageUrl} />;
+  } else if (property.type === 'LAST_UPDATED_BY') {
+    const { name, email, profileImageUrl } = resolveUserDisplay(valueStr, currentDocument?.permissions);
+    content = <UserBadge name={name} email={email} profileImageUrl={profileImageUrl} />;
   } else if (property.type === 'TAG') {
     let tags = [];
     try {

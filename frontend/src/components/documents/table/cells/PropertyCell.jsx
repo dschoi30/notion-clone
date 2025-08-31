@@ -2,6 +2,9 @@ import React, { createRef } from 'react';
 import DatePopover from '../../DatePopover';
 import TagPopover from '../../TagPopover';
 import { formatKoreanDateSmart } from '@/lib/utils';
+import UserBadge from '@/components/documents/shared/UserBadge';
+import { resolveUserDisplay } from '@/components/documents/shared/resolveUserDisplay';
+import { useDocument } from '@/contexts/DocumentContext';
 import { getColorObj } from '@/lib/colors';
 
 function PropertyCell({
@@ -23,6 +26,7 @@ function PropertyCell({
   isSelected,
   isReadOnly = false,
 }) {
+  const { currentDocument } = useDocument();
   const rowId = row.id;
   const propertyId = property?.id;
   const isEditing = editingCell && editingCell.rowId === rowId && editingCell.propertyId === propertyId;
@@ -39,9 +43,21 @@ function PropertyCell({
     const v = row?.document?.updatedAt || value;
     content = formatKoreanDateSmart(v);
   } else if (property.type === 'CREATED_BY') {
-    content = row?.document?.createdBy || value || '';
+    const raw = row?.document?.createdBy || value || '';
+    const combinedPerms = [
+      ...((row?.document?.permissions || [])),
+      ...((currentDocument?.permissions || [])),
+    ];
+    const { name, email, profileImageUrl } = resolveUserDisplay(raw, combinedPerms);
+    content = (<UserBadge name={name} email={email} profileImageUrl={profileImageUrl} />);
   } else if (property.type === 'LAST_UPDATED_BY') {
-    content = row?.document?.updatedBy || value || '';
+    const raw = row?.document?.updatedBy || value || '';
+    const combinedPerms = [
+      ...((row?.document?.permissions || [])),
+      ...((currentDocument?.permissions || [])),
+    ];
+    const { name, email, profileImageUrl } = resolveUserDisplay(raw, combinedPerms);
+    content = (<UserBadge name={name} email={email} profileImageUrl={profileImageUrl} />);
   } else if (property.type === 'DATE') {
     content = formatKoreanDateSmart(value);
   }
