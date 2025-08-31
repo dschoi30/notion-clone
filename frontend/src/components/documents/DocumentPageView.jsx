@@ -63,7 +63,7 @@ const DocumentPageView = ({
   });
 
   return (
-    <div className="px-20">
+    <div className="px-6 sm:px-8 md:px-[10vw] lg:px-[14vw] xl:px-[18vw]">
       {/* 속성 리스트 + DnD */}
       {properties.length > 0 && (
         <PagePropertyList

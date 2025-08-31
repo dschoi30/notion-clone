@@ -21,6 +21,10 @@ export default function DocumentHeader({
 }) {
   const [showVersions, setShowVersions] = React.useState(false);
   const handleCloseVersions = useCallback(() => setShowVersions(false), []);
+  const isTableView = currentDocument?.viewType === 'TABLE';
+  const paddingClasses = isTableView
+    ? 'px-20'
+    : 'px-6 sm:px-8 md:px-[10vw] lg:px-[14vw] xl:px-[18vw]';
   return (
     <div className="flex flex-col w-full">
       {/* 경로 표시 */}
@@ -36,7 +40,7 @@ export default function DocumentHeader({
           ))}
         </div>
       )}
-      <div className="flex relative justify-between items-center px-20 pt-12 pb-6">
+      <div className={`flex relative justify-between items-center pt-12 pb-6 ${paddingClasses}`}>
         <input
           type="text"
           value={title}
