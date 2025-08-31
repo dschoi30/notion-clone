@@ -11,6 +11,7 @@ function NameCell({
   handleCellValueChange,
   onOpenRow,
   isSelected,
+  isReadOnly = false,
 }) {
   const rowId = row.id;
   const propertyId = null;
@@ -33,9 +34,9 @@ function NameCell({
         whiteSpace: 'normal',
         wordBreak: 'break-word',
         background: isEditing ? '#e9e9e7' : undefined,
-        cursor: isEditing ? 'text' : 'pointer',
+        cursor: isReadOnly ? 'default' : isEditing ? 'text' : 'pointer',
       }}
-      onClick={() => setEditingCell({ rowId, propertyId: null })}
+      onClick={() => { if (!isReadOnly) setEditingCell({ rowId, propertyId: null }); }}
       onMouseEnter={() => setHoveredCell({ rowId, propertyId: null })}
       onMouseLeave={() => setHoveredCell(null)}
     >
@@ -45,7 +46,7 @@ function NameCell({
           className="px-2 w-full h-full rounded border outline-none"
           style={{ background: '#fff', border: '1.5px solid #bdbdbd' }}
           value={value}
-          onChange={(e) => handleCellValueChange(rowId, null, e.target.value)}
+          onChange={(e) => !isReadOnly && handleCellValueChange(rowId, null, e.target.value)}
           onBlur={() => setEditingCell(null)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') setEditingCell(null);
