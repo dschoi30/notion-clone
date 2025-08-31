@@ -153,8 +153,6 @@ export function DocumentProvider({ children }) {
       setDocumentLoading(true);
       setError(null);
       rlog.info('selectDocument', { id: document.id, ws: currentWorkspace?.id, src: options.source });
-      // 호출 경로 추적
-      try { console.trace(`[router] selectDocument trace id=${document.id} src=${options.source ?? ''}`); } catch {}
       const fullDocument = await documentApi.getDocument(currentWorkspace.id, document.id);
       
       // 조회된 문서가 현재 워크스페이스에 속하는지 검증
