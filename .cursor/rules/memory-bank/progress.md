@@ -398,3 +398,11 @@
   - `buildResponseWithMergedPermissions(Document)` 헬퍼 추가: 부모의 ACCEPTED 권한을 병합하고, 부모가 있으면 부모 속성 기준으로 `propertyDtos` 구성 후 최신 메타 적용.
   - `getDocument`, `updateDocument` 모두 동일 헬퍼 사용 → 업데이트 응답에도 부모 상속 권한이 포함되어 FE 헤더 아바타/공유 버튼/쓰기 가드 상태가 일관 유지.
  - FE(접근성): 공유 팝오버 `DialogContent`에 필수 `DialogTitle`/`DialogDescription` 연결 추가로 경고 제거 (`DocumentSharePopover.jsx`). 측정 렌더 브랜치와 본 렌더 모두에 `aria-describedby`와 `sr-only` 설명 제공.
+## 2025-09-01
+- FE(Page): `DocumentPageView.jsx` 좌우 패딩을 고정 `px-80`에서 반응형 비율 패딩으로 변경
+  - 클래스: `px-4 sm:px-6 md:px-[8vw] lg:px-[10vw] xl:px-[12.5vw]`
+  - 의도: 16"에서는 여백을 줄이고, 32" 기준 비율을 유지하며 50" 등 초대형 화면에서도 적절한 여백 자동 조정(vw 기반)
+  - 빌드/린트 무오류 확인
+ - FE(Header): `DocumentHeader.jsx`에 뷰 타입별 패딩 분기 추가
+   - TABLE 뷰일 때 `px-20` 고정, 그 외에는 반응형(`px-6 sm:px-8 md:px-[10vw] lg:px-[14vw] xl:px-[18vw]`)
+   - 의도: 테이블 화면은 넓은 캔버스 확보, 페이지/갤러리는 화면 크기별 균형 잡힌 여백 유지
