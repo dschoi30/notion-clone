@@ -412,3 +412,6 @@
    - TABLE: `PropertyCell.jsx`에서 행의 `row.document.permissions`에서 이메일 매칭해 `name/profileImageUrl` 매핑 후 `UserBadge` 렌더
    - BE: `PermissionInfo` DTO에 `profileImageUrl` 필드 추가로 아바타 URL 제공
    - 린트 통과, 기존 동작과 호환(프로필 이미지 없을 경우 이니셜 표시)
+## 2025-09-04
+- FE(Share Popover): 권한 변경 직후 전체 문서 재적용을 피하기 위해 `fetchDocument(documentId, { silent: true, apply: false })`로 전환 (`DocumentSharePopover.jsx`). 작성자 화면에서 공유자 권한을 WRITE로 올릴 때 일시적으로 본인이 읽기 전용으로 표시되던 깜빡임 해소.
+ - FE(Share Popover): 팝오버 내 권한 목록을 로컬 상태(`localPermissions`)로 유지하고, 변경 직후 즉시 반영하도록 개선. DB에는 반영되지만 팝오버 라벨이 갱신되지 않던 문제 해결 (`DocumentSharePopover.jsx`). 팝오버 닫힐 때 `fetchDocument(documentId, { silent: true, apply: true })`로 전역 동기화하여 다음 오픈 시 최신 라벨 보장.

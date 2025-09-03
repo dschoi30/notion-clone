@@ -69,10 +69,29 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
   const [inviteStatus, setInviteStatus] = useState(null);
   const { currentDocument } = useDocument();
   const permissions = currentDocument?.permissions || [];
+  const [localPermissions, setLocalPermissions] = useState(permissions);
+  const [isDirty, setIsDirty] = useState(false);
   const { user } = useAuth();
   const [loadingUserId, setLoadingUserId] = useState(null);
   const { fetchDocument } = useDocument();
   const isDocOwner = currentDocument && String(currentDocument.userId) === String(user.id);
+
+  useEffect(() => {
+    if (open) {
+      setLocalPermissions(permissions);
+    }
+  }, [open, permissions]);
+
+  // 팝오버 닫힘(언마운트) 시 서버 최신 상태를 전역에 적용해 다음 오픈 시 최신 라벨이 보이도록 동기화
+
+  // 언마운트 시에도 동기화(부모에서 조건부 렌더로 즉시 언마운트되므로 안전장치)
+  useEffect(() => {
+    return () => {
+      if (isDirty && documentId) {
+        fetchDocument(documentId, { silent: true, apply: true });
+      }
+    };
+  }, [isDirty, documentId, fetchDocument]);
 
   useEffect(() => {
     if (open && dialogRef.current) {
@@ -127,7 +146,22 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
       } else {
         await updateDocumentPermission(workspaceId, documentId, userId, value);
       }
-      await fetchDocument(documentId);
+      // 권한 변경 직후 전체 문서를 교체 적용하면 일시적으로 작성자 시점이 읽기 전용으로 보이는 깜빡임이 발생할 수 있어
+      // 서버에서 최신 데이터를 미리 받아오되, 현재 문서 상태에는 미적용
+      await fetchDocument(documentId, { silent: true, apply: false });
+
+      // 로컬 목록을 즉시 반영하여 팝오버 UI가 최신 권한을 표시하도록 처리
+      setLocalPermissions(prev => {
+        if (value === 'REMOVE') {
+          return prev.filter(p => String(p.userId) !== String(userId));
+        }
+        const exists = prev.some(p => String(p.userId) === String(userId));
+        if (!exists) return prev;
+        return prev.map(p => (
+          String(p.userId) === String(userId) ? { ...p, permissionType: value } : p
+        ));
+      });
+      setIsDirty(true);
     } catch (e) {
       alert('권한 변경/제거에 실패했습니다.');
     }
@@ -187,11 +221,11 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
             </Button>
           </div>
           <div className="mt-2">
-            {permissions.length === 0 ? (
+            {localPermissions.length === 0 ? (
               <div className="text-sm text-gray-400">아직 초대한 사람이 없습니다.</div>
             ) : (
               <ul className="divide-y">
-                {permissions.map((p) => (
+                {localPermissions.map((p) => (
                   <li key={p.userId} className="flex justify-between items-center py-1">
                     <div className="flex gap-2 items-center">
                       <UserBadge name={p.name} email={p.email} profileImageUrl={p.profileImageUrl} size={32} showLabel={false} />
