@@ -429,3 +429,9 @@
  - FE(Editor): 핸들 바 수직 이동 추적 개선
    - 요청사항 반영: X를 유지한 수직 이동만으로도 해당 행 핸들이 표시되도록 DOM Y-근접 매칭 우선 적용(`mousemove`/`dragover`)
    - 보조: DOM 매칭 불가 시 `posAtCoords` → 블록 탐색 → 리스트 부모 승격으로 계산
+
+- FE(Versioning Preview): 버전 패널에서 태그/체크리스트 표시 오류 수정
+  - 원인 1: 태그 옵션 ID와 값(ID 배열) 비교 시 숫자/문자열 타입 불일치로 라벨 매칭 실패
+  - 수정 1: `String(opt.id) === String(tid)`로 비교 통일하여 라벨 정상 표시
+  - 원인 2: 우측 미리보기 영역이 일반 `prose`만 사용해 에디터의 체크리스트 레이아웃 CSS(`.ProseMirror`)가 적용되지 않아 체크박스 행 줄바꿈
+  - 수정 2: 미리보기 컨테이너에 `className="max-w-none ProseMirror prose"` 적용, 에디터 기본 높이/패딩은 무효화(`style={{ minHeight:'auto', padding:0 }}`)

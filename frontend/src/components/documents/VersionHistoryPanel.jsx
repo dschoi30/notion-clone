@@ -34,7 +34,7 @@ function VersionProperties({ propertiesJson, valuesJson, tagOptionsByPropId }) {
           renderedValue = (
             <div className="flex gap-1" style={{ minWidth: 0 }}>
               {Array.isArray(tagIds) && tagIds.map((tid) => {
-                const tagObj = tagOptions.find((opt) => opt.id === tid);
+                const tagObj = tagOptions.find((opt) => String(opt.id) === String(tid));
                 if (!tagObj) return null;
                 const colorObj = getColorObj(tagObj.color || 'default');
                 return (
@@ -202,7 +202,11 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
               {selected.content && (
                 <>
                   <div className="my-6 border-t border-gray-200" />
-                  <div className="max-w-none prose" dangerouslySetInnerHTML={{ __html: selected.content }} />
+                  <div
+                    className="max-w-none ProseMirror prose"
+                    style={{ minHeight: 'auto', padding: 0 }}
+                    dangerouslySetInnerHTML={{ __html: selected.content }}
+                  />
                 </>
               )}
             </div>
