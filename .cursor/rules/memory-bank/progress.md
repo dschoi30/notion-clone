@@ -435,3 +435,7 @@
   - 수정 1: `String(opt.id) === String(tid)`로 비교 통일하여 라벨 정상 표시
   - 원인 2: 우측 미리보기 영역이 일반 `prose`만 사용해 에디터의 체크리스트 레이아웃 CSS(`.ProseMirror`)가 적용되지 않아 체크박스 행 줄바꿈
   - 수정 2: 미리보기 컨테이너에 `className="max-w-none ProseMirror prose"` 적용, 에디터 기본 높이/패딩은 무효화(`style={{ minHeight:'auto', padding:0 }}`)
+ - FE(Editor Toolbar): 콘텐츠 스크롤 시 툴바가 화면 상단에 고정되도록 sticky 적용
+   - 파일: `frontend/src/components/editor/EditorMenuBar.jsx`
+   - 변경: 툴바 컨테이너에 `className="sticky top-0 z-30 bg-white border-b border-input"` 적용
+   - 효과: 에디터 내용이 Y축 스크롤되어도 툴바가 상단에 고정되어 항상 접근 가능
