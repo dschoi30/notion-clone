@@ -90,34 +90,73 @@ export const BlockDragHandle = Extension.create({
               return true;
             },
             mousemove(view, event) {
-              const coords = { left: event.clientX, top: event.clientY };
-              const found = view.posAtCoords(coords);
-              if (!found || found.pos == null) return false;
+              // 요청사항: 핸들 레일 X 좌표를 유지한 채 수직 이동만으로도 동작하도록
+              // X는 보정하지 않고, 우선 DOM의 핸들들 중 Y가 가장 가까운 것을 선택한다.
+              const x = event.clientX;
+              const y = event.clientY;
+              const found = view.posAtCoords({ left: x, top: y });
 
-              const $pos = view.state.doc.resolve(found.pos);
-              // 가장 가까운 블록 노드 깊이 탐색
-              let depth = $pos.depth;
-              while (depth > 0 && !$pos.node(depth).isBlock) depth -= 1;
-              if (depth <= 0) return false;
+              // 1) DOM 기반으로 Y와 가장 가까운 핸들을 우선 탐색 (체크박스 레일 등 좌표 치우침 상황 대응)
+              let targetEl = null;
+              let targetPos = null;
+              const handleEls = view.dom.querySelectorAll?.('.pm-block-handle') || [];
+              let bestDy = Infinity;
+              for (const el of handleEls) {
+                const r = el.getBoundingClientRect();
+                const cy = (r.top + r.bottom) / 2;
+                const dy = Math.abs(cy - y);
+                if (dy < bestDy) {
+                  bestDy = dy;
+                  targetEl = el;
+                }
+              }
+              if (targetEl) {
+                const posAttr = targetEl.getAttribute('data-pos');
+                targetPos = posAttr ? Number(posAttr) : null;
+              }
 
-              const startPos = $pos.before(depth);
-              if (hoverHandlePos === startPos) return false;
+              // 2) 보정 실패 시 좌표→문서 매핑으로 대체
+              if (targetPos == null && found && found.pos != null) {
+                const { doc } = view.state;
+                let candidatePos = null;
+                let candidateNode = null;
+                doc.nodesBetween(found.pos, found.pos, (node, pos) => {
+                  if (node.isBlock) {
+                    candidateNode = node;
+                    candidatePos = pos;
+                  }
+                });
+                if (candidatePos != null) {
+                  targetPos = candidatePos;
+                  if (candidateNode && candidateNode.type && candidateNode.type.name === 'paragraph') {
+                    try {
+                      const $start = doc.resolve(candidatePos);
+                      const parentNode = $start.depth > 0 ? $start.node($start.depth - 1) : null;
+                      if (parentNode && (parentNode.type.name === 'taskItem' || parentNode.type.name === 'listItem')) {
+                        targetPos = $start.before($start.depth - 1);
+                      }
+                    } catch (_e) {}
+                  }
+                }
+              }
+
+              if (targetPos == null || hoverHandlePos === targetPos) return false;
 
               // 이전 핸들 숨김
               if (hoverHandlePos != null) {
-                const prev = view.dom.parentElement?.querySelector?.(`.pm-block-handle[data-pos="${hoverHandlePos}"]`);
+                const prev = view.dom.querySelector?.(`.pm-block-handle[data-pos="${hoverHandlePos}"]`);
                 if (prev) prev.classList.remove('visible');
               }
 
               // 새 핸들 표시
-              const next = view.dom.parentElement?.querySelector?.(`.pm-block-handle[data-pos="${startPos}"]`);
+              const next = view.dom.querySelector?.(`.pm-block-handle[data-pos="${targetPos}"]`);
               if (next) next.classList.add('visible');
-              hoverHandlePos = next ? startPos : null;
+              hoverHandlePos = next ? targetPos : null;
               return false;
             },
             mouseleave(view, _event) {
               if (hoverHandlePos != null) {
-                const prev = view.dom.parentElement?.querySelector?.(`.pm-block-handle[data-pos="${hoverHandlePos}"]`);
+                const prev = view.dom.querySelector?.(`.pm-block-handle[data-pos="${hoverHandlePos}"]`);
                 if (prev) prev.classList.remove('visible');
                 hoverHandlePos = null;
               }
@@ -216,7 +255,7 @@ export const BlockDragHandle = Extension.create({
             tr = tr.replace(dropPos, dropPos, slice);
             view.dispatch(tr.scrollIntoView());
 
-            // 드롭된 블록에 지속 하이라이트 적용(이전 하이라이트 해제 후 적용)
+            // 드롭 완료 블록에 지속 하이라이트 적용(이전 하이라이트 해제 후 적용)
             // *TODO: 현재 하이라이트 미반영 중 - 차후 수정 필요
             setTimeout(() => {console.log('lastDroppedEl',lastDroppedEl);
               if (lastDroppedEl && lastDroppedEl.classList) {
