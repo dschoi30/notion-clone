@@ -1,9 +1,9 @@
 // services/api.js
 import axios from 'axios';
 
-// 운영(Nginx) 및 개발(Vite proxy) 모두에서 '/api' 상대 경로 사용을 우선
+// 운영(Nginx) 및 개발(Vite proxy) 모두에서 '/' 상대 경로 사용을 우선
 // 필요 시 VITE_API_BASE_URL로 오버라이드
-const resolvedBaseURL = import.meta.env?.VITE_API_BASE_URL || '/api';
+const resolvedBaseURL = import.meta.env?.VITE_API_BASE_URL || '/';
 
 const api = axios.create({
   baseURL: resolvedBaseURL,
