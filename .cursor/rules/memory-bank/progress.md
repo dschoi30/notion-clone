@@ -415,3 +415,14 @@
 ## 2025-09-04
 - FE(Share Popover): 권한 변경 직후 전체 문서 재적용을 피하기 위해 `fetchDocument(documentId, { silent: true, apply: false })`로 전환 (`DocumentSharePopover.jsx`). 작성자 화면에서 공유자 권한을 WRITE로 올릴 때 일시적으로 본인이 읽기 전용으로 표시되던 깜빡임 해소.
  - FE(Share Popover): 팝오버 내 권한 목록을 로컬 상태(`localPermissions`)로 유지하고, 변경 직후 즉시 반영하도록 개선. DB에는 반영되지만 팝오버 라벨이 갱신되지 않던 문제 해결 (`DocumentSharePopover.jsx`). 팝오버 닫힐 때 `fetchDocument(documentId, { silent: true, apply: true })`로 전역 동기화하여 다음 오픈 시 최신 라벨 보장.
+
+## 2025-09-04
+- Docker Compose 실행 시 DB만 올라가는 문제 해결
+  - **문제 원인 분석**: `docker-compose.yml`에서 포트 매핑, 네트워크 설정, 의존성 설정 부족
+  - **주요 수정사항**:
+    - 포트 매핑 추가: `backend:8080`, `db:5432`
+    - 헬스체크 추가: DB가 완전히 준비된 후 backend 시작 (`condition: service_healthy`)
+    - 네트워크 설정: `notion-network` 브리지 네트워크 추가
+    - 컨테이너 이름: 각 서비스에 고유한 이름 부여
+    - 재시작 정책: `restart: unless-stopped` 추가
+  - **결과**: `docker-compose up` 실행 시 모든 서비스가 순서대로 올라가며, 의존성 기반 안정적인 실행 보장

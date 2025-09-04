@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:16
+    container_name: notion-clone-db
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-notion_clone}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -8,11 +9,21 @@ services:
       TZ: ${TZ:-Asia/Seoul}
     volumes:
       - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - notion-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    container_name: notion-clone-backend
     environment:
       DB_URL: ${DB_URL:-jdbc:postgresql://db:5432/notion_clone}
       DB_USERNAME: ${DB_USERNAME:-postgres}
@@ -26,21 +37,35 @@ services:
       CLOUDINARY_UPLOAD_PRESET: ${CLOUDINARY_UPLOAD_PRESET:-}
       TZ: ${TZ:-Asia/Seoul}
       JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Duser.timezone=Asia/Seoul}
+    ports:
+      - "8080:8080"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    networks:
+      - notion-network
+    restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
+    container_name: notion-clone-frontend
     environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
     ports:
       - "80:80"
     depends_on:
       - backend
+    networks:
+      - notion-network
+    restart: unless-stopped
 
 volumes:
   db_data:
+
+networks:
+  notion-network:
+    driver: bridge
 
 
