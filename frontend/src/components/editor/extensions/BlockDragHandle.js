@@ -47,7 +47,7 @@ export const BlockDragHandle = Extension.create({
                   el.setAttribute('data-pos', String(pos));
                   el.setAttribute('draggable', 'true');
                   el.type = 'button';
-                  el.title = '블록 드래그';
+                  el.title = '드래그해서 옮기기';
                   el.textContent = '⋮⋮';
                   return el;
                 },
