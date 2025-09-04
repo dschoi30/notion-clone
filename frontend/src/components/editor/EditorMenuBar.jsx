@@ -126,7 +126,7 @@ const EditorMenuBar = ({ editor, setLink }) => {
   ];
 
   return (
-    <div className="bg-transparent border-b border-input">
+    <div className="sticky top-0 z-30 bg-white border-b border-input">
       <div className="flex flex-wrap gap-2 p-2">
         <Button
           variant="ghost"
@@ -176,7 +176,7 @@ const EditorMenuBar = ({ editor, setLink }) => {
               <DropdownMenuItem
                 key={color.value}
                 onClick={() => editor.chain().focus().setColor(color.value).run()}
-                className="flex items-center gap-2"
+                className="flex gap-2 items-center"
               >
                 <div className="w-4 h-4 rounded-full" style={{ backgroundColor: color.value }} />
                 <span>{color.name}</span>
@@ -193,7 +193,7 @@ const EditorMenuBar = ({ editor, setLink }) => {
               className="gap-2"
               title="배경색"
             >
-              <div className="w-4 h-4 border border-gray-300 rounded" style={{ backgroundColor: editor.getAttributes('textStyle').backgroundColor }} />
+              <div className="w-4 h-4 rounded border border-gray-300" style={{ backgroundColor: editor.getAttributes('textStyle').backgroundColor }} />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
@@ -207,18 +207,18 @@ const EditorMenuBar = ({ editor, setLink }) => {
                     editor.chain().focus().setMark('textStyle', { backgroundColor: color.value }).run();
                   }
                 }}
-                className="flex items-center gap-2"
+                className="flex gap-2 items-center"
               >
-                <div className="w-4 h-4 border border-gray-300 rounded" style={{ backgroundColor: color.value }} />
+                <div className="w-4 h-4 rounded border border-gray-300" style={{ backgroundColor: color.value }} />
                 <span>{color.name}</span>
               </DropdownMenuItem>
             ))}
             <DropdownMenuItem
               onClick={() => editor.chain().focus().unsetMark('textStyle').run()}
-              className="flex items-center gap-2 border-t"
+              className="flex gap-2 items-center border-t"
             >
-              <div className="relative w-4 h-4 border border-gray-300 rounded">
-                <div className="absolute inset-0 flex items-center justify-center text-red-500">×</div>
+              <div className="relative w-4 h-4 rounded border border-gray-300">
+                <div className="flex absolute inset-0 justify-center items-center text-red-500">×</div>
               </div>
               <span>배경색 제거</span>
             </DropdownMenuItem>
