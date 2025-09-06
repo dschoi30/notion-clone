@@ -12,7 +12,6 @@ export default function WorkspaceList() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
   const dropdownRef = useRef(null);
   const { 
     workspaces, 
