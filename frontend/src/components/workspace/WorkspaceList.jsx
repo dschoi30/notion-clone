@@ -5,12 +5,14 @@ import { Button } from '../ui/button';
 import { Loader2, ChevronRight, ChevronDown, Plus, Settings, LogOut, User } from 'lucide-react';
 import WorkspaceSettingsModal from './WorkspaceSettingsModal';
 import SettingsPanel from '@/components/settings/SettingsPanel';
+import WorkspaceIcon from './WorkspaceIcon';
 
 export default function WorkspaceList() {
   const [isOpen, setIsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
   const dropdownRef = useRef(null);
   const { 
     workspaces, 
@@ -93,9 +95,12 @@ export default function WorkspaceList() {
               <ChevronRight className="flex-shrink-0 w-4 h-4 text-gray-500" />
             )}
           </div>
-          <h3 className="text-sm font-semibold text-gray-900 truncate">
-            {currentWorkspace?.name || '워크스페이스'}
-          </h3>
+          <WorkspaceIcon 
+            name={currentWorkspace?.name || '워크스페이스'}
+            iconUrl={currentWorkspace?.iconUrl}
+            size={20}
+            showLabel={true}
+          />
         </div>
         {currentWorkspace && (
           <Button
@@ -133,15 +138,20 @@ export default function WorkspaceList() {
                   setIsOpen(false);
                 }}
               >
-                <span className="flex items-center text-sm text-gray-700">
-                  {workspace.name}
+                <div className="flex items-center text-sm text-gray-700">
+                  <WorkspaceIcon 
+                    name={workspace.name}
+                    iconUrl={workspace.iconUrl}
+                    size={16}
+                    showLabel={true}
+                  />
                   {workspace.ownerId !== user.id && (
                     <User className="ml-2 w-4 h-4 text-blue-500" />
                   )}
                   {workspace.ownerId !== user.id && (
                     <span className="ml-1 text-xs text-blue-500">(게스트)</span>
                   )}
-                </span>
+                </div>
               </div>
             ))}
           </div>
@@ -182,6 +192,10 @@ export default function WorkspaceList() {
           isOpen={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
         />
+      )}
+
+      {isSettingsPanelOpen && (
+        <SettingsPanel onClose={() => setIsSettingsPanelOpen(false)} />
       )}
     </div>
   );
