@@ -446,3 +446,13 @@
    - 파일: `frontend/src/components/editor/EditorMenuBar.jsx`
    - 변경: 툴바 컨테이너에 `className="sticky top-0 z-30 bg-white border-b border-input"` 적용
    - 효과: 에디터 내용이 Y축 스크롤되어도 툴바가 상단에 고정되어 항상 접근 가능
+
+## 2025-09-07
+- FE(Settings): 새로운 설정 패널 셸 도입 및 연동 시작
+  - `frontend/src/components/settings/SettingsPanel.jsx` 추가
+    - 레이아웃: `VersionHistoryPanel`과 동일한 고정 오버레이 + 카드 패널 구조 재사용
+    - 좌측 네비 섹션: 계정(기본 설정/비밀번호 변경), 워크스페이스(일반) 플레이스홀더 구성
+    - 우측 컨텐츠 영역: 후속 태스크에서 각 폼/검증/API 연동 예정
+  - `WorkspaceList.jsx`의 설정 버튼이 기존 모달 대신 새 패널을 열도록 연동(`isSettingsPanelOpen` 상태 추가)
+  - 린트 무오류 확인
+  - 후속: userApi 작성, 계정/비밀번호/프로필 이미지 업로드 폼 구현, 워크스페이스 일반 설정 폼 구현

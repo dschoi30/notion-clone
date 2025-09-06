@@ -4,10 +4,12 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/button';
 import { Loader2, ChevronRight, ChevronDown, Plus, Settings, LogOut, User } from 'lucide-react';
 import WorkspaceSettingsModal from './WorkspaceSettingsModal';
+import SettingsPanel from '@/components/settings/SettingsPanel';
 
 export default function WorkspaceList() {
   const [isOpen, setIsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const dropdownRef = useRef(null);
   const { 
@@ -49,7 +51,8 @@ export default function WorkspaceList() {
 
   const handleOpenSettings = (e) => {
     e.stopPropagation();
-    setIsSettingsOpen(true);
+    // 기존 모달 대신 새 설정 패널을 엽니다
+    setIsSettingsPanelOpen(true);
   };
 
   const handleLogout = (e) => {
@@ -79,10 +82,10 @@ export default function WorkspaceList() {
   return (
     <div className="relative border-b border-gray-200" ref={dropdownRef}>
       <div 
-        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50"
+        className="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-50"
         onClick={toggleDropdown}
       >
-        <div className="flex items-center flex-1 min-w-0 space-x-2">
+        <div className="flex flex-1 items-center space-x-2 min-w-0">
           <div className="transition-transform duration-200 ease-in-out transform">
             {isOpen ? (
               <ChevronDown className="flex-shrink-0 w-4 h-4 text-gray-500" />
@@ -109,8 +112,8 @@ export default function WorkspaceList() {
       <div 
         className={`fixed left-0 w-64 bg-white shadow-lg z-50 transform transition-all duration-200 ease-in-out ${
           isOpen 
-            ? 'translate-y-0 opacity-100 pointer-events-auto' 
-            : '-translate-y-2 opacity-0 pointer-events-none'
+            ? 'opacity-100 translate-y-0 pointer-events-auto' 
+            : 'opacity-0 -translate-y-2 pointer-events-none'
         }`}
         style={{
           top: dropdownRef.current?.getBoundingClientRect().bottom + 'px',
@@ -133,7 +136,7 @@ export default function WorkspaceList() {
                 <span className="flex items-center text-sm text-gray-700">
                   {workspace.name}
                   {workspace.ownerId !== user.id && (
-                    <User className="w-4 h-4 ml-2 text-blue-500" />
+                    <User className="ml-2 w-4 h-4 text-blue-500" />
                   )}
                   {workspace.ownerId !== user.id && (
                     <span className="ml-1 text-xs text-blue-500">(게스트)</span>
@@ -144,7 +147,7 @@ export default function WorkspaceList() {
           </div>
           
           <div 
-            className="flex items-center p-3 pl-8 space-x-2 text-blue-600 transition-colors border-t border-gray-200 cursor-pointer hover:bg-gray-100"
+            className="flex items-center p-3 pl-8 space-x-2 text-blue-600 border-t border-gray-200 transition-colors cursor-pointer hover:bg-gray-100"
             onClick={handleCreateWorkspace}
           >
             <Plus className="w-4 h-4" />
@@ -152,7 +155,7 @@ export default function WorkspaceList() {
           </div>
 
           <div 
-            className="flex items-center p-3 pl-8 space-x-2 text-red-600 transition-colors border-t border-gray-200 cursor-pointer hover:bg-gray-100"
+            className="flex items-center p-3 pl-8 space-x-2 text-red-600 border-t border-gray-200 transition-colors cursor-pointer hover:bg-gray-100"
             onClick={handleLogout}
           >
             <LogOut className="w-4 h-4" />
@@ -167,6 +170,10 @@ export default function WorkspaceList() {
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
         />
+      )}
+
+      {isSettingsPanelOpen && (
+        <SettingsPanel onClose={() => setIsSettingsPanelOpen(false)} />
       )}
 
       {isCreateModalOpen && (
