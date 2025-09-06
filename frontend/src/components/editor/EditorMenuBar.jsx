@@ -117,12 +117,6 @@ const EditorMenuBar = ({ editor, setLink }) => {
       action: () => editor.chain().focus().toggleBlockquote().run(),
       isActive: () => editor.isActive('blockquote'),
     },
-    {
-      icon: <LinkIcon className="w-4 h-4" />,
-      title: '링크',
-      action: () => setLink(),
-      isActive: () => editor.isActive('link'),
-    },
   ];
 
   return (
