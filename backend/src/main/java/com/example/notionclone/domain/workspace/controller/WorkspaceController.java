@@ -53,7 +53,7 @@ public class WorkspaceController {
         log.debug("Request data: {}", request);
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        WorkspaceDto workspace = workspaceService.updateWorkspace(user, workspaceId, request.getName());
+        WorkspaceDto workspace = workspaceService.updateWorkspace(user, workspaceId, request.getName(), request.getIconUrl());
         return ResponseEntity.ok(workspace);
     }
 

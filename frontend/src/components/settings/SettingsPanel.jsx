@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
+import WorkspaceGeneralForm from './WorkspaceGeneralForm';
 
 // 단순 레이아웃 셸: VersionHistoryPanel과 동일한 패널/오버레이 구조
 // 좌측 네비 + 우측 컨텐츠 영역만 제공. 세부 폼은 후속 태스크에서 구현.
@@ -71,10 +72,7 @@ export default function SettingsPanel({ onClose }) {
 
           {/* 컨텐츠 플레이스홀더: 후속 태스크에서 각 폼 구현 */}
           {selected === 'workspace-general' && (
-            <div className="space-y-4 text-sm text-gray-700">
-              <div className="text-gray-500">워크스페이스 일반 설정 UI가 여기에 표시됩니다.</div>
-              <div className="text-gray-500">이름/아이콘 편집, 저장/취소 동작은 후속 태스크에서 연결합니다.</div>
-            </div>
+            <WorkspaceGeneralForm />
           )}
 
           {selected === 'account-basic' && (
@@ -96,5 +94,3 @@ export default function SettingsPanel({ onClose }) {
     </div>
   );
 }
-
-
