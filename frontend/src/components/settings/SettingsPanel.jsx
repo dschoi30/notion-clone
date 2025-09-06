@@ -84,7 +84,7 @@ export default function SettingsPanel({ onClose }) {
           )}
         </div>
 
-        {/* 닫기 버튼 (shadcn Button + lucide-react X) */}
+        {/* 닫기 버튼 */}
         <div className="absolute top-4 right-4">
           <Button variant="ghost" size="icon" aria-label="close" onClick={onClose}>
             <X className="w-4 h-4" />
