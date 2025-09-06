@@ -7,5 +7,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class UpdateWorkspaceRequest {
     private String name;
+    private String iconUrl;
     private Long parentId;
 } 

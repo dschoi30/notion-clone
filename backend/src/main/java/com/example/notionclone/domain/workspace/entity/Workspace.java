@@ -23,6 +23,9 @@ public class Workspace extends BaseEntity {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "icon_url")
+    private String iconUrl;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
@@ -38,14 +41,20 @@ public class Workspace extends BaseEntity {
     private List<Document> documents = new ArrayList<>();
 
     @Builder
-    public Workspace(String name, User user, Workspace parent) {
+    public Workspace(String name, String iconUrl, User user, Workspace parent) {
         this.name = name;
+        this.iconUrl = iconUrl;
         this.user = user;
         this.parent = parent;
     }
 
     public void update(String name) {
         this.name = name;
+    }
+
+    public void update(String name, String iconUrl) {
+        this.name = name;
+        this.iconUrl = iconUrl;
     }
 
     public void addSubWorkspace(Workspace workspace) {

@@ -56,9 +56,9 @@ public class WorkspaceService {
     }
 
     @Transactional
-    public WorkspaceDto updateWorkspace(User user, Long workspaceId, String name) {
-        log.debug("Updating workspace. User: {}, WorkspaceId: {}, Name: {}", 
-                user.getId(), workspaceId, name);
+    public WorkspaceDto updateWorkspace(User user, Long workspaceId, String name, String iconUrl) {
+        log.debug("Updating workspace. User: {}, WorkspaceId: {}, Name: {}, IconUrl: {}", 
+                user.getId(), workspaceId, name, iconUrl);
         
         Workspace workspace = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new RuntimeException("Workspace not found"));
@@ -67,7 +67,7 @@ public class WorkspaceService {
             throw new RuntimeException("Not authorized to update this workspace");
         }
 
-        workspace.update(name);
+        workspace.update(name, iconUrl);
 
         return WorkspaceDto.from(workspace);
     }
