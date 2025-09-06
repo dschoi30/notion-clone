@@ -72,6 +72,17 @@
   padding: 0 1rem;
 }
 
+/* 일반 목록 마커 복구 (Tailwind 리셋 상쇄) */
+.ProseMirror ul {
+  list-style: disc;
+  list-style-position: outside;
+}
+
+.ProseMirror ol {
+  list-style: decimal;
+  list-style-position: outside;
+}
+
 .ProseMirror code {
   background-color: rgba(97, 97, 97, 0.1);
   color: #616161;

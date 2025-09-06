@@ -6,11 +6,10 @@ import TaskItem from '@tiptap/extension-task-item';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { common, createLowlight } from 'lowlight';
 import Highlight from '@tiptap/extension-highlight';
-import Link from '@tiptap/extension-link';
 import TextStyle from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import { Extension } from '@tiptap/core';
-import { useCallback, useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import EditorMenuBar from './EditorMenuBar';
 import './Editor.css';
 import CustomImage from './CustomImage';
@@ -105,14 +104,6 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
       lowlight,
     }),
     Highlight,
-    Link.configure({
-      autolink: true,
-      openOnClick: true,
-      HTMLAttributes: {
-        target: '_blank',
-        rel: 'noopener noreferrer nofollow',
-      },
-    }),
     TextStyle,
     Color,
     BackgroundColor,
@@ -329,29 +320,13 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
     }
   }, [content, editor, isComposing]);
 
-  const setLink = useCallback(() => {
-    const previousUrl = editor.getAttributes('link').href ?? '';
-    const url = window.prompt('URL 입력', previousUrl);
-
-    if (url === null) {
-      return;
-    }
-
-    if (url === '') {
-      editor.chain().focus().extendMarkRange('link').unsetLink().run();
-      return;
-    }
-
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
-  }, [editor]);
-
   if (!editor) {
     return null;
   }
 
   return (
     <div className="pb-4 editor">
-      {editable && <EditorMenuBar editor={editor} setLink={setLink} />}
+      {editable && <EditorMenuBar editor={editor} />}
       <EditorContent 
         editor={editor}
         onCompositionStart={handleCompositionStart}

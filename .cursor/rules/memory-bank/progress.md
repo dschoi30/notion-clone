@@ -416,6 +416,12 @@
 - FE(Share Popover): 권한 변경 직후 전체 문서 재적용을 피하기 위해 `fetchDocument(documentId, { silent: true, apply: false })`로 전환 (`DocumentSharePopover.jsx`). 작성자 화면에서 공유자 권한을 WRITE로 올릴 때 일시적으로 본인이 읽기 전용으로 표시되던 깜빡임 해소.
  - FE(Share Popover): 팝오버 내 권한 목록을 로컬 상태(`localPermissions`)로 유지하고, 변경 직후 즉시 반영하도록 개선. DB에는 반영되지만 팝오버 라벨이 갱신되지 않던 문제 해결 (`DocumentSharePopover.jsx`). 팝오버 닫힐 때 `fetchDocument(documentId, { silent: true, apply: true })`로 전역 동기화하여 다음 오픈 시 최신 라벨 보장.
 
+## 2025-09-06
+- FE(Editor): bullet/ordered 리스트 마커가 보이지 않는 문제 해결
+  - 원인: Tailwind 리셋 영향으로 `.ProseMirror` 내부 `ul/ol`의 `list-style`이 사라짐
+  - 수정: `frontend/src/components/editor/Editor.css`에 `.ProseMirror ul{list-style:disc}`, `.ProseMirror ol{list-style:decimal}` 및 `list-style-position: outside` 추가
+  - 영향: 툴바에서 글머리/번호 목록 클릭 시 마커가 정상 표시, 체크리스트(`ul[data-type="taskList"]`)는 기존 비표시 유지
+
 ## 2025-09-04
 - Docker Compose 실행 시 DB만 올라가는 문제 해결
   - **문제 원인 분석**: `docker-compose.yml`에서 포트 매핑, 네트워크 설정, 의존성 설정 부족
@@ -435,6 +441,7 @@
   - 수정 1: `String(opt.id) === String(tid)`로 비교 통일하여 라벨 정상 표시
   - 원인 2: 우측 미리보기 영역이 일반 `prose`만 사용해 에디터의 체크리스트 레이아웃 CSS(`.ProseMirror`)가 적용되지 않아 체크박스 행 줄바꿈
   - 수정 2: 미리보기 컨테이너에 `className="max-w-none ProseMirror prose"` 적용, 에디터 기본 높이/패딩은 무효화(`style={{ minHeight:'auto', padding:0 }}`)
+  
  - FE(Editor Toolbar): 콘텐츠 스크롤 시 툴바가 화면 상단에 고정되도록 sticky 적용
    - 파일: `frontend/src/components/editor/EditorMenuBar.jsx`
    - 변경: 툴바 컨테이너에 `className="sticky top-0 z-30 bg-white border-b border-input"` 적용
