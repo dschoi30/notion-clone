@@ -467,3 +467,8 @@
     - DTO 클래스들 생성 (UpdateProfileRequest, ChangePasswordRequest, UserProfileResponse, ProfileUpdateResponse)
     - UserResponse에 profileImageUrl 필드 추가
     - SecurityConfig에서 JWT 인증 필터 적용 및 사용자 API 인증 필요 경로 설정
+  - WorkspaceGeneralForm에 소유자 권한 체크 기능 추가:
+    - 현재 사용자가 워크스페이스 소유자가 아닌 경우 모든 인풋/버튼 비활성화
+    - 시각적 비활성화 처리 (opacity 60%, pointer-events-none)
+    - 권한 안내 메시지 표시 (Lock 아이콘과 함께)
+    - 소유자만 변경 가능하다는 명확한 UX 제공

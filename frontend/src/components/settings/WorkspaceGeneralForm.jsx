@@ -2,8 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useAuth } from '@/contexts/AuthContext';
 import WorkspaceIcon from '@/components/workspace/WorkspaceIcon';
-import { Camera } from 'lucide-react';
+import { Camera, Lock } from 'lucide-react';
 
 // Cloudinary 업로드 함수 (Editor.jsx에서 가져옴)
 const CLOUDINARY_CLOUD_NAME = 'dsjybr8fb';
@@ -27,12 +28,16 @@ async function uploadImageToCloudinary(file) {
 
 export default function WorkspaceGeneralForm() {
   const { currentWorkspace, updateWorkspace } = useWorkspace();
+  const { user } = useAuth();
   const [name, setName] = useState('');
   const [iconUrl, setIconUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
+
+  // 현재 사용자가 워크스페이스 소유자인지 확인
+  const isOwner = currentWorkspace && user && currentWorkspace.ownerId === user.id;
 
   useEffect(() => {
     if (currentWorkspace) {
@@ -42,6 +47,8 @@ export default function WorkspaceGeneralForm() {
   }, [currentWorkspace]);
 
   const handleImageUpload = async (event) => {
+    if (!isOwner) return; // 소유자가 아니면 실행하지 않음
+    
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -64,6 +71,7 @@ export default function WorkspaceGeneralForm() {
   };
 
   const handleSave = async () => {
+    if (!isOwner) return; // 소유자가 아니면 실행하지 않음
     if (!currentWorkspace) return;
     if (!name.trim()) {
       setError('워크스페이스 이름을 입력해주세요.');
@@ -85,6 +93,7 @@ export default function WorkspaceGeneralForm() {
   };
 
   const handleReset = () => {
+    if (!isOwner) return; // 소유자가 아니면 실행하지 않음
     if (currentWorkspace) {
       setName(currentWorkspace.name || '');
       setIconUrl(currentWorkspace.iconUrl || '');
@@ -104,17 +113,25 @@ export default function WorkspaceGeneralForm() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="space-y-6 max-w-2xl">
+      {/* 권한 안내 메시지 */}
+      {!isOwner && (
+        <div className="flex gap-2 items-center p-3 text-sm text-amber-700 bg-amber-50 rounded-md border border-amber-200">
+          <Lock className="w-4 h-4" />
+          <span>워크스페이스 소유자만 설정을 변경할 수 있습니다.</span>
+        </div>
+      )}
+
       {error && (
-        <div className="p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md">
+        <div className="p-3 text-sm text-red-700 bg-red-50 rounded-md border border-red-200">
           {error}
         </div>
       )}
 
       {/* 워크스페이스 아이콘 */}
-      <div className="space-y-3">
+      <div className={`space-y-3 ${!isOwner ? 'opacity-60 pointer-events-none' : ''}`}>
         <label className="text-sm font-medium text-gray-700">아이콘</label>
-        <div className="flex items-center gap-4">
+        <div className="flex gap-4 items-center">
           <WorkspaceIcon 
             name={name} 
             iconUrl={iconUrl} 
@@ -127,8 +144,8 @@ export default function WorkspaceGeneralForm() {
               variant="outline"
               size="sm"
               onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="flex items-center gap-2"
+              disabled={!isOwner || uploading}
+              className="flex gap-2 items-center"
             >
               <Camera className="w-4 h-4" />
               {uploading ? '업로드 중...' : '이미지 업로드'}
@@ -139,7 +156,7 @@ export default function WorkspaceGeneralForm() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setIconUrl('')}
-                disabled={uploading || loading}
+                disabled={!isOwner || uploading || loading}
                 className="text-red-600 hover:text-red-700"
               >
                 아이콘 제거
@@ -157,7 +174,7 @@ export default function WorkspaceGeneralForm() {
       </div>
 
       {/* 워크스페이스 이름 */}
-      <div className="space-y-2">
+      <div className={`space-y-2 ${!isOwner ? 'opacity-60' : ''}`}>
         <label htmlFor="workspace-name" className="text-sm font-medium text-gray-700">
           워크스페이스 이름
         </label>
@@ -165,18 +182,18 @@ export default function WorkspaceGeneralForm() {
           id="workspace-name"
           type="text"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => isOwner && setName(e.target.value)}
           placeholder="워크스페이스 이름을 입력하세요"
-          disabled={loading}
+          disabled={!isOwner || loading}
           className="max-w-md"
         />
       </div>
 
       {/* 저장/취소 버튼 */}
-      <div className="flex items-center gap-3 pt-4 border-t">
+      <div className={`flex items-center gap-3 pt-4 border-t ${!isOwner ? 'opacity-60' : ''}`}>
         <Button
           onClick={handleSave}
-          disabled={loading || uploading || !hasChanges}
+          disabled={!isOwner || loading || uploading || !hasChanges}
           className="min-w-[80px]"
         >
           {loading ? '저장 중...' : '저장'}
@@ -184,11 +201,11 @@ export default function WorkspaceGeneralForm() {
         <Button
           variant="outline"
           onClick={handleReset}
-          disabled={loading || uploading || !hasChanges}
+          disabled={!isOwner || loading || uploading || !hasChanges}
         >
           취소
         </Button>
-        {hasChanges && (
+        {hasChanges && isOwner && (
           <span className="text-xs text-gray-500">변경사항이 있습니다</span>
         )}
       </div>
