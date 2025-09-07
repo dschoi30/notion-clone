@@ -454,5 +454,16 @@
     - 좌측 네비 섹션: 계정(기본 설정/비밀번호 변경), 워크스페이스(일반) 플레이스홀더 구성
     - 우측 컨텐츠 영역: 후속 태스크에서 각 폼/검증/API 연동 예정
   - `WorkspaceList.jsx`의 설정 버튼이 기존 모달 대신 새 패널을 열도록 연동(`isSettingsPanelOpen` 상태 추가)
-  - 린트 무오류 확인
-  - 후속: userApi 작성, 계정/비밀번호/프로필 이미지 업로드 폼 구현, 워크스페이스 일반 설정 폼 구현
+  - AccountBasicForm 컴포넌트 및 account-basic 설정 완전 구현
+  - userApi.js 생성: getProfile/updateProfile/changePassword API 추가
+  - AccountBasicForm 컴포넌트: 이름/이메일 수정, 프로필 이미지 업로드, 비밀번호 변경 폼 구현
+  - AuthContext에 updateUser 함수 추가하여 사용자 정보 동기화 지원
+  - SettingsPanel에서 AccountBasicForm 연동 완료
+  - 에러 처리, 로딩 상태, 유효성 검증 UX 구현 (현재는 alert 사용, 추후 toast 시스템 추가 가능)
+  - 백엔드 사용자 API 완전 구현:
+    - User 엔티티에 profileImageUrl 필드 이미 존재 확인
+    - UserService 생성: 프로필 조회/업데이트, 비밀번호 변경 로직
+    - UserController 생성: /api/users/profile (GET/PUT), /api/users/change-password (PUT)
+    - DTO 클래스들 생성 (UpdateProfileRequest, ChangePasswordRequest, UserProfileResponse, ProfileUpdateResponse)
+    - UserResponse에 profileImageUrl 필드 추가
+    - SecurityConfig에서 JWT 인증 필터 적용 및 사용자 API 인증 필요 경로 설정

@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import WorkspaceGeneralForm from './WorkspaceGeneralForm';
+import AccountBasicForm from './AccountBasicForm';
 
 // 단순 레이아웃 셸: VersionHistoryPanel과 동일한 패널/오버레이 구조
 // 좌측 네비 + 우측 컨텐츠 영역만 제공. 세부 폼은 후속 태스크에서 구현.
@@ -24,9 +25,9 @@ export default function SettingsPanel({ onClose }) {
   const title = useMemo(() => {
     switch (selected) {
       case 'workspace-general':
-        return currentWorkspace ? `${currentWorkspace.name} 설정` : '워크스페이스 설정';
+        return '워크스페이스 설정';
       case 'account-basic':
-        return '내 계정 · 기본 설정';
+        return '기본 설정';
       default:
         return '설정';
     }
@@ -67,7 +68,7 @@ export default function SettingsPanel({ onClose }) {
         {/* 메인 영역 (우측) */}
         <div className="overflow-auto flex-1 p-8 rounded-r-lg">
           <div className="flex items-center mb-4">
-            <h3 className="text-2xl font-bold truncate">{title}</h3>
+            <h3 className="text-xl font-bold truncate">{title}</h3>
           </div>
 
           {/* 컨텐츠 플레이스홀더: 후속 태스크에서 각 폼 구현 */}
@@ -76,11 +77,7 @@ export default function SettingsPanel({ onClose }) {
           )}
 
           {selected === 'account-basic' && (
-            <div className="space-y-4 text-sm text-gray-700">
-              <div className="text-gray-500">내 계정 기본 설정 UI가 여기에 표시됩니다.</div>
-              <div className="text-gray-500">이름/이메일 편집, 프로필 이미지 업로드, 비밀번호 변경(통합)은 후속 태스크에서 연결합니다.</div>
-              <div className="text-gray-400">현재 사용자: {user?.email || ''}</div>
-            </div>
+            <AccountBasicForm />
           )}
         </div>
 
