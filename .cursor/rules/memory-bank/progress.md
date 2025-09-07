@@ -472,3 +472,11 @@
     - 시각적 비활성화 처리 (opacity 60%, pointer-events-none)
     - 권한 안내 메시지 표시 (Lock 아이콘과 함께)
     - 소유자만 변경 가능하다는 명확한 UX 제공
+  - 모든 모달의 z-index 수정으로 EditorMenuBar보다 위에 표시되도록 개선:
+    - SettingsPanel: z-[9999] → inline style zIndex 99999 (최우선 적용)
+    - VersionHistoryPanel: z-[9999] 
+    - AuthorFilterModal: zIndex 9998
+    - DocumentSharePopover: zIndex 9998
+    - DateFilterModal: zIndex 9998
+    - EditorMenuBar: z-30 → z-10 (더 낮게 조정)
+    - inline style 사용으로 CSS 우선순위 최상위 적용하여 문제 완전 해결

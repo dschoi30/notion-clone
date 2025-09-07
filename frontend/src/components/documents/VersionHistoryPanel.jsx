@@ -188,7 +188,7 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
   }, [hasMore, loadingMore, loading, page]);
   
   return (
-    <div className="fixed inset-0 z-[60] flex justify-center items-center bg-black/30" onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] flex justify-center items-center bg-black/30" onClick={onClose}>
       <div className="relative bg-white w-[1040px] h-[85vh] rounded-lg shadow-2xl flex" onClick={(e) => e.stopPropagation()}>
         {/* 메인 영역 */}
         <div className="overflow-auto flex-1 p-8">
