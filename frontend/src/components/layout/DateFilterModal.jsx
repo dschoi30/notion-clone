@@ -146,7 +146,7 @@ export default function DateFilterModal({ open, onClose, onSelect, anchorRef, se
         top: position.top,
         left: position.left,
         minWidth: position.minWidth,
-        zIndex: 1000,
+        zIndex: 9998,
         boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
       }}
       className="p-2 bg-white rounded-lg border border-gray-200"

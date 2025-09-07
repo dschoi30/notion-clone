@@ -184,7 +184,7 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
             margin: 0,
             transform: 'none',
             minWidth: 280,
-            zIndex: 50,
+            zIndex: 9998,
             transformOrigin: 'top right',
           }}
           className="p-6 bg-white rounded-lg border shadow-xl transition-none"

@@ -34,7 +34,7 @@ export default function SettingsPanel({ onClose }) {
   }, [selected, currentWorkspace]);
 
   return (
-    <div className="fixed inset-0 z-[60] flex justify-center items-center bg-black/30" onClick={onClose}>
+    <div className="fixed inset-0 flex justify-center items-center bg-black/30" style={{zIndex: 99999}} onClick={onClose}>
       <div className="relative bg-white w-[1040px] h-[85vh] rounded-lg shadow-2xl flex" onClick={(e) => e.stopPropagation()}>
         {/* 좌측 네비 (좌측 배치 + 구분선) */}
         <div className="flex relative flex-col p-4 w-80 h-full bg-white rounded-l-lg border-r">
