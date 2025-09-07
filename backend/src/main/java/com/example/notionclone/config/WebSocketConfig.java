@@ -7,8 +7,6 @@ import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.example.notionclone.security.JwtTokenProvider;
-import org.springframework.web.socket.server.HandshakeInterceptor;
-import com.example.notionclone.config.JwtHandshakeInterceptor;
 
 @Configuration
 @EnableWebSocketMessageBroker

@@ -91,6 +91,17 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  const updateUser = useCallback((updatedUserData) => {
+    const userData = {
+      id: updatedUserData.id || user?.id,
+      email: updatedUserData.email,
+      name: updatedUserData.name,
+      profileImageUrl: updatedUserData.profileImageUrl
+    };
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
+  }, [user]);
+
   const value = {
     user,
     loading,
@@ -98,7 +109,8 @@ export function AuthProvider({ children }) {
     login,
     register,
     loginWithGoogle,
-    logout
+    logout,
+    updateUser
   };
 
   return (
