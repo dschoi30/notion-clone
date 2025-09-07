@@ -480,3 +480,18 @@
     - DateFilterModal: zIndex 9998
     - EditorMenuBar: z-30 → z-10 (더 낮게 조정)
     - inline style 사용으로 CSS 우선순위 최상위 적용하여 문제 완전 해결
+## 2025-09-08
+- FE(Tooltip): UserBadge 마우스 호버 시 사용자 정보 툴팁 기능 구현
+  - `frontend/src/components/ui/tooltip.jsx` 추가: 재사용 가능한 Tooltip 컴포넌트 생성
+    - 단일 컴포넌트로 트리거와 컨텐츠를 모두 처리하는 간단한 구조
+    - `side` prop으로 툴팁 표시 위치 제어 (top/bottom/left/right)
+    - `delayDuration`으로 호버 지연 시간 제어 (기본 700ms)
+    - 마우스 엔터/리브 시 타이머 기반으로 툴팁 표시/숨김 처리
+    - 동적 위치 계산으로 트리거 요소 기준 정확한 툴팁 위치 표시
+  - `frontend/src/components/documents/shared/UserBadge.jsx` 수정: 툴팁 기능 적용
+    - 사용자 이름과 이메일을 조합한 툴팁 내용 생성 (`getTooltipContent` 함수)
+    - 이름이 있으면 "이름 (이메일)", 없으면 "이메일"만 표시
+    - 기존 UserBadge UI를 Tooltip 컴포넌트로 감싸 호버 시 정보 표시
+    - 기존 동작과 완전히 호환되도록 처리 (툴팁 내용이 없으면 툴팁 미표시)
+  - 영향: 문서 헤더의 권한자 아바타, 페이지/테이블 뷰의 생성자/편집자 정보에 마우스 호버 시 상세 정보 확인 가능
+  - 툴팁 스타일 개선: 사용자 이름과 이메일을 두 줄로 표시 (이름은 font-medium, 이메일은 작은 크기로 구분)
