@@ -1,6 +1,7 @@
 // contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import * as auth from '@/services/auth';
+import { createLogger } from '@/lib/logger';
 
 const AuthContext = createContext();
 
@@ -13,11 +14,12 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }) {
+  const alog = createLogger('AuthContext');
   const [user, setUser] = useState(() => {
     const savedUser = localStorage.getItem('user');
     const parsedUser = savedUser ? JSON.parse(savedUser) : null;
-    console.log('AuthContext - localStorage에서 로드된 user:', parsedUser);
-    console.log('AuthContext - localStorage user profileImageUrl:', parsedUser?.profileImageUrl);
+    alog.info('AuthContext - localStorage에서 로드된 user:', parsedUser);
+    alog.info('AuthContext - localStorage user profileImageUrl:', parsedUser?.profileImageUrl);
     return parsedUser;
   });
   const [loading, setLoading] = useState(false);
@@ -28,16 +30,12 @@ export function AuthProvider({ children }) {
       setLoading(true);
       setError(null);
       const data = await auth.login(email, password);
-      console.log('로그인 응답 데이터:', data);
-      console.log('로그인 user 데이터:', data.user);
-      console.log('로그인 profileImageUrl:', data.user?.profileImageUrl);
       const userData = {
         id: data.user.id,
         email: data.user.email,
         name: data.user.name,
         profileImageUrl: data.user.profileImageUrl
       };
-      console.log('AuthContext - 설정된 userData:', userData);
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
       localStorage.setItem('userId', userData.id);
