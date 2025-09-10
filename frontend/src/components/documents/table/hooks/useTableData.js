@@ -7,6 +7,7 @@ import {
   addOrUpdatePropertyValue,
   getPropertyValuesByChildDocuments,
   getChildDocuments,
+  updateChildDocumentOrder,
 } from '@/services/documentApi';
 import { useDocument } from '@/contexts/DocumentContext';
 
@@ -101,7 +102,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     }
   };
 
-  const handleAddRow = async () => {
+  const handleAddRow = async (position = 'bottom') => {
     try {
       const newDoc = await createDocument({
         title: '',
@@ -126,11 +127,35 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
         await Promise.all(ops);
       }
 
-      setRows((prev) => [...prev, newRow]);
+      // position에 따라 다르게 추가
+      let newRows;
+      if (position === 'top') {
+        newRows = [newRow, ...rows];
+        setRows(newRows);
+      } else {
+        newRows = [...rows, newRow];
+        setRows(newRows);
+      }
+
+      // DB에 새로운 순서 반영
+      try {
+        const orderedIds = newRows.map(row => row.id);
+        await updateChildDocumentOrder(workspaceId, documentId, orderedIds);
+      } catch (error) {
+        console.error('문서 순서 업데이트 실패:', error);
+        // 순서 업데이트 실패 시 사용자에게 알리지만 문서 생성은 성공한 상태
+        alert('문서는 생성되었지만 순서 업데이트에 실패했습니다.');
+      }
     } catch (e) {
       alert('페이지 생성 실패');
     }
   };
+
+  // 상단에 추가하는 전용 함수
+  const handleAddRowTop = () => handleAddRow('top');
+  
+  // 하단에 추가하는 전용 함수 (기본값)
+  const handleAddRowBottom = () => handleAddRow('bottom');
 
   const handleCellValueChange = async (rowId, propertyId, value) => {
     if (propertyId == null) {
@@ -196,6 +221,8 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     handleAddProperty,
     handleDeleteProperty,
     handleAddRow,
+    handleAddRowTop,
+    handleAddRowBottom,
     handleCellValueChange,
     handleHeaderNameChange,
   };
