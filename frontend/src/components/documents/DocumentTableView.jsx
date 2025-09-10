@@ -9,10 +9,13 @@ import { updateChildDocumentOrder, deleteDocument } from '@/services/documentApi
 import { Trash2 } from 'lucide-react';
 import TableHeader from './table/TableHeader';
 import TableRow from './table/TableRow';
+import TableToolbar from './table/TableToolbar';
 import { slugify } from './table/utils.jsx';
 import { usePropertiesDnd } from '@/components/documents/shared/hooks/usePropertiesDnd';
 import { useColumnResize } from './table/hooks/useColumnResize';
 import { useTableData } from './table/hooks/useTableData';
+import { useTableSearch } from './table/hooks/useTableSearch';
+import { useTableFilters } from './table/hooks/useTableFilters';
 import { DEFAULT_PROPERTY_WIDTH, SYSTEM_PROP_TYPES } from '@/components/documents/shared/constants';
 import { buildSystemPropTypeMapForTable } from '@/components/documents/shared/systemPropTypeMap';
 
@@ -23,6 +26,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const addBtnRef = useRef(null);
   const tagCellRefs = useRef({}); // {rowId_propertyId: ref}
+  const tableContainerRef = useRef(null);
   const [tagPopoverRect, setTagPopoverRect] = useState(null);
   
   const systemPropTypeMap = useMemo(() => buildSystemPropTypeMapForTable(), []);
@@ -40,9 +44,32 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     handleAddProperty,
     handleDeleteProperty,
     handleAddRow,
+    handleAddRowTop,
+    handleAddRowBottom,
     handleCellValueChange,
     handleHeaderNameChange,
   } = useTableData({ workspaceId, documentId, systemPropTypeMap });
+
+  // search hook
+  const {
+    searchQuery,
+    setSearchQuery,
+    isSearchOpen,
+    setIsSearchOpen,
+    filteredRows: searchFilteredRows,
+    clearSearch,
+    hasActiveSearch
+  } = useTableSearch(rows);
+
+  // filter hook
+  const {
+    activeFilters,
+    addFilter,
+    removeFilter,
+    clearAllFilters,
+    filteredRows: filterFilteredRows,
+    hasActiveFilters
+  } = useTableFilters(searchFilteredRows);
 
   // column resize
   const titleWidth = useDocumentPropertiesStore((state) => state.titleWidth);
@@ -67,6 +94,14 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   
   const [selectedRowIds, setSelectedRowIds] = useState(new Set());
   const propertiesForRender = fetchedProperties;
+  
+  // 최종 필터링된 데이터 (검색 + 필터 적용)
+  const finalFilteredRows = filterFilteredRows;
+
+  // 상단 툴바에서 새 문서 추가 (첫 번째 행에 추가)
+  const handleAddNewDocument = async () => {
+    await handleAddRowTop();
+  };
 
   const toggleSelect = (rowId) => {
     setSelectedRowIds((prev) => {
@@ -81,12 +116,14 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     if (isReadOnly) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = rows.findIndex((r) => r.id === active.id);
-    const newIndex = rows.findIndex((r) => r.id === over.id);
+    const oldIndex = finalFilteredRows.findIndex((r) => r.id === active.id);
+    const newIndex = finalFilteredRows.findIndex((r) => r.id === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
     const newRows = [...rows];
-    const [moved] = newRows.splice(oldIndex, 1);
-    newRows.splice(newIndex, 0, moved);
+    const originalOldIndex = rows.findIndex((r) => r.id === active.id);
+    const originalNewIndex = rows.findIndex((r) => r.id === over.id);
+    const [moved] = newRows.splice(originalOldIndex, 1);
+    newRows.splice(originalNewIndex, 0, moved);
     setRows(newRows);
     try {
       const ids = newRows.map((r) => r.id);
@@ -112,9 +149,24 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   };
 
   return (
-    <div className="px-20 space-y-4 min-w-0">
-      {/* 테이블 UI */}
-      <div style={{ minWidth: 'max-content' }}>
+    <div className="px-20 min-w-0">
+      {/* 테이블 + 툴바 컨테이너 - 가로 스크롤 영역 */}
+      <div ref={tableContainerRef} className="relative" style={{ minWidth: 'max-content' }}>
+        {/* 가로 스크롤 대응 툴바 */}
+        <TableToolbar
+          onAddNewDocument={handleAddNewDocument}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          isSearchOpen={isSearchOpen}
+          setIsSearchOpen={setIsSearchOpen}
+          clearSearch={clearSearch}
+          properties={fetchedProperties}
+          onFilterAdd={addFilter}
+          activeFilters={activeFilters}
+          onFilterRemove={removeFilter}
+          isReadOnly={isReadOnly}
+          anchorRef={tableContainerRef}
+        />
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={isReadOnly ? undefined : handleColumnDragEnd}>
           <TableHeader
             colWidths={colWidths}
@@ -130,13 +182,13 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
             AddPropertyPopoverComponent={() => (isReadOnly ? null : <AddPropertyPopover onAddProperty={handleAddProperty} />)}
             isReadOnly={isReadOnly}
             // selection controls
-            isAllSelected={rows.length > 0 && selectedRowIds.size === rows.length}
-            isSomeSelected={selectedRowIds.size > 0 && selectedRowIds.size < rows.length}
+            isAllSelected={finalFilteredRows.length > 0 && selectedRowIds.size === finalFilteredRows.length}
+            isSomeSelected={selectedRowIds.size > 0 && selectedRowIds.size < finalFilteredRows.length}
             onToggleAll={() => {
-              if (selectedRowIds.size === rows.length) {
+              if (selectedRowIds.size === finalFilteredRows.length) {
                 setSelectedRowIds(new Set());
               } else {
-                setSelectedRowIds(new Set(rows.map(r => r.id)));
+                setSelectedRowIds(new Set(finalFilteredRows.map(r => r.id)));
               }
             }}
           />
@@ -152,12 +204,14 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
           )}
           {isLoading && <div className="flex justify-center items-center h-10 text-gray-400">로딩 중...</div>}
           {error && <div className="flex justify-center items-center h-10 text-red-500">데이터 로딩 중 오류 발생: {error.message}</div>}
-          {rows.length === 0 && !isLoading && !error ? (
-            <div className="flex items-center h-10 text-gray-400">빈 행</div>
+          {finalFilteredRows.length === 0 && !isLoading && !error ? (
+            <div className="flex items-center h-10 text-gray-400">
+              {hasActiveSearch || hasActiveFilters ? '검색 결과 없음' : '빈 행'}
+            </div>
           ) : (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={isReadOnly ? undefined : handleRowDragEnd}>
-              <SortableContext items={rows.map((r) => r.id)} strategy={verticalListSortingStrategy}>
-                {rows.map((row, rowIdx) => (
+              <SortableContext items={finalFilteredRows.map((r) => r.id)} strategy={verticalListSortingStrategy}>
+                {finalFilteredRows.map((row, rowIdx) => (
                   <TableRow
                     key={row.id}
                     row={row}
@@ -203,7 +257,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
         </div>
         <div className="py-2">
           {!isReadOnly && (
-            <Button size="sm" variant="ghost" onClick={handleAddRow}>+ 새 페이지</Button>
+            <Button size="sm" variant="ghost" onClick={handleAddRowBottom}>+ 새 페이지</Button>
           )}
         </div>
       </div>
