@@ -88,7 +88,7 @@ const TableToolbar = ({
         className="fixed right-20 z-50"
         style={{ top: fixedTop ?? 0 }}
       >
-        <div className="flex gap-1 items-center">
+        <div className="flex gap-0.5 items-center">
           {/* 필터 아이콘 */}
           <FilterDropdown 
             properties={properties}
@@ -119,7 +119,7 @@ const TableToolbar = ({
             <Button 
               size="sm" 
               onClick={onAddNewDocument}
-              className="flex gap-2 items-center"
+              className="flex gap-2 items-center ml-2"
             >
               <Plus size={14} />
               새 문서

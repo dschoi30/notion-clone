@@ -55,7 +55,7 @@ const SortDropdown = ({ properties, onSortAdd, onClearAllSorts, isReadOnly, acti
   }
 
   return (
-    <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+    <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen} modal={false}>
       <DropdownMenuTrigger asChild>
         <Button 
           size="sm" 
@@ -65,7 +65,15 @@ const SortDropdown = ({ properties, onSortAdd, onClearAllSorts, isReadOnly, acti
           <ArrowUpDown size={16} />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent>
+      <DropdownMenuContent 
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        side="bottom"
+        align="start"
+        className="shadow-xl"
+      >
+        <div className="px-2 py-1.5 text-sm font-medium text-gray-500 border-b">
+          정렬 기준
+        </div>
         {allProperties.length > 0 ? (
           allProperties.map((property) => (
             <DropdownMenuItem 
