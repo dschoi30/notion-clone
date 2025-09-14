@@ -36,7 +36,7 @@ function PermissionDropdown({ value, onChange, disabled, loading, menuEnabled = 
         </button>
       </DropdownMenuTrigger>
       {!isOwner && menuEnabled && (
-        <DropdownMenuContent align="end" className="min-w-[100px]">
+        <DropdownMenuContent align="end" className="min-w-[100px]" style={{ zIndex: 9999 }}>
           {options.map(opt => (
             <DropdownMenuItem
               key={opt.value}
