@@ -110,7 +110,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
         parentId: documentId,
         viewType: 'PAGE',
       });
-      const newRow = { id: newDoc.id, title: '', values: {} };
+      const newRow = { id: newDoc.id, title: '', values: {}, document: newDoc };
 
       // 시스템/일반 속성 모두 초기 값 DB 반영
       const ops = properties.map((p) => {

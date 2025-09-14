@@ -1,25 +1,76 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { createLogger } from '@/lib/logger';
+import { useAuth } from '@/contexts/AuthContext';
 
-const useTableSort = (initialRows = []) => {
+const useTableSort = (initialRows = [], documentId = null) => {
   const [activeSorts, setActiveSorts] = useState([]);
+  const { user } = useAuth();
   
   // 임시 로그 함수
   const log = createLogger('useTableSort');
 
-  const addSort = (property) => {
+  // 로컬스토리지 키 생성
+  const getStorageKey = () => {
+    if (!user?.id || !documentId) return null;
+    return `tableSort_${user.id}_${documentId}`;
+  };
+
+  // 로컬스토리지에서 정렬 상태 불러오기
+  const loadSortsFromStorage = () => {
+    const key = getStorageKey();
+    if (!key) return [];
+    
+    try {
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        log.debug('Loaded sorts from storage:', parsed);
+        return Array.isArray(parsed) ? parsed : [];
+      }
+    } catch (error) {
+      log.error('Failed to load sorts from storage:', error);
+    }
+    return [];
+  };
+
+  // 로컬스토리지에 정렬 상태 저장
+  const saveSortsToStorage = (sorts) => {
+    const key = getStorageKey();
+    if (!key) return;
+    
+    try {
+      localStorage.setItem(key, JSON.stringify(sorts));
+      log.debug('Saved sorts to storage:', sorts);
+    } catch (error) {
+      log.error('Failed to save sorts to storage:', error);
+    }
+  };
+
+  // 컴포넌트 마운트 시 로컬스토리지에서 정렬 상태 불러오기
+  useEffect(() => {
+    if (user?.id && documentId) {
+      const storedSorts = loadSortsFromStorage();
+      if (storedSorts.length > 0) {
+        setActiveSorts(storedSorts);
+        log.debug('Restored sorts from storage:', storedSorts);
+      }
+    }
+  }, [user?.id, documentId]);
+
+  const addSort = (property, defaultOrder = 'asc') => {
     const newSort = {
       id: `sort_${Date.now()}`,
       propertyId: property.id,
       propertyName: property.name,
       propertyType: property.type,
-      order: 'asc' // 기본값: 오름차순
+      order: defaultOrder
     };
     
     log.debug('Adding new sort:', newSort);
     setActiveSorts(prev => {
       const updated = [...prev, newSort];
       log.debug('Updated activeSorts after add:', updated);
+      saveSortsToStorage(updated);
       return updated;
     });
   };
@@ -31,16 +82,22 @@ const useTableSort = (initialRows = []) => {
         sort.id === sortId ? { ...sort, ...updates } : sort
       );
       log.debug('Updated activeSorts after update:', updated);
+      saveSortsToStorage(updated);
       return updated;
     });
   };
 
   const removeSort = (sortId) => {
-    setActiveSorts(prev => prev.filter(sort => sort.id !== sortId));
+    setActiveSorts(prev => {
+      const updated = prev.filter(sort => sort.id !== sortId);
+      saveSortsToStorage(updated);
+      return updated;
+    });
   };
 
   const clearAllSorts = () => {
     setActiveSorts([]);
+    saveSortsToStorage([]);
   };
 
   // 정렬된 행 데이터
@@ -58,8 +115,8 @@ const useTableSort = (initialRows = []) => {
           log.debug('Title sort:', { aValue, bValue });
         } else if (sort.propertyType === 'CREATED_AT') {
           // 생성일 속성
-          aValue = new Date(a.document?.createdAt || 0);
-          bValue = new Date(b.document?.createdAt || 0);
+          aValue = a.document?.createdAt || '';
+          bValue = b.document?.createdAt || '';
           log.debug('CreatedAt sort:', { 
             aValue, bValue, 
             aCreatedAt: a.document?.createdAt, 
@@ -67,8 +124,8 @@ const useTableSort = (initialRows = []) => {
           });
         } else if (sort.propertyType === 'LAST_UPDATED_AT') {
           // 수정일 속성
-          aValue = new Date(a.document?.updatedAt || 0);
-          bValue = new Date(b.document?.updatedAt || 0);
+          aValue = a.document?.updatedAt || '';
+          bValue = b.document?.updatedAt || '';
           log.debug('UpdatedAt sort:', { 
             aValue, bValue, 
             aUpdatedAt: a.document?.updatedAt, 
