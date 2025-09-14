@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState, useLayoutEffect, useId } from 'react';
-import { Dialog, DialogPortal, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import React, { useEffect, useRef, useState, useLayoutEffect } from 'react';
+import { Dialog, DialogPortal, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { inviteToDocument, updateDocumentPermission, removeDocumentPermission } from '@/services/documentApi';
 import { useDocument } from '@/contexts/DocumentContext';
@@ -61,7 +61,6 @@ function PermissionDropdown({ value, onChange, disabled, loading, menuEnabled = 
 
 export default function DocumentSharePopover({ open, onClose, workspaceId, documentId, anchorRef }) {
   const dialogRef = useRef(null);
-  const descriptionId = useId();
   const inviteInputRef = useRef(null);
   const [popoverWidth, setPopoverWidth] = useState(280);
   const [dialogPosition, setDialogPosition] = useState({ top: 0, left: 0 });
@@ -188,7 +187,6 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
             transformOrigin: 'top right',
           }}
           className="p-6 bg-white rounded-lg border shadow-xl transition-none"
-          aria-describedby={descriptionId}
           onOpenAutoFocus={(e) => {
             e.preventDefault();
           }}
@@ -196,9 +194,6 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
           <DialogHeader>
             <DialogTitle>문서 공유</DialogTitle>
           </DialogHeader>
-          <DialogDescription id={descriptionId} className="sr-only">
-            문서 공유 설정
-          </DialogDescription>
           <div className="flex gap-2 my-2">
             <input
               type="email"

@@ -14,7 +14,7 @@ export function getPropertyIcon(type) {
     case 'CREATED_BY':
       return <User className="inline mr-1" size={16} />;
     case 'LAST_UPDATED_BY':
-      return <Edit3 className="inline mr-1" size={16} />;
+      return <User className="inline mr-1" size={16} />;
     case 'CREATED_AT':
       return <Clock className="inline mr-1" size={16} />;
     case 'LAST_UPDATED_AT':

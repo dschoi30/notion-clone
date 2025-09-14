@@ -504,8 +504,8 @@
   - 정렬 아이콘: 플레이스홀더 추가
   - 컴포넌트 구조: TableToolbar, SearchSlideInput, FilterDropdown, useTableSearch/useTableFilters 훅
   - 검색/필터 상태 연동 및 빈 상태 메시지 처리
-t
-  ## 2025-09-11
+
+## 2025-09-11
 - 테이블 상단 툴바 개선 및 검색 UX 업데이트
   - 툴바 위치: 테이블 컨테이너 기준 Y 좌표를 계산하여 `fixed right-20`로 화면 우측에 고정 (resize/scroll 동기화)
   - 검색 인풋: 하단 팝업 방식 → 인라인 확장 방식으로 변경 (좌측에서 우측으로 w-8 → w-56)
@@ -518,3 +518,34 @@ t
   - 상단 툴바의 "새 문서": 첫 행에 추가 (`handleAddRowTop`)
   - 하단 "+ 새 페이지": 마지막 행에 추가 (`handleAddRowBottom`)
   - 새 문서 생성 후 현재 행 순서 배열을 기반으로 `updateChildDocumentOrder` 호출하여 DB의 `sort_order` 동기화
+
+## 2025-09-14
+- DocumentSharePopover 접근성 경고 수정
+  - 문제: DialogContent에 Description 또는 aria-describedby 속성이 누락되어 접근성 경고 발생
+  - 수정: DialogDescription과 aria-describedby 속성을 제거하고 DialogTitle만 사용하도록 단순화
+  - 파일: frontend/src/components/documents/DocumentSharePopover.jsx
+  - 영향: 접근성 경고 해결, 기존 기능 동일하게 유지
+
+- 테이블 정렬 기능 완전 구현
+  - **useTableSort 훅**: 다중 정렬 상태 관리 및 정렬 로직 구현
+    - `addSort`, `updateSort`, `removeSort`, `clearAllSorts` 메서드 제공
+    - 시스템 속성(이름, 생성일, 수정일)과 사용자 정의 속성별 타입별 정렬 처리
+    - 오름차순/내림차순 지원, 다중 정렬 우선순위 적용
+    - 로거 유틸 연동으로 디버깅 지원 (`createLogger('useTableSort')`)
+  - **SortManager 컴포넌트**: 정렬 관리 UI 구현
+    - 정렬된 속성별 버튼 표시 (속성명 + 정렬 순서)
+    - 정렬 팝오버: 속성명과 정렬 순서 변경 가능
+    - "정렬 추가" 드롭다운으로 추가 가능한 속성 선택
+    - ESC 키 및 외부 클릭으로 팝오버 닫기 처리
+  - **TableToolbar 통합**: 정렬 기능을 툴바에 완전 통합
+    - SortDropdown과 SortManager를 툴바에 배치
+    - 읽기 전용 모드에서 정렬 기능 비활성화
+    - 고정 위치 계산 및 반응형 레이아웃 지원
+  - **정렬 타입별 처리**:
+    - TEXT: 문자열 정렬 (대소문자 구분)
+    - NUMBER: 숫자 정렬
+    - DATE: 날짜 정렬
+    - CHECKBOX: 체크박스 상태 정렬
+    - TAG: 태그 배열 길이 기준 정렬
+    - 기타: 문자열 변환 후 정렬
+  - **UX 개선**: 정렬 상태 시각적 표시, 직관적인 정렬 순서 변경, 다중 정렬 지원
