@@ -79,7 +79,7 @@ const SortManager = ({
       </Button>
 
       {isPopoverOpen && (
-        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 min-w-[300px]">
+        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-xl z-50 min-w-[300px]">
           <div className="p-3">
             {/* 기존 정렬 목록 */}
             {activeSorts.map((sort, index) => (
@@ -162,7 +162,7 @@ const SortManager = ({
                 </Button>
                 
                 {showAddSortDropdown && (
-                  <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 min-w-[200px]">
+                  <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-xl z-50 min-w-[200px]">
                     <div className="p-1">
                       {availableProperties.length > 0 ? (
                         availableProperties.map((property) => (

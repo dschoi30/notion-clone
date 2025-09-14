@@ -272,7 +272,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
         </div>
         <div className="py-2">
           {!isReadOnly && (
-            <Button size="sm" variant="ghost" onClick={handleAddRowBottom}>+ 새 페이지</Button>
+            <Button size="sm" variant="ghost" onClick={handleAddRowBottom}>+ 새 문서</Button>
           )}
         </div>
       </div>
