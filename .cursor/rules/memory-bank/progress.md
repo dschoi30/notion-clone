@@ -577,3 +577,53 @@
     - 페이지 새로고침 후에도 정렬 상태 유지
     - 에러 처리 및 로깅 기능 포함
   - **결과**: 사용자가 설정한 정렬 상태가 영속적으로 저장되어 향후 접근 시 자동으로 복원됨
+
+## 2025-09-15 (추가)
+- 테이블 정렬 상태 문서 소유자 전용 전역 저장 기능 구현
+  - **목적**: 문서 소유자가 설정한 정렬 상태를 DB에 저장하여 모든 사용자에게 동일한 정렬 순서 적용
+  - **구현사항**:
+    - 백엔드: `DocumentService.updateChildSortOrderByCurrentSort` 메서드 추가
+      - 문서 소유자 권한 검증 후 자식 문서들의 `sortOrder` 필드 업데이트
+      - 기존 `updateDocumentOrder` 메서드 재사용하여 일관성 유지
+    - 백엔드: `DocumentController`에 `POST /{documentId}/children/sort-by-current` API 엔드포인트 추가
+    - 프론트엔드: `documentApi.updateChildSortOrderByCurrentSort` API 클라이언트 함수 추가
+    - 프론트엔드: `SortManager` 컴포넌트에 소유자 전용 "모두에게 저장" 버튼 추가
+    - 프론트엔드: 문서 소유자 확인 로직 추가 (`currentDocument.userId === user.id`)
+    - 프론트엔드: `useTableSort` 훅에 `getSortedDocumentIds` 함수 추가하여 현재 정렬된 문서 ID 배열 반환
+  - **기능**:
+    - 문서 소유자만 "모두에게 저장" 버튼 표시
+    - 현재 정렬 상태를 기반으로 자식 문서들의 `sortOrder` 필드 업데이트
+    - 모든 사용자가 동일한 정렬 순서로 문서 목록 확인 가능
+    - 로컬스토리지와 DB 저장 방식 분리 (개인 설정 vs 전역 설정)
+  - **결과**: 문서 소유자가 설정한 정렬 순서가 모든 사용자에게 적용되어 일관된 문서 순서 제공
+
+## 2025-09-15 (추가)
+- shadcn/ui Toast 시스템 도입
+  - **목적**: 브라우저 기본 alert/confirm 대화상자를 모던한 디자인의 toast 메시지로 대체
+  - **구현사항**:
+    - `@radix-ui/react-toast` 패키지 설치 및 shadcn/ui Toast 컴포넌트 생성
+    - `frontend/src/components/ui/toast.jsx`: 기본 Toast 컴포넌트
+    - `frontend/src/components/ui/toaster.jsx`: Toast 컨테이너 컴포넌트
+    - `frontend/src/hooks/useToast.js`: Toast 상태 관리 훅
+    - `frontend/src/App.jsx`에 Toaster 컴포넌트 추가
+    - `SortManager` 컴포넌트에서 AlertDialog 제거하고 toast 메시지로 변경
+  - **기능**:
+    - 3초 후 자동으로 사라지는 비침습적 알림
+    - 성공/실패 상태에 따른 적절한 색상과 아이콘
+    - 화면 하단 가운데에서 아래에서 위로 나타나고 아래로 사라지는 애니메이션
+    - shadcn/ui 디자인 시스템과 완전 통합
+  - **결과**: 사용자 경험 향상 및 일관된 디자인 시스템 적용
+
+## 2025-09-15 (추가)
+- Toast 애니메이션 및 위치 최적화
+  - **문제**: Toast 메시지가 우측 하단에 표시되고 애니메이션이 제대로 작동하지 않는 문제
+  - **해결방법**:
+    - Tailwind CSS 설정에 커스텀 애니메이션 추가
+      - `toast-slide-in-from-bottom`: 아래에서 위로 나타나는 애니메이션
+      - `toast-slide-out-to-bottom`: 아래로 사라지는 애니메이션
+    - Toast 컴포넌트에서 직접 위치 및 애니메이션 클래스 적용
+      - `fixed bottom-0 left-1/2 -translate-x-1/2`: 하단 가운데 위치
+      - `data-[state=open]:animate-toast-slide-in-from-bottom`: 나타날 때 애니메이션
+      - `data-[state=closed]:animate-toast-slide-out-to-bottom`: 사라질 때 애니메이션
+    - CSS 오버라이드 방식 대신 컴포넌트 레벨에서 직접 제어
+  - **결과**: Toast 메시지가 화면 하단 가운데에서 부드러운 애니메이션으로 표시됨

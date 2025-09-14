@@ -20,6 +20,8 @@ import { useTableFilters } from './table/hooks/useTableFilters';
 import useTableSort from './table/hooks/useTableSort';
 import { DEFAULT_PROPERTY_WIDTH, SYSTEM_PROP_TYPES } from '@/components/documents/shared/constants';
 import { buildSystemPropTypeMapForTable } from '@/components/documents/shared/systemPropTypeMap';
+import { useAuth } from '@/contexts/AuthContext';
+import { useDocument } from '@/contexts/DocumentContext';
 
 const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   const navigate = useNavigate(); // useNavigate 훅 추가
@@ -34,6 +36,11 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   const [pendingDragEvent, setPendingDragEvent] = useState(null);
   
   const systemPropTypeMap = useMemo(() => buildSystemPropTypeMapForTable(), []);
+  
+  // 소유자 확인
+  const { user } = useAuth();
+  const { currentDocument } = useDocument();
+  const isOwner = currentDocument && String(currentDocument.userId) === String(user?.id);
 
   // data hook
   const {
@@ -82,7 +89,8 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     removeSort,
     clearAllSorts,
     sortedRows,
-    hasActiveSorts
+    hasActiveSorts,
+    getSortedDocumentIds
   } = useTableSort(filterFilteredRows, documentId);
 
   // column resize
@@ -212,6 +220,10 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
           onSortRemove={removeSort}
           isReadOnly={isReadOnly}
           anchorRef={tableContainerRef}
+          isOwner={isOwner}
+          workspaceId={workspaceId}
+          documentId={documentId}
+          getSortedDocumentIds={getSortedDocumentIds}
         />
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={isReadOnly ? undefined : handleColumnDragEnd}>
           <TableHeader

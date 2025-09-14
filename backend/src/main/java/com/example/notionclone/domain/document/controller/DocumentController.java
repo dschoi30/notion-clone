@@ -416,4 +416,16 @@ public class DocumentController {
         documentPropertyService.updatePropertyOrder(documentId, propertyIds);
         return ResponseEntity.ok().build();
     }
+
+    // 현재 정렬 순서로 자식 문서들의 sortOrder 업데이트 (소유자만 가능)
+    @PostMapping("/{documentId}/children/sort-by-current")
+    public ResponseEntity<Void> updateChildSortOrderByCurrentSort(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId,
+            @PathVariable Long documentId,
+            @RequestBody List<Long> sortedDocumentIds) {
+        
+        documentService.updateChildSortOrderByCurrentSort(userPrincipal.getId(), documentId, sortedDocumentIds);
+        return ResponseEntity.ok().build();
+    }
 } 

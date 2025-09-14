@@ -483,4 +483,24 @@ public class DocumentService {
       return response;
     }
   }
+
+  /**
+   * 현재 정렬 순서로 자식 문서들의 sortOrder를 업데이트합니다 (소유자만 가능)
+   */
+  @Transactional
+  public void updateChildSortOrderByCurrentSort(Long userId, Long documentId, List<Long> sortedDocumentIds) {
+    Document parentDocument = documentRepository.findById(documentId)
+        .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId));
+    
+    // 소유자 확인
+    if (!parentDocument.getUser().getId().equals(userId)) {
+      throw new IllegalArgumentException("Only document owner can update child sort order");
+    }
+    
+    // 기존 updateDocumentOrder 메서드 활용
+    updateDocumentOrder(parentDocument.getWorkspace().getId(), sortedDocumentIds);
+    
+    log.info("Child sort order updated for document {} by user {} with {} children", 
+        documentId, userId, sortedDocumentIds.size());
+  }
 }

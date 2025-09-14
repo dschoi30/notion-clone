@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, Plus, ChevronDown, Trash2 } from 'lucide-react';
+import { X, Plus, ChevronDown, Trash2, Save } from 'lucide-react';
 import { getPropertyIcon } from './utils';
+import { updateChildSortOrderByCurrentSort } from '@/services/documentApi';
+import { useToast } from '@/hooks/useToast';
 
 const SortManager = ({ 
   activeSorts = [],
@@ -10,10 +12,15 @@ const SortManager = ({
   onSortUpdate,
   onSortRemove,
   properties,
-  isReadOnly = false
+  isReadOnly = false,
+  isOwner = false,
+  workspaceId,
+  documentId,
+  getSortedDocumentIds
 }) => {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [showAddSortDropdown, setShowAddSortDropdown] = useState(false);
+  const { toast } = useToast();
   const popoverRef = useRef(null);
 
   // 사용 가능한 속성 목록 (이미 정렬에 사용된 속성 제외)
@@ -60,11 +67,33 @@ const SortManager = ({
   };
 
   const handleAddSort = (property) => {
-    console.log('Adding sort for property:', property);
     // 생성일시나 수정일시의 경우 기본값을 내림차순으로 설정
     const defaultOrder = (property.type === 'CREATED_AT' || property.type === 'LAST_UPDATED_AT') ? 'desc' : 'asc';
     onSortAdd(property, defaultOrder);
     setShowAddSortDropdown(false);
+  };
+
+  const handleSaveToAll = async () => {
+    if (!isOwner || !workspaceId || !documentId || !getSortedDocumentIds) return;
+    
+    try {
+      const sortedDocumentIds = getSortedDocumentIds();
+      await updateChildSortOrderByCurrentSort(workspaceId, documentId, sortedDocumentIds);
+      toast({
+        title: "저장 완료",
+        description: "정렬 순서가 모든 사용자에게 저장되었습니다.",
+        variant: "success",
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Failed to save sort order to all users:', error);
+      toast({
+        title: "저장 실패",
+        description: "정렬 순서 저장에 실패했습니다. 다시 시도해주세요.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
   };
 
   return (
@@ -203,6 +232,22 @@ const SortManager = ({
                   <Trash2 size={12} />
                   모든 정렬 제거
                 </Button>
+              )}
+
+              {/* 소유자 전용 버튼들 */}
+              {isOwner && activeSorts.length > 0 && (
+                <>
+                  <div className="my-2 border-t"></div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleSaveToAll}
+                    className="flex gap-2 justify-start items-center w-full text-xs hover:text-orange-700 hover:bg-orange-50"
+                  >
+                    <Save size={12} />
+                    모두에게 저장
+                  </Button>
+                </>
               )}
             </div>
           </div>
