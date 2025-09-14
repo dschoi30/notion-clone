@@ -61,7 +61,9 @@ const SortManager = ({
 
   const handleAddSort = (property) => {
     console.log('Adding sort for property:', property);
-    onSortAdd(property);
+    // 생성일시나 수정일시의 경우 기본값을 내림차순으로 설정
+    const defaultOrder = (property.type === 'CREATED_AT' || property.type === 'LAST_UPDATED_AT') ? 'desc' : 'asc';
+    onSortAdd(property, defaultOrder);
     setShowAddSortDropdown(false);
   };
 

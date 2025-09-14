@@ -18,7 +18,9 @@ const SortDropdown = ({ properties, onSortAdd, onClearAllSorts, isReadOnly, acti
   ];
 
   const handlePropertySelect = (property) => {
-    onSortAdd(property);
+    // 생성일시나 수정일시의 경우 기본값을 내림차순으로 설정
+    const defaultOrder = (property.type === 'CREATED_AT' || property.type === 'LAST_UPDATED_AT') ? 'desc' : 'asc';
+    onSortAdd(property, defaultOrder);
     setIsDropdownOpen(false);
   };
 

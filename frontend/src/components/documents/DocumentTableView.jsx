@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import AddPropertyPopover from './AddPropertyPopover';
 import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
 import { DndContext, closestCenter } from '@dnd-kit/core';
@@ -29,6 +30,8 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   const tagCellRefs = useRef({}); // {rowId_propertyId: ref}
   const tableContainerRef = useRef(null);
   const [tagPopoverRect, setTagPopoverRect] = useState(null);
+  const [showSortClearModal, setShowSortClearModal] = useState(false);
+  const [pendingDragEvent, setPendingDragEvent] = useState(null);
   
   const systemPropTypeMap = useMemo(() => buildSystemPropTypeMapForTable(), []);
 
@@ -80,7 +83,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     clearAllSorts,
     sortedRows,
     hasActiveSorts
-  } = useTableSort(filterFilteredRows);
+  } = useTableSort(filterFilteredRows, documentId);
 
   // column resize
   const titleWidth = useDocumentPropertiesStore((state) => state.titleWidth);
@@ -127,6 +130,20 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     if (isReadOnly) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
+    
+    // 정렬이 활성화된 상태에서 DnD 시도 시 모달 표시
+    if (hasActiveSorts) {
+      setPendingDragEvent(event);
+      setShowSortClearModal(true);
+      return;
+    }
+    
+    // 정렬이 없으면 기존 로직 실행
+    await executeRowDragEnd(event);
+  };
+
+  const executeRowDragEnd = async (event) => {
+    const { active, over } = event;
     const oldIndex = finalFilteredRows.findIndex((r) => r.id === active.id);
     const newIndex = finalFilteredRows.findIndex((r) => r.id === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
@@ -144,6 +161,20 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
       setRows(rows);
       alert('행 순서 변경에 실패했습니다. 다시 시도해주세요.');
     }
+  };
+
+  const handleSortClearConfirm = async () => {
+    clearAllSorts();
+    setShowSortClearModal(false);
+    if (pendingDragEvent) {
+      await executeRowDragEnd(pendingDragEvent);
+      setPendingDragEvent(null);
+    }
+  };
+
+  const handleSortClearCancel = () => {
+    setShowSortClearModal(false);
+    setPendingDragEvent(null);
   };
 
   const handleBulkDelete = async () => {
@@ -276,6 +307,27 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
           )}
         </div>
       </div>
+
+      {/* 정렬 제거 확인 모달 */}
+      <Dialog open={showSortClearModal} onOpenChange={setShowSortClearModal}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center">정렬을 제거하시겠습니까?</DialogTitle>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:flex-col sm:space-x-0">
+            <Button 
+              variant="outline"
+              onClick={handleSortClearConfirm}
+              className="border border-red-300 hover:text-red-700 hover:bg-red-100"
+            >
+              제거
+            </Button>
+            <Button variant="outline" onClick={handleSortClearCancel}>
+              제거하지 않음
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 
