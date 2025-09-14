@@ -16,6 +16,7 @@ import { useColumnResize } from './table/hooks/useColumnResize';
 import { useTableData } from './table/hooks/useTableData';
 import { useTableSearch } from './table/hooks/useTableSearch';
 import { useTableFilters } from './table/hooks/useTableFilters';
+import useTableSort from './table/hooks/useTableSort';
 import { DEFAULT_PROPERTY_WIDTH, SYSTEM_PROP_TYPES } from '@/components/documents/shared/constants';
 import { buildSystemPropTypeMapForTable } from '@/components/documents/shared/systemPropTypeMap';
 
@@ -43,7 +44,6 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     setEditingHeader,
     handleAddProperty,
     handleDeleteProperty,
-    handleAddRow,
     handleAddRowTop,
     handleAddRowBottom,
     handleCellValueChange,
@@ -71,6 +71,17 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     hasActiveFilters
   } = useTableFilters(searchFilteredRows);
 
+  // sort hook
+  const {
+    activeSorts,
+    addSort,
+    updateSort,
+    removeSort,
+    clearAllSorts,
+    sortedRows,
+    hasActiveSorts
+  } = useTableSort(filterFilteredRows);
+
   // column resize
   const titleWidth = useDocumentPropertiesStore((state) => state.titleWidth);
   const updateTitleWidth = useDocumentPropertiesStore((state) => state.updateTitleWidth);
@@ -95,8 +106,8 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   const [selectedRowIds, setSelectedRowIds] = useState(new Set());
   const propertiesForRender = fetchedProperties;
   
-  // 최종 필터링된 데이터 (검색 + 필터 적용)
-  const finalFilteredRows = filterFilteredRows;
+  // 최종 필터링된 데이터 (검색 + 필터 + 정렬 적용)
+  const finalFilteredRows = sortedRows;
 
   // 상단 툴바에서 새 문서 추가 (첫 번째 행에 추가)
   const handleAddNewDocument = async () => {
@@ -164,6 +175,10 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
           onFilterAdd={addFilter}
           activeFilters={activeFilters}
           onFilterRemove={removeFilter}
+          activeSorts={activeSorts}
+          onSortAdd={addSort}
+          onSortUpdate={updateSort}
+          onSortRemove={removeSort}
           isReadOnly={isReadOnly}
           anchorRef={tableContainerRef}
         />
@@ -224,7 +239,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
                     setHoveredCell={setHoveredCell}
                     handleCellValueChange={isReadOnly ? () => {} : handleCellValueChange}
                     onOpenRow={(r) => {
-                      const slug = slugify(r.title || 'untitled');
+                      const slug = slugify(r.title || '제목 없음');
                       navigate(`/${r.id}-${slug}`);
                     }}
                     systemPropTypes={SYSTEM_PROP_TYPES}
