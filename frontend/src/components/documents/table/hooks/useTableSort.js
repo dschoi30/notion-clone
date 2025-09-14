@@ -289,6 +289,11 @@ const useTableSort = (initialRows = [], documentId = null) => {
 
   const hasActiveSorts = activeSorts.length > 0;
 
+  // 현재 정렬된 순서의 documentId 배열 반환
+  const getSortedDocumentIds = () => {
+    return sortedRows.map(row => row.id);
+  };
+
   return {
     activeSorts,
     addSort,
@@ -296,7 +301,8 @@ const useTableSort = (initialRows = [], documentId = null) => {
     removeSort,
     clearAllSorts,
     sortedRows,
-    hasActiveSorts
+    hasActiveSorts,
+    getSortedDocumentIds
   };
 };
 

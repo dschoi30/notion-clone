@@ -11,6 +11,7 @@ import Sidebar from './components/layout/Sidebar';
 import DocumentEditor from './components/documents/DocumentEditor';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { slugify } from './lib/utils';
+import { Toaster } from './components/ui/toaster';
 
 const AppLayout = () => {
   const { documents, documentsLoading, currentDocument } = useDocument();
@@ -133,6 +134,7 @@ const AppLayout = () => {
           <Route path="/:idSlug" element={<DocumentEditor />} />
         </Routes>
       </div>
+      <Toaster />
     </div>
   );
 };

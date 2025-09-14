@@ -21,7 +21,11 @@ const TableToolbar = ({
   onSortRemove,
   onClearAllSorts,
   isReadOnly = false,
-  anchorRef
+  anchorRef,
+  isOwner = false,
+  workspaceId,
+  documentId,
+  getSortedDocumentIds
 }) => {
   const [fixedTop, setFixedTop] = useState(null);
   
@@ -79,6 +83,10 @@ const TableToolbar = ({
             onSortRemove={onSortRemove}
             properties={properties}
             isReadOnly={isReadOnly}
+            isOwner={isOwner}
+            workspaceId={workspaceId}
+            documentId={documentId}
+            getSortedDocumentIds={getSortedDocumentIds}
           />
         </div>
       )}
@@ -89,12 +97,12 @@ const TableToolbar = ({
         style={{ top: fixedTop ?? 0 }}
       >
         <div className="flex gap-0.5 items-center">
-          {/* 필터 아이콘 */}
-          <FilterDropdown 
+          {/* 필터 아이콘 - 아직 구현 안됨 */}
+          {/* <FilterDropdown 
             properties={properties}
             onFilterAdd={onFilterAdd}
             isReadOnly={isReadOnly}
-          />
+          /> */}
           
           {/* 정렬 아이콘 */}
           <SortDropdown
