@@ -643,3 +643,17 @@
     - ESC 키로도 팝오버 닫기 (기존 기능 유지)
     - Select 컴포넌트 옵션 선택이 정상적으로 작동
   - **결과**: 사용자가 원하는 대로 외부 클릭 시 팝오버가 닫히고, 내부 상호작용은 정상적으로 작동함
+
+## 2025-09-16 (추가)
+  - 에디터에서 Tab/Shift+Tab 키로 4칸 들여쓰기/내어쓰기 기능 구현 (TabIndent 확장 추가)
+    - TabIndent.js 확장 생성: Tab 키로 4칸 공백 추가, Shift+Tab으로 4칸 공백 제거
+    - Editor.jsx에 TabIndent 확장 추가하여 기본 핸들 동작 대체
+  - PageView에서 타이틀 → 속성들 → 에디터 순서로 Tab 키 네비게이션 구현
+    - DocumentEditor.jsx: 타이틀 Tab 키 처리 추가, pageViewRef로 PageView와 연동
+    - DocumentPageView.jsx: forwardRef로 변경, focusFirstProperty 함수 구현
+    - PagePropertyList.jsx: forwardRef로 변경, focusNextProperty 함수로 속성 간 이동 처리
+    - PagePropertyRow.jsx: forwardRef로 변경, Tab 키로 다음 속성 또는 에디터로 이동
+  - 태그 속성에서 화살표/엔터 키로 옵션 선택 및 Tab 키로 다음 속성 이동 기능 구현
+    - TagPopover.jsx: 화살표 위/아래로 옵션 선택, 엔터로 확인, Tab으로 다음 속성 이동
+    - 선택된 옵션 시각적 표시 (파란색 배경), 입력값 변경 시 선택 초기화
+  - DocumentEditor에서 idSlug 파싱 및 문서 선택

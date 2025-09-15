@@ -5,7 +5,7 @@ import { TAG_COLORS as COLORS, getColorObj } from '@/lib/colors';
 import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 
-export default function TagPopover({ propertyId, tagOptions: propTagOptions, value, position, onChange, onTagOptionsUpdate, onClose }) {
+export default function TagPopover({ propertyId, tagOptions: propTagOptions, value, position, onChange, onTagOptionsUpdate, onClose, onTabToNext }) {
   const ref = useRef();
   const { currentWorkspace } = useWorkspace();
   const [tagOptions, setTagOptions] = useState(propTagOptions || []);
@@ -34,6 +34,7 @@ export default function TagPopover({ propertyId, tagOptions: propTagOptions, val
   const [editingTag, setEditingTag] = useState(null); // {id, label, color}
   const [inputFocused, setInputFocused] = useState(false);
   const [editingTagOrigin, setEditingTagOrigin] = useState(null);
+  const [selectedOptionIndex, setSelectedOptionIndex] = useState(-1);
   const justOpened = useRef(true);
 
   useEffect(() => {
@@ -145,13 +146,39 @@ export default function TagPopover({ propertyId, tagOptions: propTagOptions, val
         type="text"
         className="px-2 py-1 w-full rounded border"
         value={input}
-        onChange={e => setInput(e.target.value)}
+        onChange={e => {
+          setInput(e.target.value);
+          setSelectedOptionIndex(-1); // 입력값 변경 시 선택 초기화
+        }}
         onKeyDown={e => {
           if (e.key === 'Enter') {
-            // 입력값이 기존 옵션이면 선택, 아니면 새 옵션 생성
-            const found = tagOptions.find(opt => opt.label === input.trim());
-            if (found) addTag(found);
-            else handleCreateTagOption(input);
+            e.preventDefault();
+            if (selectedOptionIndex >= 0 && selectedOptionIndex < tagOptions.length) {
+              // 선택된 옵션이 있으면 해당 옵션 선택
+              addTag(tagOptions[selectedOptionIndex]);
+            } else {
+              // 입력값이 기존 옵션이면 선택, 아니면 새 옵션 생성
+              const found = tagOptions.find(opt => opt.label === input.trim());
+              if (found) addTag(found);
+              else handleCreateTagOption(input);
+            }
+          } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setSelectedOptionIndex(prev => 
+              prev < tagOptions.length - 1 ? prev + 1 : 0
+            );
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setSelectedOptionIndex(prev => 
+              prev > 0 ? prev - 1 : tagOptions.length - 1
+            );
+          } else if (e.key === 'Tab') {
+            e.preventDefault();
+            if (onTabToNext) {
+              onTabToNext();
+            } else {
+              onClose();
+            }
           }
         }}
         placeholder="옵션 선택 또는 생성"
@@ -160,10 +187,12 @@ export default function TagPopover({ propertyId, tagOptions: propTagOptions, val
         onBlur={() => setTimeout(() => setInputFocused(false), 100)}
       />
       <div className="overflow-y-auto mt-2 max-h-40 text-sm bg-white rounded border shadow">
-        {tagOptions.map(opt => (
+        {tagOptions.map((opt, index) => (
           <div
             key={opt.id}
-            className={`flex items-center px-2 py-1 w-full hover:bg-blue-50`}
+            className={`flex items-center px-2 py-1 w-full hover:bg-blue-50 ${
+              selectedOptionIndex === index ? 'bg-blue-100' : ''
+            }`}
             onMouseDown={e => e.preventDefault()}
             onClick={() => addTag(opt)}
             style={{ cursor: 'pointer' }}
