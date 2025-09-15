@@ -14,32 +14,30 @@ const Tooltip = ({ children, content, side = "top", className, delayDuration = 7
     timeoutRef.current = setTimeout(() => {
       if (triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect()
-        const scrollX = window.pageXOffset || document.documentElement.scrollLeft
-        const scrollY = window.pageYOffset || document.documentElement.scrollTop
         
         let x, y
         const offset = 8 // 툴팁과 요소 사이의 간격
         
         switch (side) {
           case "top":
-            x = rect.left + scrollX + rect.width / 2
-            y = rect.top + scrollY - offset
+            x = rect.left + rect.width / 2
+            y = rect.top - offset
             break
           case "bottom":
-            x = rect.left + scrollX + rect.width / 2
-            y = rect.bottom + scrollY + offset
+            x = rect.left + rect.width / 2
+            y = rect.bottom + offset
             break
           case "left":
-            x = rect.left + scrollX - offset
-            y = rect.top + scrollY + rect.height / 2
+            x = rect.left - offset
+            y = rect.top + rect.height / 2
             break
           case "right":
-            x = rect.right + scrollX + offset
-            y = rect.top + scrollY + rect.height / 2
+            x = rect.right + offset
+            y = rect.top + rect.height / 2
             break
           default:
-            x = rect.left + scrollX + rect.width / 2
-            y = rect.top + scrollY - offset
+            x = rect.left + rect.width / 2
+            y = rect.top - offset
         }
         
         setPosition({ x, y })
