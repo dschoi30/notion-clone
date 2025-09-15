@@ -15,6 +15,7 @@ import './Editor.css';
 import CustomImage from './CustomImage';
 import { fetchImageViaProxy } from '../../services/documentApi';
 import { BlockDragHandle } from './extensions/BlockDragHandle';
+import { TabIndent } from './extensions/TabIndent';
 
 const lowlight = createLowlight(common);
 
@@ -108,6 +109,7 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
     Color,
     BackgroundColor,
     CustomImage,
+    TabIndent,
   ];
   if (editable) {
     baseExtensions.push(BlockDragHandle);

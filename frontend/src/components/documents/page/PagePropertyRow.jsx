@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, forwardRef, useImperativeHandle } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import DatePopover from '../DatePopover';
@@ -11,7 +11,7 @@ import UserBadge from '@/components/documents/shared/UserBadge';
 import { useDocument } from '@/contexts/DocumentContext';
 import { resolveUserDisplay } from '@/components/documents/shared/resolveUserDisplay';
 
-function PagePropertyRow({
+const PagePropertyRow = forwardRef(({
   property,
   value,
   isEditingHeader,
@@ -26,12 +26,36 @@ function PagePropertyRow({
   setTagPopoverRect,
   setEditingValueId,
   isReadOnly = false,
-}) {
+  editorRef,
+  properties,
+  currentPropertyIndex,
+  propertyListRef,
+}, ref) => {
   const { currentDocument } = useDocument();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: property.id, disabled: isReadOnly });
   const style = { transform: CSS.Transform.toString(transform), transition };
 
   const tagCellRef = useRef(null);
+  const valueInputRef = useRef(null);
+
+  // 외부에서 호출할 수 있는 함수들
+  useImperativeHandle(ref, () => ({
+    focusValue: () => {
+      if (valueInputRef.current) {
+        valueInputRef.current.focus();
+      } else {
+        // 입력 필드가 없으면 클릭으로 편집 시작
+        tagCellRef.current?.click();
+      }
+    }
+  }));
+
+  // Tab 키로 다음 속성 또는 에디터로 포커스 이동하는 함수
+  const handleTabToNext = () => {
+    if (propertyListRef?.current?.focusNextProperty) {
+      propertyListRef.current.focusNextProperty(currentPropertyIndex);
+    }
+  };
 
   let content = null;
   const valueStr = value ?? '';
@@ -40,6 +64,7 @@ function PagePropertyRow({
     if (property.type === 'TEXT') {
       content = (
         <input
+          ref={valueInputRef}
           autoFocus
           className="px-2 py-1 w-full rounded border outline-none"
           style={{ background: '#fff', border: '1.5px solid #bdbdbd' }}
@@ -53,6 +78,11 @@ function PagePropertyRow({
             if (e.key === 'Enter') {
               onValueCommit(property.id, editingValue);
               setEditingValueId(null);
+            } else if (e.key === 'Tab') {
+              e.preventDefault();
+              onValueCommit(property.id, editingValue);
+              setEditingValueId(null);
+              handleTabToNext();
             }
           }}
         />
@@ -60,6 +90,7 @@ function PagePropertyRow({
     } else if (property.type === 'NUMBER') {
       content = (
         <input
+          ref={valueInputRef}
           type="number"
           autoFocus
           className="px-2 py-1 w-full rounded border outline-none"
@@ -74,6 +105,11 @@ function PagePropertyRow({
             if (e.key === 'Enter') {
               onValueCommit(property.id, editingValue);
               setEditingValueId(null);
+            } else if (e.key === 'Tab') {
+              e.preventDefault();
+              onValueCommit(property.id, editingValue);
+              setEditingValueId(null);
+              handleTabToNext();
             }
           }}
         />
@@ -94,6 +130,7 @@ function PagePropertyRow({
       );
     } else if (property.type === 'TAG') {
       content = null;
+      // TAG 타입은 TagPopover에서 처리
     }
   } else if (
     property.type === 'DATE' ||
@@ -191,7 +228,15 @@ function PagePropertyRow({
             value={editingHeaderName}
             onChange={(e) => setEditingHeaderName(e.target.value)}
             onBlur={onHeaderCommit}
-            onKeyDown={(e) => e.key === 'Enter' && onHeaderCommit()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                onHeaderCommit();
+              } else if (e.key === 'Tab') {
+                e.preventDefault();
+                onHeaderCommit();
+                handleTabToNext();
+              }
+            }}
           />
         ) : (
           property.name
@@ -233,7 +278,7 @@ function PagePropertyRow({
       </span>
     </div>
   );
-}
+});
 
 export default PagePropertyRow;
 
