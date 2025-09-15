@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useLayoutEffect } from 'react';
+import React, { useEffect, useRef, useState, useLayoutEffect, useCallback } from 'react';
 import { Dialog, DialogPortal, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { inviteToDocument, updateDocumentPermission, removeDocumentPermission } from '@/services/documentApi';
@@ -107,18 +107,40 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
     }
   }, [open, dialogPosition]);
 
-  useLayoutEffect(() => {
+  // 팝오버 위치 계산 함수 (fixed 포지션)
+  const updateDialogPosition = useCallback(() => {
     if (!open || !workspaceId || !documentId || !anchorRef?.current) return;
     const rect = anchorRef.current.getBoundingClientRect();
-    let idealLeft = rect.right - popoverWidth + window.scrollX;
+    let idealLeft = rect.right - popoverWidth;
     let maxLeft = window.innerWidth - popoverWidth;
     let left = Math.min(idealLeft, maxLeft);
     if (left < 0) left = 0;
     setDialogPosition({
-      top: rect.bottom + window.scrollY,
+      top: rect.bottom,
       left,
     });
-  }, [open, anchorRef, workspaceId, documentId, popoverWidth]);
+  }, [open, workspaceId, documentId, anchorRef, popoverWidth]);
+
+  useLayoutEffect(() => {
+    updateDialogPosition();
+  }, [updateDialogPosition]);
+
+  // 창 크기 변경 시에만 위치 재계산 (fixed 포지션이므로 스크롤 이벤트 불필요)
+  useEffect(() => {
+    if (!open) return;
+
+    const handleResize = () => {
+      updateDialogPosition();
+    };
+
+    // 창 크기 변경 이벤트 리스너만 등록
+    window.addEventListener('resize', handleResize, { passive: true });
+
+    // 클린업
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [open, updateDialogPosition]);
 
   const handleInvite = async () => {
     if (!inviteEmail || !workspaceId || !documentId || !isDocOwner) return;
@@ -177,7 +199,7 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
           overlay={false}
           noDefaultStyle={true}
           style={{
-            position: 'absolute',
+            position: 'fixed',
             top: dialogPosition.top,
             left: dialogPosition.left,
             margin: 0,
