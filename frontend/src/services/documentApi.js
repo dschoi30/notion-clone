@@ -97,6 +97,11 @@ export async function updateChildDocumentOrder(workspaceId, parentId, documentId
   return api.patch(`/api/workspaces/${workspaceId}/documents/${parentId}/children/order`, documentIds);
 }
 
+// 현재 정렬 순서로 자식 문서들의 sortOrder 업데이트 (소유자만 가능)
+export async function updateChildSortOrderByCurrentSort(workspaceId, documentId, sortedDocumentIds) {
+  return api.post(`/api/workspaces/${workspaceId}/documents/${documentId}/children/sort-by-current`, sortedDocumentIds);
+}
+
 // 문서 속성 추가
 export async function addProperty(workspaceId, documentId, { name, type, sortOrder }) {
   const res = await api.post(`/api/workspaces/${workspaceId}/documents/${documentId}/properties`, { name, type, sortOrder });

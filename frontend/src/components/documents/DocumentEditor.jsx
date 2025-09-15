@@ -32,6 +32,7 @@ const DocumentEditor = () => {
   const titleRef = useRef(title);
   const contentRef = useRef(content);
   const editorRef = useRef(null);
+  const pageViewRef = useRef(null);
 
   // 공유 팝오버 상태
   const [showShareModal, setShowShareModal] = useState(false);
@@ -257,6 +258,12 @@ const DocumentEditor = () => {
       if (editorRef.current && typeof editorRef.current.focus === 'function') {
         editorRef.current.focus();
       }
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      // Tab 키로 첫 번째 속성으로 이동하는 함수 호출
+      if (pageViewRef.current && typeof pageViewRef.current.focusFirstProperty === 'function') {
+        pageViewRef.current.focusFirstProperty();
+      }
     }
   };
 
@@ -326,6 +333,7 @@ const DocumentEditor = () => {
             content={content}
             handleContentChange={handleContentChange}
             editorRef={editorRef}
+            pageViewRef={pageViewRef}
             isReadOnly={isReadOnly}
             isInitial={isInitial}
             handleChangeViewType={handleChangeViewType}

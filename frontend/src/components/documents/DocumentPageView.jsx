@@ -1,4 +1,4 @@
-import { React, useState, useEffect, useRef, useMemo } from 'react';
+import { React, useState, useEffect, useRef, useMemo, useImperativeHandle, forwardRef } from 'react';
 import Editor from '@/components/editor/Editor';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useDocument } from '@/contexts/DocumentContext';
@@ -11,14 +11,14 @@ import TagPopover from './TagPopover';
 import { Button } from '@/components/ui/button';
 import { buildSystemPropTypeMapForPage } from '@/components/documents/shared/systemPropTypeMap';
 
-const DocumentPageView = ({
+const DocumentPageView = forwardRef(({
   content,
   handleContentChange,
   editorRef,
   isReadOnly,
   isInitial,
   handleChangeViewType
-}) => {
+}, ref) => {
   const { currentWorkspace } = useWorkspace();
   const { currentDocument } = useDocument();
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -26,6 +26,7 @@ const DocumentPageView = ({
   const [editingValueId, setEditingValueId] = useState(null);
   const [editingValue, setEditingValue] = useState('');
   const [tagPopoverRect, setTagPopoverRect] = useState(null);
+  const propertyListRef = useRef(null);
 
   const systemPropTypeMap = useMemo(() => (
     buildSystemPropTypeMapForPage(currentDocument)
@@ -55,6 +56,15 @@ const DocumentPageView = ({
     setTagPopoverRect(null);
   }, [currentWorkspace?.id, currentDocument?.id]);
 
+  // 외부에서 호출할 수 있는 함수들
+  useImperativeHandle(ref, () => ({
+    focusFirstProperty: () => {
+      if (propertyListRef.current && typeof propertyListRef.current.focusFirstProperty === 'function') {
+        propertyListRef.current.focusFirstProperty();
+      }
+    }
+  }));
+
   const { sensors, handleColumnDragEnd } = usePropertiesDnd({
     properties,
     setProperties,
@@ -67,6 +77,7 @@ const DocumentPageView = ({
       {/* 속성 리스트 + DnD */}
       {properties.length > 0 && (
         <PagePropertyList
+          ref={propertyListRef}
           properties={properties}
           valuesByPropertyId={valuesByPropertyId}
           sensors={sensors}
@@ -82,6 +93,7 @@ const DocumentPageView = ({
           tagPopoverRect={tagPopoverRect}
           setTagPopoverRect={setTagPopoverRect}
           isReadOnly={isReadOnly}
+          editorRef={editorRef}
         />
       )}
 
@@ -133,11 +145,20 @@ const DocumentPageView = ({
             setTagPopoverRect(null);
             setEditingValueId(null);
           }}
+          onTabToNext={() => {
+            setTagPopoverRect(null);
+            setEditingValueId(null);
+            // 다음 속성으로 이동
+            if (propertyListRef.current && typeof propertyListRef.current.focusNextProperty === 'function') {
+              const currentIndex = properties.findIndex(p => p.id === editingValueId);
+              propertyListRef.current.focusNextProperty(currentIndex);
+            }
+          }}
           position={tagPopoverRect}
         />
       )}
     </div>
   );
-};
+});
 
 export default DocumentPageView; 
