@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState, useLayoutEffect, useId } from 'react';
-import { Dialog, DialogPortal, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import React, { useEffect, useRef, useState, useLayoutEffect, useCallback } from 'react';
+import { Dialog, DialogPortal, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { inviteToDocument, updateDocumentPermission, removeDocumentPermission } from '@/services/documentApi';
 import { useDocument } from '@/contexts/DocumentContext';
@@ -36,7 +36,7 @@ function PermissionDropdown({ value, onChange, disabled, loading, menuEnabled = 
         </button>
       </DropdownMenuTrigger>
       {!isOwner && menuEnabled && (
-        <DropdownMenuContent align="end" className="min-w-[100px]">
+        <DropdownMenuContent align="end" className="min-w-[100px]" style={{ zIndex: 9999 }}>
           {options.map(opt => (
             <DropdownMenuItem
               key={opt.value}
@@ -61,7 +61,6 @@ function PermissionDropdown({ value, onChange, disabled, loading, menuEnabled = 
 
 export default function DocumentSharePopover({ open, onClose, workspaceId, documentId, anchorRef }) {
   const dialogRef = useRef(null);
-  const descriptionId = useId();
   const inviteInputRef = useRef(null);
   const [popoverWidth, setPopoverWidth] = useState(280);
   const [dialogPosition, setDialogPosition] = useState({ top: 0, left: 0 });
@@ -108,18 +107,40 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
     }
   }, [open, dialogPosition]);
 
-  useLayoutEffect(() => {
+  // 팝오버 위치 계산 함수 (fixed 포지션)
+  const updateDialogPosition = useCallback(() => {
     if (!open || !workspaceId || !documentId || !anchorRef?.current) return;
     const rect = anchorRef.current.getBoundingClientRect();
-    let idealLeft = rect.right - popoverWidth + window.scrollX;
+    let idealLeft = rect.right - popoverWidth;
     let maxLeft = window.innerWidth - popoverWidth;
     let left = Math.min(idealLeft, maxLeft);
     if (left < 0) left = 0;
     setDialogPosition({
-      top: rect.bottom + window.scrollY,
+      top: rect.bottom,
       left,
     });
-  }, [open, anchorRef, workspaceId, documentId, popoverWidth]);
+  }, [open, workspaceId, documentId, anchorRef, popoverWidth]);
+
+  useLayoutEffect(() => {
+    updateDialogPosition();
+  }, [updateDialogPosition]);
+
+  // 창 크기 변경 시에만 위치 재계산 (fixed 포지션이므로 스크롤 이벤트 불필요)
+  useEffect(() => {
+    if (!open) return;
+
+    const handleResize = () => {
+      updateDialogPosition();
+    };
+
+    // 창 크기 변경 이벤트 리스너만 등록
+    window.addEventListener('resize', handleResize, { passive: true });
+
+    // 클린업
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [open, updateDialogPosition]);
 
   const handleInvite = async () => {
     if (!inviteEmail || !workspaceId || !documentId || !isDocOwner) return;
@@ -178,7 +199,7 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
           overlay={false}
           noDefaultStyle={true}
           style={{
-            position: 'absolute',
+            position: 'fixed',
             top: dialogPosition.top,
             left: dialogPosition.left,
             margin: 0,
@@ -188,7 +209,6 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
             transformOrigin: 'top right',
           }}
           className="p-6 bg-white rounded-lg border shadow-xl transition-none"
-          aria-describedby={descriptionId}
           onOpenAutoFocus={(e) => {
             e.preventDefault();
           }}
@@ -196,9 +216,6 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
           <DialogHeader>
             <DialogTitle>문서 공유</DialogTitle>
           </DialogHeader>
-          <DialogDescription id={descriptionId} className="sr-only">
-            문서 공유 설정
-          </DialogDescription>
           <div className="flex gap-2 my-2">
             <input
               type="email"

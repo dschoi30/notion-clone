@@ -55,7 +55,7 @@ export default function UserBadge({ name, email, profileImageUrl, size = 20, sho
           </span>
         )}
         {showLabel && (
-          <span className="text-sm text-gray-900 truncate" title={name || email}>
+          <span className="text-sm text-gray-900 truncate">
             {name || email || ''}
           </span>
         )}

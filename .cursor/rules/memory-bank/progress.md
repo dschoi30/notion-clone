@@ -495,3 +495,165 @@
     - 기존 동작과 완전히 호환되도록 처리 (툴팁 내용이 없으면 툴팁 미표시)
   - 영향: 문서 헤더의 권한자 아바타, 페이지/테이블 뷰의 생성자/편집자 정보에 마우스 호버 시 상세 정보 확인 가능
   - 툴팁 스타일 개선: 사용자 이름과 이메일을 두 줄로 표시 (이름은 font-medium, 이메일은 작은 크기로 구분)
+
+## 2025-09-09
+- DocumentTableView 상단 툴바 기능 구현 (feature/table-toolbar 브랜치)
+  - 새로 만들기 버튼: 테이블 첫 행에 신규 문서 생성
+  - 슬라이드 검색 기능: 돋보기 아이콘 클릭시 검색 인풋이 슬라이드 애니메이션으로 나타나며 문서 이름 실시간 필터링
+  - 필터 드롭다운: 시스템/사용자 속성 목록 표시 (기본 구조)
+  - 정렬 아이콘: 플레이스홀더 추가
+  - 컴포넌트 구조: TableToolbar, SearchSlideInput, FilterDropdown, useTableSearch/useTableFilters 훅
+  - 검색/필터 상태 연동 및 빈 상태 메시지 처리
+
+## 2025-09-11
+- 테이블 상단 툴바 개선 및 검색 UX 업데이트
+  - 툴바 위치: 테이블 컨테이너 기준 Y 좌표를 계산하여 `fixed right-20`로 화면 우측에 고정 (resize/scroll 동기화)
+  - 검색 인풋: 하단 팝업 방식 → 인라인 확장 방식으로 변경 (좌측에서 우측으로 w-8 → w-56)
+  - 돋보기 버튼: 별도 버튼 제거, 기존 버튼을 인풋 좌측으로 이동하여 토글 동작(onToggle) 수행
+  - X 버튼: 검색어가 있을 때만 노출, 클릭 시 인풋을 닫지 않고 검색어만 초기화
+  - 인풋 스타일: 테두리/외곽선 제거, 높이 `h-8`로 툴바 다른 버튼들과 동일하게 정렬
+  - ESC/외부 클릭 시 닫힘 처리 추가
+
+- 새 문서 추가 동작 분리 및 DB 정렬 동기화
+  - 상단 툴바의 "새 문서": 첫 행에 추가 (`handleAddRowTop`)
+  - 하단 "+ 새 페이지": 마지막 행에 추가 (`handleAddRowBottom`)
+  - 새 문서 생성 후 현재 행 순서 배열을 기반으로 `updateChildDocumentOrder` 호출하여 DB의 `sort_order` 동기화
+
+## 2025-09-14
+- DocumentSharePopover 접근성 경고 수정
+  - 문제: DialogContent에 Description 또는 aria-describedby 속성이 누락되어 접근성 경고 발생
+  - 수정: DialogDescription과 aria-describedby 속성을 제거하고 DialogTitle만 사용하도록 단순화
+  - 파일: frontend/src/components/documents/DocumentSharePopover.jsx
+  - 영향: 접근성 경고 해결, 기존 기능 동일하게 유지
+
+- 테이블 정렬 기능 완전 구현
+  - **useTableSort 훅**: 다중 정렬 상태 관리 및 정렬 로직 구현
+    - `addSort`, `updateSort`, `removeSort`, `clearAllSorts` 메서드 제공
+    - 시스템 속성(이름, 생성일, 수정일)과 사용자 정의 속성별 타입별 정렬 처리
+    - 오름차순/내림차순 지원, 다중 정렬 우선순위 적용
+    - 로거 유틸 연동으로 디버깅 지원 (`createLogger('useTableSort')`)
+  - **SortManager 컴포넌트**: 정렬 관리 UI 구현
+    - 정렬된 속성별 버튼 표시 (속성명 + 정렬 순서)
+    - 정렬 팝오버: 속성명과 정렬 순서 변경 가능
+    - "정렬 추가" 드롭다운으로 추가 가능한 속성 선택
+    - ESC 키 및 외부 클릭으로 팝오버 닫기 처리
+  - **TableToolbar 통합**: 정렬 기능을 툴바에 완전 통합
+    - SortDropdown과 SortManager를 툴바에 배치
+    - 읽기 전용 모드에서 정렬 기능 비활성화
+    - 고정 위치 계산 및 반응형 레이아웃 지원
+  - **정렬 타입별 처리**:
+    - TEXT: 문자열 정렬 (대소문자 구분)
+    - NUMBER: 숫자 정렬
+    - DATE: 날짜 정렬
+    - CHECKBOX: 체크박스 상태 정렬
+    - TAG: 태그 배열 길이 기준 정렬
+    - 기타: 문자열 변환 후 정렬
+  - **UX 개선**: 정렬 상태 시각적 표시, 직관적인 정렬 순서 변경, 다중 정렬 지원
+
+## 2025-09-15
+- 테이블 정렬 시 새 문서 위치 문제 해결
+  - **문제**: 생성일시 내림차순 정렬 설정 후 새 문서 버튼 클릭 시 새 문서가 맨 아래에 추가되는 문제
+  - **원인**: 정렬 로직에서 빈 값 처리와 정렬 방향 적용이 잘못되어 새로 생성된 문서가 올바른 위치에 표시되지 않음
+  - **수정사항**:
+    - `useTableSort.js`: 날짜 비교 로직에서 빈 값 처리 개선, 정렬 방향에 따른 결과 계산 단순화
+    - `SortManager.jsx`: 생성일시/수정일시 정렬 추가 시 기본값을 내림차순으로 설정
+    - `SortDropdown.jsx`: 동일하게 생성일시/수정일시 정렬 시 기본값을 내림차순으로 설정
+    - `addSort` 함수에 `defaultOrder` 매개변수 추가하여 속성 타입별 기본 정렬 순서 설정
+  - **결과**: 생성일시 내림차순 정렬 시 새 문서가 맨 위에 올바르게 표시됨
+
+## 2025-09-15 (추가)
+- 테이블 정렬 상태 사용자별 영속 저장 기능 구현
+  - **목적**: 사용자가 설정한 정렬 상태를 로컬스토리지에 저장하여 페이지 새로고침이나 재방문 시에도 유지
+  - **구현사항**:
+    - `useTableSort` 훅에 로컬스토리지 저장/불러오기 기능 추가
+    - 사용자 ID와 문서 ID를 조합한 고유 키(`tableSort_{userId}_{documentId}`)로 정렬 상태 저장
+    - 정렬 추가/수정/삭제/전체제거 시 자동으로 로컬스토리지에 저장
+    - 컴포넌트 마운트 시 이전 정렬 상태 자동 복원
+    - `useAuth` 훅을 통해 사용자 정보 접근
+    - `DocumentTableView`에서 `documentId`를 `useTableSort` 훅에 전달
+  - **기능**:
+    - 사용자별 독립적인 정렬 상태 관리
+    - 문서별 독립적인 정렬 상태 관리
+    - 페이지 새로고침 후에도 정렬 상태 유지
+    - 에러 처리 및 로깅 기능 포함
+  - **결과**: 사용자가 설정한 정렬 상태가 영속적으로 저장되어 향후 접근 시 자동으로 복원됨
+
+## 2025-09-15 (추가)
+- 테이블 정렬 상태 문서 소유자 전용 전역 저장 기능 구현
+  - **목적**: 문서 소유자가 설정한 정렬 상태를 DB에 저장하여 모든 사용자에게 동일한 정렬 순서 적용
+  - **구현사항**:
+    - 백엔드: `DocumentService.updateChildSortOrderByCurrentSort` 메서드 추가
+      - 문서 소유자 권한 검증 후 자식 문서들의 `sortOrder` 필드 업데이트
+      - 기존 `updateDocumentOrder` 메서드 재사용하여 일관성 유지
+    - 백엔드: `DocumentController`에 `POST /{documentId}/children/sort-by-current` API 엔드포인트 추가
+    - 프론트엔드: `documentApi.updateChildSortOrderByCurrentSort` API 클라이언트 함수 추가
+    - 프론트엔드: `SortManager` 컴포넌트에 소유자 전용 "모두에게 저장" 버튼 추가
+    - 프론트엔드: 문서 소유자 확인 로직 추가 (`currentDocument.userId === user.id`)
+    - 프론트엔드: `useTableSort` 훅에 `getSortedDocumentIds` 함수 추가하여 현재 정렬된 문서 ID 배열 반환
+  - **기능**:
+    - 문서 소유자만 "모두에게 저장" 버튼 표시
+    - 현재 정렬 상태를 기반으로 자식 문서들의 `sortOrder` 필드 업데이트
+    - 모든 사용자가 동일한 정렬 순서로 문서 목록 확인 가능
+    - 로컬스토리지와 DB 저장 방식 분리 (개인 설정 vs 전역 설정)
+  - **결과**: 문서 소유자가 설정한 정렬 순서가 모든 사용자에게 적용되어 일관된 문서 순서 제공
+
+## 2025-09-15 (추가)
+- shadcn/ui Toast 시스템 도입
+  - **목적**: 브라우저 기본 alert/confirm 대화상자를 모던한 디자인의 toast 메시지로 대체
+  - **구현사항**:
+    - `@radix-ui/react-toast` 패키지 설치 및 shadcn/ui Toast 컴포넌트 생성
+    - `frontend/src/components/ui/toast.jsx`: 기본 Toast 컴포넌트
+    - `frontend/src/components/ui/toaster.jsx`: Toast 컨테이너 컴포넌트
+    - `frontend/src/hooks/useToast.js`: Toast 상태 관리 훅
+    - `frontend/src/App.jsx`에 Toaster 컴포넌트 추가
+    - `SortManager` 컴포넌트에서 AlertDialog 제거하고 toast 메시지로 변경
+  - **기능**:
+    - 3초 후 자동으로 사라지는 비침습적 알림
+    - 성공/실패 상태에 따른 적절한 색상과 아이콘
+    - 화면 하단 가운데에서 아래에서 위로 나타나고 아래로 사라지는 애니메이션
+    - shadcn/ui 디자인 시스템과 완전 통합
+  - **결과**: 사용자 경험 향상 및 일관된 디자인 시스템 적용
+
+## 2025-09-15 (추가)
+- Toast 애니메이션 및 위치 최적화
+  - **문제**: Toast 메시지가 우측 하단에 표시되고 애니메이션이 제대로 작동하지 않는 문제
+  - **해결방법**:
+    - Tailwind CSS 설정에 커스텀 애니메이션 추가
+      - `toast-slide-in-from-bottom`: 아래에서 위로 나타나는 애니메이션
+      - `toast-slide-out-to-bottom`: 아래로 사라지는 애니메이션
+    - Toast 컴포넌트에서 직접 위치 및 애니메이션 클래스 적용
+      - `fixed bottom-0 left-1/2 -translate-x-1/2`: 하단 가운데 위치
+      - `data-[state=open]:animate-toast-slide-in-from-bottom`: 나타날 때 애니메이션
+      - `data-[state=closed]:animate-toast-slide-out-to-bottom`: 사라질 때 애니메이션
+    - CSS 오버라이드 방식 대신 컴포넌트 레벨에서 직접 제어
+  - **결과**: Toast 메시지가 화면 하단 가운데에서 부드러운 애니메이션으로 표시됨
+
+## 2025-09-16
+- SortManager 외부 클릭 닫기 기능 구현
+  - **목적**: SortManager 팝오버 외부 영역 클릭 시 팝오버가 자동으로 닫히도록 하는 UX 개선
+  - **구현사항**:
+    - `useEffect`를 사용한 외부 클릭 감지 로직 추가
+    - `mousedown` 이벤트 리스너로 외부 클릭 감지
+    - 팝오버 내부 클릭 시 이벤트 전파 방지 (`stopPropagation`)
+    - 10ms 지연을 두어 내부 클릭 이벤트가 먼저 처리되도록 함
+    - `handlePopoverClick` 함수로 팝오버와 드롭다운 컨테이너의 클릭 이벤트 처리
+  - **기능**:
+    - 팝오버 내부 클릭 시 팝오버 유지
+    - 팝오버 외부 클릭 시 팝오버와 드롭다운 모두 닫기
+    - ESC 키로도 팝오버 닫기 (기존 기능 유지)
+    - Select 컴포넌트 옵션 선택이 정상적으로 작동
+  - **결과**: 사용자가 원하는 대로 외부 클릭 시 팝오버가 닫히고, 내부 상호작용은 정상적으로 작동함
+
+## 2025-09-16 (추가)
+  - 에디터에서 Tab/Shift+Tab 키로 4칸 들여쓰기/내어쓰기 기능 구현 (TabIndent 확장 추가)
+    - TabIndent.js 확장 생성: Tab 키로 4칸 공백 추가, Shift+Tab으로 4칸 공백 제거
+    - Editor.jsx에 TabIndent 확장 추가하여 기본 핸들 동작 대체
+  - PageView에서 타이틀 → 속성들 → 에디터 순서로 Tab 키 네비게이션 구현
+    - DocumentEditor.jsx: 타이틀 Tab 키 처리 추가, pageViewRef로 PageView와 연동
+    - DocumentPageView.jsx: forwardRef로 변경, focusFirstProperty 함수 구현
+    - PagePropertyList.jsx: forwardRef로 변경, focusNextProperty 함수로 속성 간 이동 처리
+    - PagePropertyRow.jsx: forwardRef로 변경, Tab 키로 다음 속성 또는 에디터로 이동
+  - 태그 속성에서 화살표/엔터 키로 옵션 선택 및 Tab 키로 다음 속성 이동 기능 구현
+    - TagPopover.jsx: 화살표 위/아래로 옵션 선택, 엔터로 확인, Tab으로 다음 속성 이동
+    - 선택된 옵션 시각적 표시 (파란색 배경), 입력값 변경 시 선택 초기화
+  - DocumentEditor에서 idSlug 파싱 및 문서 선택
