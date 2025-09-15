@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { X, Plus, ChevronDown, Trash2, Save } from 'lucide-react';
@@ -50,6 +50,26 @@ const SortManager = ({
     }
   }, [isPopoverOpen]);
 
+  // 외부 클릭으로 팝오버 닫기 (더 안전한 방식)
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target)) {
+        // 약간의 지연을 두어 내부 클릭 이벤트가 먼저 처리되도록 함
+        setTimeout(() => {
+          setIsPopoverOpen(false);
+          setShowAddSortDropdown(false);
+        }, 10);
+      }
+    };
+
+    if (isPopoverOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isPopoverOpen]);
+
   const handleOrderChange = (sortId, newOrder) => {
     onSortUpdate(sortId, { order: newOrder });
   };
@@ -71,6 +91,11 @@ const SortManager = ({
     const defaultOrder = (property.type === 'CREATED_AT' || property.type === 'LAST_UPDATED_AT') ? 'desc' : 'asc';
     onSortAdd(property, defaultOrder);
     setShowAddSortDropdown(false);
+  };
+
+  // 팝오버 내부 클릭 시 이벤트 전파 방지
+  const handlePopoverClick = (e) => {
+    e.stopPropagation();
   };
 
   const handleSaveToAll = async () => {
@@ -110,12 +135,16 @@ const SortManager = ({
       </Button>
 
       {isPopoverOpen && (
-        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-xl z-50 min-w-[300px]">
+        <div 
+          className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-xl z-50 min-w-[300px]"
+          onClick={handlePopoverClick}
+          onMouseDown={handlePopoverClick}
+        >
           <div className="p-3">
             {/* 기존 정렬 목록 */}
             {activeSorts.map((sort, index) => (
               <div key={sort.id} className="flex gap-2 items-center mb-3">
-                <div className="flex-1" onClick={(e) => e.stopPropagation()}>
+                <div className="flex-1">
                   <Select 
                     value={String(sort.propertyId)} 
                       onValueChange={(value) => {
@@ -125,7 +154,7 @@ const SortManager = ({
                         }
                       }}
                   >
-                    <SelectTrigger className="h-8" onClick={(e) => e.stopPropagation()}>
+                    <SelectTrigger className="h-8">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -147,7 +176,7 @@ const SortManager = ({
                   </Select>
                 </div>
                 
-                <div className="flex-1" onClick={(e) => e.stopPropagation()}>
+                <div className="flex-1">
                   <Select 
                     value={sort.order} 
                     onValueChange={(newOrder) => {
@@ -156,7 +185,7 @@ const SortManager = ({
                       }
                     }}
                   >
-                    <SelectTrigger className="h-8" onClick={(e) => e.stopPropagation()}>
+                    <SelectTrigger className="h-8">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -193,7 +222,11 @@ const SortManager = ({
                 </Button>
                 
                 {showAddSortDropdown && (
-                  <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-xl z-50 min-w-[200px]">
+                  <div 
+                    className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-xl z-50 min-w-[200px]"
+                    onClick={handlePopoverClick}
+                    onMouseDown={handlePopoverClick}
+                  >
                     <div className="p-1">
                       {availableProperties.length > 0 ? (
                         availableProperties.map((property) => (

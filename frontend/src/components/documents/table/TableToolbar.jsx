@@ -74,12 +74,12 @@ const TableToolbar = ({
       {activeSorts.length > 0 && (
         <div 
           className="fixed z-40 left-84"
-          style={{ top: fixedTop ?? 0 }}
+          style={{ top: (fixedTop ?? 0) + 10 }}
         >
           <SortManager
             activeSorts={activeSorts}
             onSortAdd={onSortAdd}
-            onSortUpdate={onSortUpdate}
+            onSortUpdate={onSortUpdate} 
             onSortRemove={onSortRemove}
             properties={properties}
             isReadOnly={isReadOnly}

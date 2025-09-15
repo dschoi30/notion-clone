@@ -103,7 +103,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     propertyWidths,
     workspaceId,
     documentId,
-    updateTitleWidthFn: updateTitleWidth,
+    updateTitleWidthFn: updateTitleWidth, 
   });
 
   // column dnd
@@ -201,7 +201,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   return (
     <div className="px-20 min-w-0">
       {/* 테이블 + 툴바 컨테이너 - 가로 스크롤 영역 */}
-      <div ref={tableContainerRef} className="relative" style={{ minWidth: 'max-content' }}>
+      <div ref={tableContainerRef} className="relative" style={{ minWidth: 'max-content', marginTop: hasActiveSorts ? '40px' : '0' }}>
         {/* 가로 스크롤 대응 툴바 */}
         <TableToolbar
           onAddNewDocument={handleAddNewDocument}
@@ -253,7 +253,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
         </DndContext>
         <div className="relative">
           {selectedRowIds.size > 0 && (
-            <div className="flex absolute gap-2 items-center px-3 py-1 bg-white rounded border shadow-sm" style={{ top: -72 }}>
+            <div className="flex absolute gap-2 items-center px-3 py-1 bg-white rounded border shadow-sm" style={{ top: hasActiveSorts ? -100 : -72 }}>
               <span className="text-sm text-gray-600">{selectedRowIds.size}개 선택됨</span>
               <button className="inline-flex gap-1 items-center text-red-600 hover:text-red-700" onClick={handleBulkDelete}>
                 <Trash2 size={14} /> 삭제
