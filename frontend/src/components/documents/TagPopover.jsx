@@ -179,6 +179,9 @@ export default function TagPopover({ propertyId, tagOptions: propTagOptions, val
             } else {
               onClose();
             }
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            onClose();
           }
         }}
         placeholder="옵션 선택 또는 생성"
@@ -239,6 +242,10 @@ export default function TagPopover({ propertyId, tagOptions: propTagOptions, val
             onKeyDown={e => {
               if (e.key === 'Enter') {
                 handleEditTag(editingTagOrigin, editingTag);
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                setEditingTag(null);
+                setEditingTagOrigin(null);
               }
             }}
           />
@@ -256,7 +263,7 @@ export default function TagPopover({ propertyId, tagOptions: propTagOptions, val
             <span className="font-medium">삭제</span>
           </button>
           {/* 색상 구분선 및 텍스트 */}
-          <div className="flex items-center my-2">
+          <div className="flex items-center my-1">
             <div className="flex-1 h-px bg-gray-200" />
             <span className="mx-2 text-xs text-gray-500 whitespace-nowrap">색</span>
             <div className="flex-1 h-px bg-gray-200" />
@@ -265,8 +272,8 @@ export default function TagPopover({ propertyId, tagOptions: propTagOptions, val
             {COLORS.map(c => (
               <button
                 key={c.value}
-                className={`flex items-center w-full px-2 py-1 rounded transition text-left text-sm ${editingTag.color === c.value ? 'bg-gray-100' : ''} hover:bg-gray-50`}
-                style={{ minHeight: 32 }}
+                className={`flex items-center w-full px-2 py-1 rounded transition text-left text-sm ${editingTag.color === c.value ? 'bg-blue-100' : ''} hover:bg-blue-50`}
+                style={{ minHeight: 28 }}
                 onClick={() => {
                   const updated = { ...editingTag, color: c.value };
                   setEditingTag(updated);

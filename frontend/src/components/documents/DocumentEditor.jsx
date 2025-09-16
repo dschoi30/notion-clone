@@ -330,10 +330,10 @@ const DocumentEditor = () => {
         />
         {currentDocument.viewType === 'PAGE' && (
           <DocumentPageView
+            ref={pageViewRef}
             content={content}
             handleContentChange={handleContentChange}
             editorRef={editorRef}
-            pageViewRef={pageViewRef}
             isReadOnly={isReadOnly}
             isInitial={isInitial}
             handleChangeViewType={handleChangeViewType}
