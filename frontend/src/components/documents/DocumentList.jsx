@@ -4,6 +4,7 @@ import { PlusIcon, TrashIcon, GripVertical, ChevronRight, ChevronDown, FileText,
 import { useDocument } from '@/contexts/DocumentContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
 import {
   DndContext,
   closestCenter,
@@ -184,6 +185,7 @@ export default function DocumentList() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const dlog = createLogger('DocumentList');
+  const { handleError } = useErrorHandler();
 
   // dnd-kit 센서 설정
   const sensors = useSensors(
@@ -203,8 +205,6 @@ export default function DocumentList() {
     
     if (active.id !== over.id) {
       try {
-        console.log('드래그 앤 드롭 시작:', active.id, '->', over.id);
-        
         // 드래그된 문서가 개인 문서인지 공유 문서인지 확인
         const draggedDoc = documents.find(doc => doc.id === active.id);
         const targetDoc = documents.find(doc => doc.id === over.id);
@@ -217,12 +217,9 @@ export default function DocumentList() {
         const isPersonalTarget = targetDoc.userId === user.id && 
           (!targetDoc.permissions || !targetDoc.permissions.some(p => p.userId !== user.id));
         
-        console.log('드래그 문서 타입:', isPersonalDrag ? '개인' : '공유');
-        console.log('타겟 문서 타입:', isPersonalTarget ? '개인' : '공유');
-        
         // 같은 카테고리 내에서만 이동 가능
         if (isPersonalDrag !== isPersonalTarget) {
-          console.log('개인 문서와 공유 문서 간 이동은 불가능합니다.');
+          dlog.error('개인 문서와 공유 문서 간 이동은 불가능합니다.');
           return;
         }
         
@@ -231,21 +228,19 @@ export default function DocumentList() {
         const oldIndex = categoryDocuments.findIndex(doc => doc.id === active.id);
         const newIndex = categoryDocuments.findIndex(doc => doc.id === over.id);
         
-        console.log('카테고리 문서 수:', categoryDocuments.length);
-        console.log('이전 인덱스:', oldIndex, '새 인덱스:', newIndex);
-        
         if (oldIndex !== -1 && newIndex !== -1) {
           const newOrder = arrayMove(categoryDocuments, oldIndex, newIndex);
           const documentIds = newOrder.map(doc => doc.id);
-          
-          console.log('새로운 순서:', documentIds);
           
           // DocumentContext의 updateDocumentOrder 사용
           await updateDocumentOrder(documentIds);
         }
       } catch (err) {
         console.error('문서 순서 변경 실패:', err);
-        alert('문서 순서 변경에 실패했습니다.');
+        handleError(err, {
+          customMessage: '문서 순서 변경에 실패했습니다.',
+          showToast: true
+        });
       }
     }
   };

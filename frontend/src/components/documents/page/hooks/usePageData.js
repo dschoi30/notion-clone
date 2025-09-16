@@ -8,12 +8,14 @@ import {
 } from '@/services/documentApi';
 import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
 import { useDocument } from '@/contexts/DocumentContext';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 // PAGE 전용 데이터 훅: 속성/값 로딩, 추가/수정, 인라인 편집 상태 관리
 export function usePageData({ workspaceId, documentId, systemPropTypeMap }) {
   const properties = useDocumentPropertiesStore((state) => state.properties);
   const setProperties = useDocumentPropertiesStore((state) => state.setProperties);
   const { fetchDocument } = useDocument();
+  const { handleError } = useErrorHandler();
 
   const [valuesByPropertyId, setValuesByPropertyId] = useState({});
   const [isLoading, setIsLoading] = useState(false);
@@ -95,7 +97,10 @@ export function usePageData({ workspaceId, documentId, systemPropTypeMap }) {
       setProperties([...properties, newProperty]);
       setValuesByPropertyId((prev) => ({ ...prev, [newProperty.id]: newValue }));
     } catch (e) {
-      alert('속성 추가 실패');
+      handleError(e, {
+        customMessage: '속성 추가에 실패했습니다.',
+        showToast: true
+      });
     }
   };
 
@@ -109,7 +114,10 @@ export function usePageData({ workspaceId, documentId, systemPropTypeMap }) {
       const updated = properties.map((p) => (p.id === editingHeader.id ? { ...p, name: editingHeader.name } : p));
       setProperties(updated);
     } catch (e) {
-      alert('속성 이름 변경 실패');
+      handleError(e, {
+        customMessage: '속성 이름 변경에 실패했습니다.',
+        showToast: true
+      });
     } finally {
       setEditingHeader({ id: null, name: '' });
     }
@@ -124,7 +132,10 @@ export function usePageData({ workspaceId, documentId, systemPropTypeMap }) {
         fetchDocument(documentId, { silent: true, apply: false });
       }
     } catch (e) {
-      alert('값 저장 실패');
+      handleError(e, {
+        customMessage: '값 저장에 실패했습니다.',
+        showToast: true
+      });
     }
   };
 

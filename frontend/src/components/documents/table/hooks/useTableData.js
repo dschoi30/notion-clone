@@ -10,6 +10,7 @@ import {
   updateChildDocumentOrder,
 } from '@/services/documentApi';
 import { useDocument } from '@/contexts/DocumentContext';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
   const [properties, setProperties] = useState([]);
@@ -18,6 +19,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
   const [error, setError] = useState(null);
   const [editingHeader, setEditingHeader] = useState({ id: null, name: '' });
   const { createDocument, updateDocument, fetchDocument } = useDocument();
+  const { handleError } = useErrorHandler();
 
   // 시스템 속성 맵은 참조 안정화를 위해 캡처
   const stableSystemMap = useMemo(() => systemPropTypeMap || {}, [systemPropTypeMap]);
@@ -81,7 +83,10 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
         }
       }
     } catch (e) {
-      alert('속성 추가 실패');
+      handleError(e, {
+        customMessage: '속성 추가에 실패했습니다.',
+        showToast: true
+      });
     }
   };
 
@@ -98,7 +103,10 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
         })
       );
     } catch (e) {
-      alert('속성 삭제 실패');
+      handleError(e, {
+        customMessage: '속성 삭제에 실패했습니다.',
+        showToast: true
+      });
     }
   };
 
@@ -144,10 +152,16 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
       } catch (error) {
         console.error('문서 순서 업데이트 실패:', error);
         // 순서 업데이트 실패 시 사용자에게 알리지만 문서 생성은 성공한 상태
-        alert('문서는 생성되었지만 순서 업데이트에 실패했습니다.');
+        handleError(error, {
+          customMessage: '문서는 생성되었지만 순서 업데이트에 실패했습니다.',
+          showToast: true
+        });
       }
     } catch (e) {
-      alert('페이지 생성 실패');
+      handleError(e, {
+        customMessage: '페이지 생성에 실패했습니다.',
+        showToast: true
+      });
     }
   };
 
@@ -169,7 +183,10 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
           : row
         )));
       } catch (e) {
-        alert('이름 저장 실패');
+        handleError(e, {
+          customMessage: '이름 저장에 실패했습니다.',
+          showToast: true
+        });
       }
     } else {
       setRows((prev) => prev.map((row) => (row.id === rowId ? { ...row, values: { ...row.values, [propertyId]: value } } : row)));
@@ -188,7 +205,10 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
             : row
         )));
       } catch (e) {
-        alert('값 저장 실패');
+        handleError(e, {
+          customMessage: '값 저장에 실패했습니다.',
+          showToast: true
+        });
       }
     }
   };
@@ -202,7 +222,10 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
       await updateProperty(workspaceId, editingHeader.id, editingHeader.name);
       setProperties((prev) => prev.map((p) => (p.id === editingHeader.id ? { ...p, name: editingHeader.name } : p)));
     } catch (e) {
-      alert('속성 이름 변경 실패');
+      handleError(e, {
+        customMessage: '속성 이름 변경에 실패했습니다.',
+        showToast: true
+      });
     } finally {
       setEditingHeader({ id: null, name: '' });
     }

@@ -38,12 +38,27 @@ api.interceptors.response.use(
   },
   async (error) => {
     console.error('Response error:', error.response);
-    if (error.response?.status === 401 || error.response?.status === 403) {
+    
+    // 401 Unauthorized - 토큰 만료 또는 인증 실패
+    if (error.response?.status === 401) {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('user');
       localStorage.removeItem('userId');
+      // 로그인 페이지로 리다이렉트 (필요시 주석 해제)
       // window.location.href = '/login';
     }
+    
+    // 403 Forbidden - 권한 없음 (토큰은 유효하지만 접근 권한 없음)
+    if (error.response?.status === 403) {
+      // 403은 토큰을 제거하지 않음 (권한 문제이므로)
+      console.warn('403 Forbidden - 권한이 없습니다:', error.response.data);
+    }
+    
+    // 500+ 서버 에러
+    if (error.response?.status >= 500) {
+      console.error('Server Error:', error.response.status, error.response.data);
+    }
+    
     return Promise.reject(error);
   }
 );

@@ -1,9 +1,11 @@
 import { useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates, arrayMove } from '@dnd-kit/sortable';
 import { updatePropertyOrder } from '@/services/documentApi';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 // 공통 속성 DnD 훅: 컬럼(테이블)과 리스트(Page) 모두에서 사용 가능
 export function usePropertiesDnd({ properties, setProperties, workspaceId, documentId }) {
+  const { handleError } = useErrorHandler();
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { delay: 150, tolerance: 5 },
@@ -29,7 +31,10 @@ export function usePropertiesDnd({ properties, setProperties, workspaceId, docum
     } catch (err) {
       console.error('속성 순서 업데이트 실패:', err);
       setProperties(properties);
-      alert('속성 순서 변경에 실패했습니다. 다시 시도해주세요.');
+      handleError(err, {
+        customMessage: '속성 순서 변경에 실패했습니다. 다시 시도해주세요.',
+        showToast: true
+      });
     }
   };
 
