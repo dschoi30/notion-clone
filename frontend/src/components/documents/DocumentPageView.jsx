@@ -59,8 +59,13 @@ const DocumentPageView = forwardRef(({
   // 외부에서 호출할 수 있는 함수들
   useImperativeHandle(ref, () => ({
     focusFirstProperty: () => {
-      if (propertyListRef.current && typeof propertyListRef.current.focusFirstProperty === 'function') {
+      if (properties.length > 0 && propertyListRef.current && typeof propertyListRef.current.focusFirstProperty === 'function') {
         propertyListRef.current.focusFirstProperty();
+      } else {
+        // 속성이 없으면 에디터로 바로 이동
+        if (editorRef?.current?.focus) {
+          editorRef.current.focus();
+        }
       }
     }
   }));
