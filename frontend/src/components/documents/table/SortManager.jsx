@@ -140,10 +140,10 @@ const SortManager = ({
           onClick={handlePopoverClick}
           onMouseDown={handlePopoverClick}
         >
-          <div className="p-3">
+          <div className="px-3 py-2">
             {/* 기존 정렬 목록 */}
             {activeSorts.map((sort, index) => (
-              <div key={sort.id} className="flex gap-2 items-center mb-3">
+              <div key={sort.id} className="flex gap-2 items-center mb-2">
                 <div className="flex-1">
                   <Select 
                     value={String(sort.propertyId)} 
@@ -208,7 +208,7 @@ const SortManager = ({
               </div>
             ))}
 
-            <div className="pt-2 border-t">
+            <>
               {/* 정렬 추가 버튼 */}
               <div className="relative">
                 <Button
@@ -270,7 +270,7 @@ const SortManager = ({
               {/* 소유자 전용 버튼들 */}
               {isOwner && activeSorts.length > 0 && (
                 <>
-                  <div className="my-2 border-t"></div>
+                  <div className="border-t"></div>
                   <Button
                     size="sm"
                     variant="ghost"
@@ -282,7 +282,7 @@ const SortManager = ({
                   </Button>
                 </>
               )}
-            </div>
+            </>
           </div>
         </div>
       )}
