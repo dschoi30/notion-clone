@@ -18,6 +18,8 @@ import { useTableData } from './table/hooks/useTableData';
 import { useTableSearch } from './table/hooks/useTableSearch';
 import { useTableFilters } from './table/hooks/useTableFilters';
 import useTableSort from './table/hooks/useTableSort';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
+import ErrorMessage from '@/components/error/ErrorMessage';
 import { DEFAULT_PROPERTY_WIDTH, SYSTEM_PROP_TYPES } from '@/components/documents/shared/constants';
 import { buildSystemPropTypeMapForTable } from '@/components/documents/shared/systemPropTypeMap';
 import { useAuth } from '@/contexts/AuthContext';
@@ -36,6 +38,9 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   const [pendingDragEvent, setPendingDragEvent] = useState(null);
   
   const systemPropTypeMap = useMemo(() => buildSystemPropTypeMapForTable(), []);
+  
+  // 에러 처리 훅
+  const { handleError, clearError } = useErrorHandler();
   
   // 소유자 확인
   const { user } = useAuth();
@@ -167,7 +172,10 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     } catch (e) {
       // 실패 시 원복
       setRows(rows);
-      alert('행 순서 변경에 실패했습니다. 다시 시도해주세요.');
+      handleError(e, {
+        customMessage: '행 순서 변경에 실패했습니다. 다시 시도해주세요.',
+        showToast: true
+      });
     }
   };
 
@@ -194,12 +202,30 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
       setRows((prev) => prev.filter((r) => !selectedRowIds.has(r.id)));
       setSelectedRowIds(new Set());
     } catch (e) {
-      alert('삭제 중 오류가 발생했습니다.');
+      handleError(e, {
+        customMessage: '삭제 중 오류가 발생했습니다.',
+        showToast: true
+      });
     }
   };
 
   return (
     <div className="px-20 min-w-0">
+      {/* 에러 메시지 표시 */}
+      {error && (
+        <div className="mb-4">
+          <ErrorMessage 
+            error={error} 
+            onRetry={() => {
+              clearError();
+              // 필요시 데이터 다시 로드
+            }}
+            onDismiss={clearError}
+            variant="error"
+          />
+        </div>
+      )}
+      
       {/* 테이블 + 툴바 컨테이너 - 가로 스크롤 영역 */}
       <div ref={tableContainerRef} className="relative" style={{ minWidth: 'max-content', marginTop: hasActiveSorts ? '40px' : '0' }}>
         {/* 가로 스크롤 대응 툴바 */}

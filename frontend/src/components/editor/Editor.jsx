@@ -16,6 +16,8 @@ import CustomImage from './CustomImage';
 import { fetchImageViaProxy } from '../../services/documentApi';
 import { BlockDragHandle } from './extensions/BlockDragHandle';
 import { TabIndent } from './extensions/TabIndent';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { createLogger } from '@/lib/logger';
 
 const lowlight = createLowlight(common);
 
@@ -85,6 +87,8 @@ async function uploadImageToCloudinary(file) {
 const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
   const [isComposing, setIsComposing] = useState(false);
   const latestHTML = useRef('');
+  const { handleError } = useErrorHandler();
+  const log = createLogger('Editor');
 
   const baseExtensions = [
     StarterKit.configure({
@@ -130,7 +134,7 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
         if (!view?.editable) return false;
         const items = event.clipboardData?.items;
         if (!items) return false;
-        console.log('Available Clipboard Types:', Array.from(items).map(item => item.type));
+        log.info('Available Clipboard Types:', Array.from(items).map(item => item.type));
   
         let htmlString = null;
         let imageFiles = [];
@@ -161,7 +165,7 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
   
         // 1. text/html 데이터가 있으면 최우선 처리
         if (htmlString) {
-          console.log("Processing text/html content...");
+          log.info("Processing text/html content...");
           try {
             // 모든 <img> 태그 src 추출
             const imgSrcMatches = [...htmlString.matchAll(/<img[^>]+src=["']([^"'>]+)["']/gi)];
@@ -239,15 +243,18 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
   
           } catch (e) {
             console.error("Error processing HTML clipboard content:", e);
-            alert(`HTML 붙여넣기 처리 중 오류 발생: ${e.message}`);
+            handleError(e, {
+              customMessage: 'HTML 붙여넣기 처리 중 오류가 발생했습니다.',
+              showToast: true
+            });
             return false; // 오류 발생 시 기본 핸들러에 맡길 수 있음
           }
         }
         // 2. text/html 없고 image 파일만 있는 경우
         else if (imageFiles.length > 0) {
-          console.log(`Processing ${imageFiles.length} image file(s)...`);
+          log.info(`Processing ${imageFiles.length} image file(s)...`);
           try {
-            alert(`이미지 파일 ${imageFiles.length}개 업로드 중...`);
+            // 이미지 업로드 시작 알림은 Toast로 표시하지 않음 (성공 메시지가 아님)
             // 모든 파일을 Cloudinary에 업로드
             const uploadPromises = imageFiles.map(file => uploadImageToCloudinary(file));
             const uploadedUrls = await Promise.all(uploadPromises);
@@ -275,13 +282,16 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
             return true; // 이미지 파일 처리 완료
           } catch (e) {
             console.error("Error processing direct image files:", e);
-            alert(`이미지 파일 처리 중 오류 발생: ${e.message}`);
+            handleError(e, {
+              customMessage: '이미지 파일 처리 중 오류가 발생했습니다.',
+              showToast: true
+            });
             return false; // 오류 발생 시 기본 핸들러
           }
         }
   
         // 3. 처리할 이미지나 HTML 없으면 기본 핸들러에 맡김
-        console.log("No relevant clipboard content found, letting default handler proceed.");
+        log.info("No relevant clipboard content found, letting default handler proceed.");
         return false;
       },
     },
