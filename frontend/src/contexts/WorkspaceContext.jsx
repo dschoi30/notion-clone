@@ -36,6 +36,14 @@ export function WorkspaceProvider({ children }) {
       wlog.info(`✅ fetchWorkspaces 완료: ${data.length}개 워크스페이스`);
     } catch (err) {
       console.error(`❌ fetchWorkspaces 에러:`, err);
+      
+      // 403 에러는 토큰 만료로 간주하여 에러 상태를 설정하지 않음
+      // (api.js에서 자동으로 로그인 페이지로 리다이렉트됨)
+      if (err.response?.status === 403) {
+        wlog.warn('403 Forbidden - 토큰 만료로 추정, 리다이렉트 예정');
+        return; // 에러 상태 설정하지 않고 조용히 종료
+      }
+      
       setError(err.message);
     } finally {
       setLoading(false);

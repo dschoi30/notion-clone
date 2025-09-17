@@ -13,6 +13,7 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import { slugify } from './lib/utils';
 import { Toaster } from './components/ui/toaster';
 import ErrorBoundary from './components/error/ErrorBoundary';
+import { setRedirectToLogin } from './services/api';
 
 const AppLayout = () => {
   const { documents, documentsLoading, currentDocument } = useDocument();
@@ -156,6 +157,14 @@ const PublicLayout = () => {
 
 const App = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // API 인터셉터에 리다이렉트 함수 설정
+  useEffect(() => {
+    setRedirectToLogin(() => {
+      navigate('/login', { replace: true });
+    });
+  }, [navigate]);
 
   return (
     <Router>
