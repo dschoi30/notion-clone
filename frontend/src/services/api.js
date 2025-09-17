@@ -1,6 +1,13 @@
 // services/api.js
 import axios from 'axios';
 
+// 토큰 만료 시 리다이렉트를 위한 전역 함수
+let redirectToLogin = null;
+
+export const setRedirectToLogin = (redirectFn) => {
+  redirectToLogin = redirectFn;
+};
+
 // 운영(Nginx) 및 개발(Vite proxy) 모두에서 '/' 상대 경로 사용을 우선
 // 필요 시 VITE_API_BASE_URL로 오버라이드
 const resolvedBaseURL = import.meta.env?.VITE_API_BASE_URL || '/';
@@ -44,14 +51,40 @@ api.interceptors.response.use(
       localStorage.removeItem('accessToken');
       localStorage.removeItem('user');
       localStorage.removeItem('userId');
-      // 로그인 페이지로 리다이렉트 (필요시 주석 해제)
-      // window.location.href = '/login';
+      // 로그인 페이지로 리다이렉트
+      if (redirectToLogin) {
+        redirectToLogin();
+      } else {
+        window.location.href = '/login';
+      }
     }
     
-    // 403 Forbidden - 권한 없음 (토큰은 유효하지만 접근 권한 없음)
+    // 403 Forbidden - 토큰 만료 또는 권한 없음
     if (error.response?.status === 403) {
-      // 403은 토큰을 제거하지 않음 (권한 문제이므로)
-      console.warn('403 Forbidden - 권한이 없습니다:', error.response.data);
+      // 특정 엔드포인트는 토큰 만료로 간주하고 로그인 페이지로 리다이렉트
+      const tokenExpiredEndpoints = [
+        '/api/workspaces/accessible',
+        '/api/users/profile',
+        '/api/documents'
+      ];
+      
+      const isTokenExpired = tokenExpiredEndpoints.some(endpoint => 
+        error.config?.url?.includes(endpoint)
+      );
+      
+      if (isTokenExpired) {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('user');
+        localStorage.removeItem('userId');
+        if (redirectToLogin) {
+          redirectToLogin();
+        } else {
+          window.location.href = '/login';
+        }
+      } else {
+        // 일반적인 권한 문제는 토큰을 제거하지 않음
+        console.warn('403 Forbidden - 권한이 없습니다:', error.response.data);
+      }
     }
     
     // 500+ 서버 에러
