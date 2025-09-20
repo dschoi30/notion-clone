@@ -127,7 +127,13 @@ export default function TagPopover({ propertyId, tagOptions: propTagOptions, val
         zIndex: 20,
         // 기존 스타일 추가
       }}
-      className="p-2 bg-white rounded border shadow"
+      className="px-2 py-2 bg-white border shadow"
+      onKeyDown={(e) => {
+        // 화살표 키, Tab, Enter, Escape 키는 팝오버 내에서만 처리하고 이벤트 전파 방지
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter', 'Escape'].includes(e.key)) {
+          e.stopPropagation();
+        }
+      }}
     >
       <div className="flex flex-wrap gap-1 items-center mb-2">
         {selectedTags.map(tag => {

@@ -50,7 +50,7 @@ function TableHeader({
       {/* 헤더 좌측 레일: 읽기 전용이 아닐 때만 표시 */}
       {!isReadOnly && (
         <div
-          className={`absolute top-0 h-full flex items-center pl-1 pr-1 transition duration-150 ${isAllSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+          className={`absolute top-0 h-full flex items-center pl-1 pr-1 transition duration-150 bg-white ${isAllSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
           style={{ width: 28, left: -32, zIndex: 2 }}
           onClick={(e) => e.stopPropagation()}
         >

@@ -29,6 +29,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   const navigate = useNavigate(); // useNavigate 훅 추가
   const [editingCell, setEditingCell] = useState(null);
   const [hoveredCell, setHoveredCell] = useState(null);
+  const [selectedCell, setSelectedCell] = useState(null);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const addBtnRef = useRef(null);
   const tagCellRefs = useRef({}); // {rowId_propertyId: ref}
@@ -209,6 +210,193 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     }
   };
 
+  // 셀 네비게이션 함수
+
+  const scrollToCell = (rowId, propertyId, direction) => {
+    const cellElement = document.querySelector(`[data-cell-id="${rowId}_${propertyId}"]`);
+    if (!cellElement) return;
+
+    const container = tableContainerRef.current;
+    if (!container) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const cellRect = cellElement.getBoundingClientRect();
+    
+    // 셀의 상대적 위치 계산
+    const cellTop = cellRect.top - containerRect.top + container.scrollTop;
+    const cellBottom = cellTop + cellRect.height;
+    const containerHeight = containerRect.height;
+    const containerScrollTop = container.scrollTop;
+    
+    // 노션 스타일 스크롤: 위아래 마지막 두 번째 행에서만 조정
+    if (direction === 'up' || direction === 'down') {
+      const rowHeight = cellRect.height;
+        const bufferRows = 1; // 스크롤 여백 행 수 (값을 변경해보세요: 1, 2, 3, 4, 5)
+      const bufferHeight = rowHeight * bufferRows;
+      
+      let shouldScroll = false;
+      let targetScrollTop = containerScrollTop;
+      
+      if (direction === 'up') {
+        // 위로 이동 시: 셀이 화면 상단에서 bufferRows만큼의 여백보다 위에 있으면 스크롤
+        const threshold = containerScrollTop + bufferHeight;
+        console.log(`UP: cellTop=${cellTop}, threshold=${threshold}, bufferRows=${bufferRows}`);
+        if (cellTop <= threshold) { // <= 로 변경하여 더 민감하게
+          shouldScroll = true;
+          targetScrollTop = cellTop - bufferHeight;
+          console.log(`UP 스크롤 실행: targetScrollTop=${targetScrollTop}`);
+        }
+      } else if (direction === 'down') {
+        // 아래로 이동 시: 셀이 화면 하단에서 bufferRows만큼의 여백보다 아래에 있으면 스크롤
+        const threshold = containerScrollTop + containerHeight - bufferHeight;
+        console.log(`DOWN: cellBottom=${cellBottom}, threshold=${threshold}, bufferRows=${bufferRows}`);
+        if (cellBottom >= threshold) { // >= 로 변경하여 더 민감하게
+          shouldScroll = true;
+          targetScrollTop = cellBottom - containerHeight + bufferHeight;
+          console.log(`DOWN 스크롤 실행: targetScrollTop=${targetScrollTop}`);
+        }
+      }
+      
+      if (shouldScroll) {
+        // 스크롤 범위 제한
+        targetScrollTop = Math.max(0, Math.min(targetScrollTop, container.scrollHeight - containerHeight));
+        
+        container.scrollTo({
+          top: targetScrollTop,
+          behavior: 'smooth'
+        });
+      }
+    } else {
+      // 좌우 이동 시에는 기존 방식 사용
+      cellElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+        inline: 'nearest'
+      });
+    }
+  };
+
+  const navigateToCell = (currentRowId, currentPropertyId, direction) => {
+    const currentRowIndex = finalFilteredRows.findIndex(row => row.id === currentRowId);
+    if (currentRowIndex === -1) return;
+
+    const currentRow = finalFilteredRows[currentRowIndex];
+    const allCells = [
+      { rowId: currentRow.id, propertyId: null }, // NameCell
+      ...fetchedProperties.map(prop => ({ rowId: currentRow.id, propertyId: prop.id }))
+    ];
+
+    const currentCellIndex = allCells.findIndex(cell => 
+      cell.rowId === currentRowId && cell.propertyId === currentPropertyId
+    );
+
+    if (currentCellIndex === -1) return;
+
+    let targetCell = null;
+
+    switch (direction) {
+      case 'left':
+        if (currentCellIndex > 0) {
+          targetCell = allCells[currentCellIndex - 1];
+        } else if (currentRowIndex > 0) {
+          // 첫 번째 셀에서 좌측 이동 시 이전 행의 마지막 셀로
+          const prevRow = finalFilteredRows[currentRowIndex - 1];
+          const prevRowCells = [
+            { rowId: prevRow.id, propertyId: null },
+            ...fetchedProperties.map(prop => ({ rowId: prevRow.id, propertyId: prop.id }))
+          ];
+          targetCell = prevRowCells[prevRowCells.length - 1];
+        }
+        break;
+      case 'right':
+        if (currentCellIndex < allCells.length - 1) {
+          targetCell = allCells[currentCellIndex + 1];
+        } else if (currentRowIndex < finalFilteredRows.length - 1) {
+          // 마지막 셀에서 우측 이동 시 다음 행의 첫 번째 셀로
+          const nextRow = finalFilteredRows[currentRowIndex + 1];
+          targetCell = { rowId: nextRow.id, propertyId: null };
+        }
+        break;
+      case 'up':
+        if (currentRowIndex > 0) {
+          const prevRow = finalFilteredRows[currentRowIndex - 1];
+          const prevRowCells = [
+            { rowId: prevRow.id, propertyId: null },
+            ...fetchedProperties.map(prop => ({ rowId: prevRow.id, propertyId: prop.id }))
+          ];
+          targetCell = prevRowCells[currentCellIndex] || prevRowCells[0];
+        }
+        break;
+      case 'down':
+        if (currentRowIndex < finalFilteredRows.length - 1) {
+          const nextRow = finalFilteredRows[currentRowIndex + 1];
+          const nextRowCells = [
+            { rowId: nextRow.id, propertyId: null },
+            ...fetchedProperties.map(prop => ({ rowId: nextRow.id, propertyId: prop.id }))
+          ];
+          targetCell = nextRowCells[currentCellIndex] || nextRowCells[0];
+        }
+        break;
+    }
+
+    if (targetCell) {
+      setSelectedCell(targetCell);
+      
+      // 행 간 이동 시 스크롤 애니메이션 적용
+      const targetRowIndex = finalFilteredRows.findIndex(row => row.id === targetCell.rowId);
+      if (targetRowIndex !== currentRowIndex) {
+        setTimeout(() => {
+          scrollToCell(targetCell.rowId, targetCell.propertyId, direction);
+        }, 50);
+      }
+    }
+  };
+
+  const handleCellKeyDown = (e, rowId, propertyId) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      setEditingCell({ rowId, propertyId });
+      
+      // 태그 속성인 경우 팝오버 위치 설정
+      if (propertyId !== null) {
+        const property = fetchedProperties.find(p => p.id === propertyId);
+        if (property && property.type === 'TAG') {
+          // 다음 렌더링 사이클에서 셀 위치를 가져오기 위해 setTimeout 사용
+          setTimeout(() => {
+            const cellElement = document.querySelector(`[data-cell-id="${rowId}_${propertyId}"]`);
+            if (cellElement) {
+              const rect = cellElement.getBoundingClientRect();
+              setTagPopoverRect({ 
+                top: rect.top, 
+                left: rect.left, 
+                width: rect.width, 
+                height: rect.height 
+              });
+            }
+          }, 0);
+        }
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setEditingCell(null);
+    } else if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+      e.preventDefault();
+      const direction = e.key.replace('Arrow', '').toLowerCase();
+      navigateToCell(rowId, propertyId, direction);
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      navigateToCell(rowId, propertyId, 'right');
+    }
+  };
+
+  const handleCellClick = (rowId, propertyId) => {
+    setSelectedCell({ rowId, propertyId });
+    // 마우스 클릭 시 바로 편집 모드로 진입 (시스템 속성 제외)
+    if (propertyId === null || !SYSTEM_PROP_TYPES.includes(fetchedProperties.find(p => p.id === propertyId)?.type)) {
+      setEditingCell({ rowId, propertyId });
+    }
+  };
+
   return (
     <div className="px-20 min-w-0">
       {/* 에러 메시지 표시 */}
@@ -333,6 +521,9 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
                     isSelected={selectedRowIds.has(row.id)}
                     onToggleSelect={toggleSelect}
                     isReadOnly={isReadOnly}
+                    selectedCell={selectedCell}
+                    onCellClick={handleCellClick}
+                    onCellKeyDown={handleCellKeyDown}
                   />
                 ))}
               </SortableContext>
