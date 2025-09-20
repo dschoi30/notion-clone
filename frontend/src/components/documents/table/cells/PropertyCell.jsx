@@ -1,4 +1,4 @@
-import React, { createRef } from 'react';
+import React, { createRef, useEffect, useRef } from 'react';
 import DatePopover from '../../DatePopover';
 import TagPopover from '../../TagPopover';
 import { formatKoreanDateSmart } from '@/lib/utils';
@@ -25,15 +25,26 @@ function PropertyCell({
   onTagOptionsUpdate,
   isSelected,
   isReadOnly = false,
+  selectedCell,
+  onCellClick,
+  onCellKeyDown,
 }) {
   const { currentDocument } = useDocument();
   const rowId = row.id;
   const propertyId = property?.id;
   const isEditing = editingCell && editingCell.rowId === rowId && editingCell.propertyId === propertyId;
-  const isHovered = hoveredCell && hoveredCell.rowId === rowId && hoveredCell.propertyId === propertyId;
+  const isCellSelected = selectedCell && selectedCell.rowId === rowId && selectedCell.propertyId === propertyId;
   const isSystemProp = systemPropTypes.includes(property.type);
   const value = property ? row.values[property.id] || '' : '';
+  const cellRef = useRef(null);
   let content = value;
+
+      // 셀이 선택되면 자동으로 포커스 설정
+      useEffect(() => {
+        if (isCellSelected && cellRef.current && !isEditing) {
+          cellRef.current.focus();
+        }
+      }, [isCellSelected, isEditing]);
 
   // 시스템 속성은 row.document 메타데이터를 우선 사용(표시 일관성)
   if (property.type === 'CREATED_AT') {
@@ -107,52 +118,75 @@ function PropertyCell({
   return (
     <div
       key={property.id}
-      ref={tagCellRefs.current[cellKey]}
-      className={`flex relative items-center h-full notion-table-view-cell ${isSelected ? 'bg-blue-50' : ''}`}
+      data-cell-id={`${rowId}_${propertyId}`}
+      ref={(el) => {
+        tagCellRefs.current[cellKey] = { current: el };
+        cellRef.current = el;
+      }}
+      className={`flex relative items-center h-full notion-table-view-cell ${isSelected ? 'bg-blue-50' : ''} focus:outline-none`}
       style={{
         width: colWidth,
         minWidth: 80,
         minHeight: '36px',
         fontSize: '14px',
-        borderTop: rowIdx === 0 ? '1px solid #e9e9e7' : 'none',
-        borderBottom: '1px solid #e9e9e7',
-        borderRight: '1px solid #e9e9e7',
-        borderLeft: 'none',
+        borderTop: isCellSelected ? '2px solid #3b82f6' : (rowIdx === 0 ? '1px solid #e9e9e7' : 'none'),
+        borderBottom: isCellSelected ? '2px solid #3b82f6' : '1px solid #e9e9e7',
+        borderRight: isCellSelected ? '2px solid #3b82f6' : '1px solid #e9e9e7',
+        borderLeft: isCellSelected ? '2px solid #3b82f6' : 'none',
         whiteSpace: 'normal',
         wordBreak: 'break-word',
-        background: isEditing ? '#e9e9e7' : undefined,
+        background: isEditing ? '#e9e9e7' : isCellSelected ? '#f0f8ff' : undefined,
         cursor: isReadOnly ? 'default' : isEditing ? (isSystemProp ? 'default' : 'text') : isSystemProp ? 'default' : 'pointer',
+        outline: 'none',
       }}
       onClick={() => {
-        if (!isSystemProp && !isReadOnly) setEditingCell({ rowId, propertyId });
+        if (!isSystemProp && !isReadOnly) {
+          onCellClick(rowId, propertyId);
+        }
       }}
       onMouseEnter={() => { if (!isReadOnly) setHoveredCell({ rowId, propertyId }); }}
       onMouseLeave={() => { if (!isReadOnly) setHoveredCell(null); }}
+      onKeyDown={(e) => {
+        if (!isReadOnly) {
+          onCellKeyDown(e, rowId, propertyId);
+        }
+      }}
+      tabIndex={isCellSelected ? 0 : -1}
     >
       {isEditing && !isSystemProp && !isReadOnly ? (
         property.type === 'TEXT' ? (
           <input
             autoFocus
-            className="px-2 w-full h-full rounded border outline-none"
-            style={{ background: '#fff', border: '1.5px solid #bdbdbd' }}
+            className="px-2 w-full h-full outline-none"
             value={value}
             onChange={(e) => handleCellValueChange(rowId, propertyId, e.target.value)}
             onBlur={() => setEditingCell(null)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') setEditingCell(null);
+              if (['Enter', 'Escape'].includes(e.key)) {
+                setEditingCell(null);
+              } else if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab'].includes(e.key)) {
+                e.preventDefault();
+                setEditingCell(null);
+                onCellKeyDown(e, rowId, propertyId);
+              }
             }}
           />
         ) : property.type === 'NUMBER' ? (
           <input
             type="number"
             autoFocus
-            className="px-2 py-1 w-full h-full rounded border outline-none"
-            style={{ background: '#fff', border: '1.5px solid #bdbdbd' }}
+            className="px-2 py-1 w-full h-full outline-none"
             value={value}
             onChange={(e) => handleCellValueChange(rowId, propertyId, e.target.value)}
             onBlur={() => setEditingCell(null)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') setEditingCell(null);
+              if (['Enter', 'Escape'].includes(e.key)) {
+                setEditingCell(null);
+              } else if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab'].includes(e.key)) {
+                e.preventDefault();
+                setEditingCell(null);
+                onCellKeyDown(e, rowId, propertyId);
+              }
             }}
           />
         ) : property.type === 'DATE' ? (

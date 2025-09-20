@@ -26,6 +26,10 @@ function TableRow({
   isSelected,
   onToggleSelect,
   isReadOnly = false,
+  // cell navigation
+  selectedCell,
+  onCellClick,
+  onCellKeyDown,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: row.id, disabled: isReadOnly });
   const style = {
@@ -74,6 +78,9 @@ function TableRow({
         onOpenRow={onOpenRow}
         isSelected={isSelected}
         isReadOnly={isReadOnly}
+        selectedCell={selectedCell}
+        onCellClick={onCellClick}
+        onCellKeyDown={onCellKeyDown}
       />
       {properties.map((p, idx) => (
         <PropertyCell
@@ -95,6 +102,9 @@ function TableRow({
           onTagOptionsUpdate={onTagOptionsUpdate}
           isSelected={isSelected}
           isReadOnly={isReadOnly}
+          selectedCell={selectedCell}
+          onCellClick={onCellClick}
+          onCellKeyDown={onCellKeyDown}
         />
       ))}
     </div>
