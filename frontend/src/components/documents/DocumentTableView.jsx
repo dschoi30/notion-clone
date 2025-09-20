@@ -532,8 +532,25 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
         </div>
         <div className="py-2">
           {!isReadOnly && (
-            <Button size="sm" variant="ghost" onClick={handleAddRowBottom}>+ 새 문서</Button>
+            <button 
+              className="text-sm text-gray-400 px-2 py-1 rounded hover:bg-gray-100 font-semibold"
+              onClick={handleAddRowBottom}
+            >
+              + 새 문서
+            </button>
           )}
+        </div>
+        {/* 문서 개수 표시 */}
+        <div 
+          className="text-sm text-gray-500 py-1 relative"
+          style={{ 
+            width: colWidths[0] || 0, // NameCell의 너비와 동일하게 설정
+            boxSizing: 'border-box' // 패딩을 포함한 너비 계산
+          }}
+        >
+          <span className="absolute right-2 top-1/2 -translate-y-1/2">
+            개수 {finalFilteredRows.length}
+          </span>
         </div>
       </div>
 

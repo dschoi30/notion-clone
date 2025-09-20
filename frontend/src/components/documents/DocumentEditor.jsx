@@ -310,7 +310,7 @@ const DocumentEditor = () => {
 
   return (
     <main className="overflow-x-visible relative bg-white">
-      <div className="p-4 space-y-4 min-w-0">
+      <div className="px-4 pt-4 pb-40 space-y-4 min-w-0">
         {/* 상단 타이틀/공유/저장 상태/권한자 이니셜 */}
         <DocumentHeader
           title={title}
