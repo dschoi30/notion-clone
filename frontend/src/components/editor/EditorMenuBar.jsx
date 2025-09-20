@@ -120,7 +120,7 @@ const EditorMenuBar = ({ editor, setLink }) => {
   ];
 
   return (
-    <div className="sticky top-0 z-10 bg-white border-b border-input">
+    <div className="sticky top-10 z-10 bg-white border-b border-input">
       <div className="flex flex-wrap gap-2 p-2">
         <Button
           variant="ghost"

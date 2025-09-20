@@ -46,7 +46,7 @@ function TableHeader({
   }, [isPopoverOpen, setIsPopoverOpen, addBtnRef]);
 
   return (
-    <div className="flex relative items-center group">
+    <div className="sticky top-12 z-10 flex items-center group bg-white">
       {/* 헤더 좌측 레일: 읽기 전용이 아닐 때만 표시 */}
       {!isReadOnly && (
         <div

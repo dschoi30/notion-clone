@@ -63,7 +63,7 @@ export default function WorkspaceList() {
 
   if (loading) {
     return (
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-3 border-b border-gray-200">
         <div className="flex items-center space-x-2">
           <Loader2 className="w-4 h-4 animate-spin" />
           <span className="text-sm text-gray-500">로딩 중...</span>
@@ -74,7 +74,7 @@ export default function WorkspaceList() {
 
   if (error) {
     return (
-      <div className="p-4 border-b border-gray-200">
+      <div className="px-4 py-3 border-b border-gray-200">
         <div className="text-sm text-red-500">에러: {error}</div>
       </div>
     );
@@ -83,7 +83,7 @@ export default function WorkspaceList() {
   return (
     <div className="relative border-b border-gray-200" ref={dropdownRef}>
       <div 
-        className="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-50"
+        className="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-gray-50"
         onClick={toggleDropdown}
       >
         <div className="flex flex-1 items-center space-x-2 min-w-0">
@@ -128,7 +128,7 @@ export default function WorkspaceList() {
             {workspaces.map((workspace) => (
               <div
                 key={workspace.id}
-                className={`p-3 pl-8 cursor-pointer hover:bg-gray-100 transition-colors ${
+                className={`px-4 py-3 pl-8 cursor-pointer hover:bg-gray-100 transition-colors ${
                   currentWorkspace?.id === workspace.id ? 'bg-gray-100' : ''
                 }`}
                 onClick={(e) => {
