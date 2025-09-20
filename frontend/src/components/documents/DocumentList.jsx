@@ -119,7 +119,7 @@ function SortableDocumentTreeItem({ document, currentDocument, onSelect, onDelet
           </span>
         )}
         <span
-          className="flex-1 items-center px-1 h-8 truncate whitespace-nowrap rounded cursor-pointer hover:bg-gray-50"
+          className="flex-1 items-center px-1 h-8 truncate whitespace-nowrap rounded cursor-pointer"
           style={{ 
             lineHeight: '2rem', 
             display: 'flex',
@@ -342,23 +342,23 @@ export default function DocumentList() {
 
   if (!currentWorkspace) {
     return (
-      <div className="p-4 text-center text-gray-500">
+      <div className="px-4 py-2 text-center text-gray-500">
         워크스페이스를 선택해주세요.
       </div>
     );
   }
 
   if (documentsLoading) {
-    return <div className="p-4">로딩 중...</div>;
+    return <div className="px-4 py-2">로딩 중...</div>;
   }
 
   if (error) {
-    return <div className="p-4 text-red-500">에러: {error}</div>;
+    return <div className="px-4 py-2 text-red-500">에러: {error}</div>;
   }
 
   return (
     <div className="overflow-y-auto flex-1">
-      <div className="p-4 space-y-8">
+      <div className="px-4 py-2 space-y-8">
         {/* 공유 문서 섹션 */}
         <div>
           <div className="flex justify-between items-center mb-2">

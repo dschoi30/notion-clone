@@ -18,7 +18,7 @@ export default function TrashButton() {
     <>
       <div
         ref={trashAreaRef}
-        className="p-4 mt-auto border-t border-gray-100 cursor-pointer select-none"
+        className="px-4 py-2 mt-auto border-t border-gray-100 cursor-pointer select-none"
         onClick={() => currentWorkspace && setTrashOpen(true)}
         tabIndex={0}
         role="button"
