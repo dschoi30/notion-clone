@@ -66,11 +66,14 @@ export function DocumentProvider({ children }) {
     }
   }, [currentWorkspace]);
 
-  const createDocument = useCallback(async (documentData) => {
+  const createDocument = useCallback(async (documentData, options = {}) => {
     if (!currentWorkspace) return;
 
     try {
-      setDocumentsLoading(true);
+      // 테이블뷰에서 호출하는 경우 로딩 상태를 변경하지 않음
+      if (!options.silent) {
+        setDocumentsLoading(true);
+      }
       setError(null);
       const newDocument = await documentApi.createDocument(currentWorkspace.id, documentData);
       setDocuments(prev => [...prev, newDocument]);
@@ -79,7 +82,9 @@ export function DocumentProvider({ children }) {
       setError(err.message);
       throw err;
     } finally {
-      setDocumentsLoading(false);
+      if (!options.silent) {
+        setDocumentsLoading(false);
+      }
     }
   }, [currentWorkspace]);
 

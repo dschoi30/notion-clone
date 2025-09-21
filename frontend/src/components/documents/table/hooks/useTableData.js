@@ -112,22 +112,64 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
 
   const handleAddRow = async (position = 'bottom') => {
     try {
+      // 임시 ID로 로컬 상태 먼저 업데이트 (즉시 반영)
+      const tempId = `temp_${Date.now()}`;
+      const tempRow = { 
+        id: tempId, 
+        title: '', 
+        values: {}, 
+        document: { 
+          id: tempId, 
+          title: '', 
+          viewType: 'PAGE',
+          parentId: documentId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        } 
+      };
+
+      // 시스템/일반 속성 초기 값 설정
+      properties.forEach((p) => {
+        let value = '';
+        if (stableSystemMap[p.type]) {
+          value = stableSystemMap[p.type]({ document: tempRow.document });
+        }
+        tempRow.values[p.id] = value;
+      });
+
+      // position에 따라 즉시 UI에 반영
+      let newRows;
+      if (position === 'top') {
+        newRows = [tempRow, ...rows];
+        setRows(newRows);
+      } else {
+        newRows = [...rows, tempRow];
+        setRows(newRows);
+      }
+
+      // 실제 문서 생성
       const newDoc = await createDocument({
         title: '',
         content: '',
         parentId: documentId,
         viewType: 'PAGE',
-      });
-      const newRow = { id: newDoc.id, title: '', values: {}, document: newDoc };
+      }, { silent: true }); // DocumentList 깜빡임 방지를 위해 silent 옵션 사용
 
-      // 시스템/일반 속성 모두 초기 값 DB 반영
+      // 임시 행을 실제 문서로 교체
+      const finalRow = { 
+        id: newDoc.id, 
+        title: '', 
+        values: {}, 
+        document: newDoc 
+      };
+
+      // 시스템/일반 속성 초기 값 DB 반영
       const ops = properties.map((p) => {
         let value = '';
         if (stableSystemMap[p.type]) {
-          // systemPropType 값 계산 (newDoc 메타데이터 기반)
           value = stableSystemMap[p.type]({ document: newDoc });
         }
-        newRow.values[p.id] = value;
+        finalRow.values[p.id] = value;
         return addOrUpdatePropertyValue(workspaceId, newDoc.id, p.id, value);
       });
 
@@ -135,19 +177,13 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
         await Promise.all(ops);
       }
 
-      // position에 따라 다르게 추가
-      let newRows;
-      if (position === 'top') {
-        newRows = [newRow, ...rows];
-        setRows(newRows);
-      } else {
-        newRows = [...rows, newRow];
-        setRows(newRows);
-      }
+      // 임시 행을 실제 행으로 교체
+      const finalRows = newRows.map(row => row.id === tempId ? finalRow : row);
+      setRows(finalRows);
 
       // DB에 새로운 순서 반영
       try {
-        const orderedIds = newRows.map(row => row.id);
+        const orderedIds = finalRows.map(row => row.id);
         await updateChildDocumentOrder(workspaceId, documentId, orderedIds);
       } catch (error) {
         console.error('문서 순서 업데이트 실패:', error);
@@ -158,6 +194,8 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
         });
       }
     } catch (e) {
+      // 실패 시 임시 행 제거
+      setRows(prev => prev.filter(row => !row.id.startsWith('temp_')));
       handleError(e, {
         customMessage: '페이지 생성에 실패했습니다.',
         showToast: true
