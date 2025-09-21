@@ -1,7 +1,7 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
-const Tooltip = ({ children, content, side = "top", className, delayDuration = 700, ...props }) => {
+const Tooltip = ({ children, content, side = "top", className, delayDuration = 700, xOffset = 0, ...props }) => {
   const [isVisible, setIsVisible] = React.useState(false)
   const [position, setPosition] = React.useState({ x: 0, y: 0 })
   const timeoutRef = React.useRef(null)
@@ -40,11 +40,14 @@ const Tooltip = ({ children, content, side = "top", className, delayDuration = 7
             y = rect.top - offset
         }
         
+        // X 좌표 오프셋 적용
+        x = x + xOffset
+        
         setPosition({ x, y })
         setIsVisible(true)
       }
     }, delayDuration)
-  }, [delayDuration, side])
+  }, [delayDuration, side, xOffset])
 
   const hideTooltip = React.useCallback(() => {
     if (timeoutRef.current) {

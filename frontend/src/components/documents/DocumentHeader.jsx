@@ -56,18 +56,18 @@ export default function DocumentHeader({
           {/* 오른쪽 끝 요소들 */}
           <div className="flex items-center space-x-2">
             {/* 권한자 이니셜 아이콘 목록 */}
-            <div className="flex items-center">
+            <div className="flex items-center mr-4">
               {currentDocument?.permissions?.map((p) => {
                 const isPresent = viewers?.some(v => String(v.userId) === String(p.userId));
                 return (
                   <div key={p.userId} className={isPresent ? 'opacity-100' : 'opacity-40'}>
-                    <UserBadge name={p.name} email={p.email} profileImageUrl={p.profileImageUrl} size={32} showLabel={false} />
+                    <UserBadge name={p.name} email={p.email} profileImageUrl={p.profileImageUrl} size={32} showLabel={false} xOffset={-256} />
                   </div>
                 );
               })}
             </div>
             <span
-              style={{ whiteSpace: 'nowrap' }}
+              style={{ whiteSpace: 'nowrap', margin: '0 8px' }}
               className={
                 (saveStatus === 'saving' ? 'text-blue-500' :
                 saveStatus === 'error' ? 'text-red-500' :

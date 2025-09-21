@@ -16,7 +16,7 @@ function getInitials(name, email) {
   return base.substring(0, 2).toUpperCase();
 }
 
-export default function UserBadge({ name, email, profileImageUrl, size = 20, showLabel = true }) {
+export default function UserBadge({ name, email, profileImageUrl, size = 20, showLabel = true, xOffset = 0 }) {
   const initials = getInitials(name, email);
   const dimension = typeof size === 'number' ? `${size}px` : size;
   
@@ -37,7 +37,7 @@ export default function UserBadge({ name, email, profileImageUrl, size = 20, sho
   const tooltipContent = getTooltipContent();
   
   return (
-    <Tooltip content={tooltipContent} side="bottom">
+    <Tooltip content={tooltipContent} side="bottom" xOffset={xOffset}>
       <span className="inline-flex items-center gap-2 min-h-[20px] max-w-full overflow-hidden">
         {profileImageUrl ? (
           <img
