@@ -220,10 +220,13 @@ export function DocumentProvider({ children }) {
   }, [currentWorkspace]);
 
   // parentId 기반 하위 문서(서브페이지) 목록 조회
-  const fetchChildDocuments = useCallback(async (parentId) => {
+  const fetchChildDocuments = useCallback(async (parentId, options = {}) => {
     if (!currentWorkspace) return [];
     try {
-      setDocumentsLoading(true);
+      // 사이드바에서 호출하는 경우 로딩 상태를 변경하지 않음
+      if (!options.silent) {
+        setDocumentsLoading(true);
+      }
       setError(null);
       const data = await documentApi.getChildDocuments(currentWorkspace.id, parentId);
       return data;
@@ -231,7 +234,9 @@ export function DocumentProvider({ children }) {
       setError(err.message);
       return [];
     } finally {
-      setDocumentsLoading(false);
+      if (!options.silent) {
+        setDocumentsLoading(false);
+      }
     }
   }, [currentWorkspace]);
 

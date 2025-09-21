@@ -61,7 +61,7 @@ function SortableDocumentTreeItem({ document, currentDocument, onSelect, onDelet
       setOpenedIds(prev => new Set(prev).add(document.id));
       if (!childrenMap[document.id]) {
         setLoading(true);
-        const docs = await fetchChildDocuments(document.id);
+        const docs = await fetchChildDocuments(document.id, { silent: true }); // DocumentList 깜빡임 방지를 위해 silent 옵션 사용
         setChildrenMap(prev => ({ ...prev, [document.id]: docs }));
         setLoading(false);
       }
