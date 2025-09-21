@@ -776,3 +776,6 @@
   - DocumentContext의 createDocument 함수에 silent 옵션 추가하여 로딩 상태 변경 제어
   - useTableData의 handleAddRow에서 silent 옵션 사용하여 DocumentList 깜빡임 방지
   - 임시 ID를 사용한 낙관적 업데이트로 즉시 UI 반영 후 실제 문서로 교체하는 방식으로 사용자 경험 개선
+- 사이드바 부모 문서 꺾쇠 버튼 클릭 시 DocumentList 영역의 깜빡임 문제 해결
+  - DocumentContext의 fetchChildDocuments 함수에 silent 옵션 추가하여 로딩 상태 변경 제어
+  - DocumentList의 handleToggle에서 silent 옵션 사용하여 자식 문서 조회 시 깜빡임 방지
