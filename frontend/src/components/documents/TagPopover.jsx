@@ -119,7 +119,7 @@ export default function TagPopover({ propertyId, tagOptions: propTagOptions, val
     <div
       ref={ref}
       style={{
-        position: 'absolute',
+        position: 'fixed',
         top: position?.top ?? 0,
         left: position?.left ?? 0,
         minWidth: position?.width ?? 200,

@@ -779,3 +779,6 @@
 - 사이드바 부모 문서 꺾쇠 버튼 클릭 시 DocumentList 영역의 깜빡임 문제 해결
   - DocumentContext의 fetchChildDocuments 함수에 silent 옵션 추가하여 로딩 상태 변경 제어
   - DocumentList의 handleToggle에서 silent 옵션 사용하여 자식 문서 조회 시 깜빡임 방지
+
+## 2025-09-23 (테이블뷰 스크롤 시 태그 옵션 팝오버 위치 조정)
+- 테이블 뷰에서 스크롤 후 태그 팝오버 위치 문제 해결: TagPopover 컴포넌트의 position을 'absolute'에서 'fixed'로 변경하고, DocumentTableView에서 스크롤 이벤트 리스너를 추가하여 팝오버 위치를 실시간으로 업데이트하도록 수정함.

@@ -88,6 +88,8 @@ function PropertyCell({
           if (!isSystemProp) {
             const rect = tagCellRefs.current[cellKey]?.current?.getBoundingClientRect();
             if (rect && rect.width > 0 && rect.height > 0) {
+              // getBoundingClientRect()는 뷰포트 기준 좌표를 반환하므로
+              // position: fixed를 사용하는 팝오버에 그대로 사용 가능
               setTagPopoverRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
               setEditingCell({ rowId, propertyId });
             }
