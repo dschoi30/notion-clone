@@ -75,7 +75,7 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
   const [restoring, setRestoring] = useState(false);
   const [tagOptionsByPropId, setTagOptionsByPropId] = useState({});
   const log = createLogger('version');
-  const { fetchDocument, currentDocument } = useDocument();
+  const { fetchDocument, currentDocument, fetchDocuments, refreshAllChildDocuments } = useDocument();
 
   const PAGE_SIZE = 20;
   const [page, setPage] = useState(0);
@@ -161,7 +161,13 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
       log.debug('restore start', selected.id);
       await restoreDocumentVersion(workspaceId, documentId, selected.id);
       log.info('restore success');
+      
+      // 현재 문서 정보 새로고침
       await fetchDocument(documentId);
+      
+      // 사이드바의 문서 목록과 자식 문서들도 새로고침하여 변경사항 반영
+      await refreshAllChildDocuments();
+      
       alert('복구가 완료되었습니다.');
     } catch (e) {
       log.error('restore failed', e);
