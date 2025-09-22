@@ -1,7 +1,7 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import AddPropertyPopover from './AddPropertyPopover';
 import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
 import { DndContext, closestCenter } from '@dnd-kit/core';
@@ -39,6 +39,34 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   const [pendingDragEvent, setPendingDragEvent] = useState(null);
   
   const systemPropTypeMap = useMemo(() => buildSystemPropTypeMapForTable(), []);
+  
+  // 스크롤 이벤트 핸들러 - 팝오버 위치 업데이트
+  useEffect(() => {
+    function handleScroll() {
+      if (editingCell && tagPopoverRect) {
+        const { rowId, propertyId } = editingCell;
+        const cellElement = document.querySelector(`[data-cell-id="${rowId}_${propertyId}"]`);
+        if (cellElement) {
+          const rect = cellElement.getBoundingClientRect();
+          setTagPopoverRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
+        }
+      }
+    }
+    
+    // 테이블 컨테이너와 윈도우 스크롤 이벤트 모두 처리
+    const tableContainer = tableContainerRef.current;
+    if (tableContainer) {
+      tableContainer.addEventListener('scroll', handleScroll);
+    }
+    window.addEventListener('scroll', handleScroll);
+    
+    return () => {
+      if (tableContainer) {
+        tableContainer.removeEventListener('scroll', handleScroll);
+      }
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [editingCell, tagPopoverRect]);
   
   // 에러 처리 훅
   const { handleError, clearError } = useErrorHandler();
@@ -366,6 +394,8 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
             const cellElement = document.querySelector(`[data-cell-id="${rowId}_${propertyId}"]`);
             if (cellElement) {
               const rect = cellElement.getBoundingClientRect();
+              // getBoundingClientRect()는 뷰포트 기준 좌표를 반환하므로
+              // position: fixed를 사용하는 팝오버에 그대로 사용 가능
               setTagPopoverRect({ 
                 top: rect.top, 
                 left: rect.left, 
