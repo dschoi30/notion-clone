@@ -240,6 +240,20 @@ export function DocumentProvider({ children }) {
     }
   }, [currentWorkspace]);
 
+  // 모든 자식 문서들을 새로고침하는 함수 (버전 복원 시 사용)
+  const refreshAllChildDocuments = useCallback(async () => {
+    if (!currentWorkspace) return;
+    try {
+      setError(null);
+      // 모든 문서를 다시 가져와서 자식 문서 정보도 최신화
+      const allDocuments = await documentApi.getDocuments(currentWorkspace.id);
+      setDocuments(allDocuments);
+    } catch (err) {
+      setError(err.message);
+      console.error('Failed to refresh child documents:', err);
+    }
+  }, [currentWorkspace]);
+
   const value = {
     documents,
     currentDocument,
@@ -252,6 +266,7 @@ export function DocumentProvider({ children }) {
     selectDocument,
     updateDocumentOrder,
     fetchDocument,
+    refreshAllChildDocuments,
     documentsLoading,
     documentLoading,
   };
