@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { PlusIcon, TrashIcon, GripVertical, ChevronRight, ChevronDown, FileText, Table } from 'lucide-react';
 import { useDocument } from '@/contexts/DocumentContext';
@@ -186,6 +186,21 @@ export default function DocumentList() {
   const navigate = useNavigate();
   const dlog = createLogger('DocumentList');
   const { handleError } = useErrorHandler();
+  
+  // 스크롤 컨테이너 참조
+  const scrollContainerRef = useRef(null);
+  
+  // 스크롤을 맨 아래로 이동하는 함수
+  const scrollToBottom = () => {
+    if (scrollContainerRef.current) {
+      setTimeout(() => {
+        scrollContainerRef.current.scrollTo({
+          top: scrollContainerRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      }, 100); // DOM 업데이트 후 스크롤
+    }
+  };
 
   // dnd-kit 센서 설정
   const sensors = useSensors(
@@ -314,12 +329,17 @@ export default function DocumentList() {
   // 새 문서 생성 (최상위에 생성)
   const handleCreateDocument = async () => {
     try {
+      // 깜빡임 방지를 위해 silent 옵션 사용
       const newDocument = await createDocument({
         title: '',
         content: '',
         parentId: null,
         viewType: 'PAGE',
-      });
+      }, { silent: true });
+      
+      // 새 문서 생성 후 스크롤을 맨 아래로 이동
+      scrollToBottom();
+      
       handleSelectDocument(newDocument);
     } catch (err) {
       console.error('문서 생성 실패:', err);
@@ -357,7 +377,7 @@ export default function DocumentList() {
   }
 
   return (
-    <div className="overflow-y-auto flex-1">
+    <div ref={scrollContainerRef} className="overflow-y-auto flex-1">
       <div className="px-4 py-2 space-y-8">
         {/* 공유 문서 섹션 */}
         <div>
