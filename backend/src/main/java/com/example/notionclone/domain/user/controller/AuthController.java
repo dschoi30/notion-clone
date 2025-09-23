@@ -7,6 +7,7 @@ import com.example.notionclone.domain.user.dto.LoginRequest;
 import com.example.notionclone.domain.user.dto.RegisterRequest;
 import com.example.notionclone.domain.user.dto.UserResponse;
 import com.example.notionclone.domain.user.repository.UserRepository;
+import com.example.notionclone.domain.workspace.service.WorkspaceService;
 import com.example.notionclone.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +37,7 @@ public class AuthController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final WorkspaceService workspaceService;
     
     @Value("${google.client.id}")
     private String googleClientId;
@@ -77,6 +79,16 @@ public class AuthController {
             user = userRepository.save(user);
             log.info("User registered successfully: {}", user.getEmail());
 
+            // 신규 가입 시 기본 워크스페이스 생성
+            try {
+                String defaultWorkspaceName = user.getName() + "의 워크스페이스";
+                workspaceService.createWorkspace(user, defaultWorkspaceName);
+                log.info("Default workspace created for user: {}", user.getEmail());
+            } catch (Exception e) {
+                log.error("Failed to create default workspace for user: {}", user.getEmail(), e);
+                // 워크스페이스 생성 실패해도 회원가입은 성공으로 처리
+            }
+
             String jwt = jwtTokenProvider.createToken(user.getEmail());
             return ResponseEntity.ok(new AuthResponse(jwt, new UserResponse(user)));
         } catch (Exception e) {
@@ -114,7 +126,19 @@ public class AuthController {
                         newUser.setEmail(email);
                         newUser.setName(name);
                         newUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
-                        return userRepository.save(newUser);
+                        User savedUser = userRepository.save(newUser);
+                        
+                        // 신규 가입 시 기본 워크스페이스 생성
+                        try {
+                            String defaultWorkspaceName = savedUser.getName() + "의 워크스페이스";
+                            workspaceService.createWorkspace(savedUser, defaultWorkspaceName);
+                            log.info("Default workspace created for Google user: {}", savedUser.getEmail());
+                        } catch (Exception e) {
+                            log.error("Failed to create default workspace for Google user: {}", savedUser.getEmail(), e);
+                            // 워크스페이스 생성 실패해도 회원가입은 성공으로 처리
+                        }
+                        
+                        return savedUser;
                     });
 
                 // JWT 토큰 생성
