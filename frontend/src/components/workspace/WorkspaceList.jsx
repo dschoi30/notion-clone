@@ -10,7 +10,6 @@ import WorkspaceIcon from './WorkspaceIcon';
 export default function WorkspaceList() {
   const [isOpen, setIsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const dropdownRef = useRef(null);
   const { 
@@ -19,7 +18,9 @@ export default function WorkspaceList() {
     selectWorkspace,
     fetchWorkspaces,
     loading,
-    error 
+    error,
+    isSettingsPanelOpen,
+    setIsSettingsPanelOpen
   } = useWorkspace();
   const { user, logout } = useAuth();
 

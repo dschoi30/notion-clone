@@ -6,6 +6,7 @@ import SearchFilters from './SearchFilters';
 import AuthorFilterModal from './AuthorFilterModal';
 import DateFilterModal, { getDateLabel } from './DateFilterModal';
 import { slugify } from '@/lib/utils';
+import { Z_INDEX } from '@/constants/zIndex';
 
 export default function SearchModal({ open, onClose }) {
   const inputRef = useRef(null);
@@ -170,7 +171,10 @@ export default function SearchModal({ open, onClose }) {
   if (!open) return null;
 
   return (
-    <div className="flex fixed inset-0 z-50 justify-center items-center bg-black bg-opacity-30">
+    <div 
+      className="flex fixed inset-0 justify-center items-center bg-black bg-opacity-30"
+      style={{ zIndex: Z_INDEX.SEARCH_MODAL }}
+    >
       <div
         ref={modalRef}
         className="bg-white rounded-lg shadow-lg"

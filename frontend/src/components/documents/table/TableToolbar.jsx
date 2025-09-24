@@ -5,6 +5,9 @@ import SearchSlideInput from './SearchSlideInput';
 import FilterDropdown from './FilterDropdown';
 import SortDropdown from './SortDropdown';
 import SortManager from './SortManager';
+import { useNotification } from '@/contexts/NotificationContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { ZIndexUtils } from '@/constants/zIndex';
 
 const TableToolbar = ({ 
   onAddNewDocument,
@@ -28,6 +31,8 @@ const TableToolbar = ({
   getSortedDocumentIds
 }) => {
   const [fixedTop, setFixedTop] = useState(null);
+  const { isNotificationModalOpen } = useNotification();
+  const { isSettingsPanelOpen, isSearchModalOpen } = useWorkspace();
   
   useLayoutEffect(() => {
     if (!anchorRef?.current) return;
@@ -68,13 +73,18 @@ const TableToolbar = ({
     clearSearch();
   };
 
+  // 모달이 열려있을 때 z-index를 낮춤
+  const isModalOpen = isNotificationModalOpen || isSettingsPanelOpen || isSearchModalOpen;
+  const toolbarZIndex = ZIndexUtils.getTableToolbarZIndex(isModalOpen);
+  const sortManagerZIndex = ZIndexUtils.getTableToolbarZIndex(isModalOpen);
+
   return (
     <div ref={anchorRef} className="h-0">
       {/* 정렬 관리자 - 테이블 좌측 상단 */}
       {activeSorts.length > 0 && (
         <div 
-          className="fixed z-40 left-84"
-          style={{ top: (fixedTop ?? 0) + 10 }}
+          className="fixed left-84"
+          style={{ top: (fixedTop ?? 0) + 10, zIndex: sortManagerZIndex }}
         >
           <SortManager
             activeSorts={activeSorts}
@@ -93,8 +103,8 @@ const TableToolbar = ({
 
       {/* 뷰포트 우측 고정 (세로 위치는 초기 위치 고정) */}
       <div
-        className="fixed right-20 z-50"
-        style={{ top: fixedTop ?? 0 }}
+        className="fixed right-20"
+        style={{ top: fixedTop ?? 0, zIndex: toolbarZIndex }}
       >
         <div className="flex gap-0.5 items-center">
           {/* 필터 아이콘 - 아직 구현 안됨 */}

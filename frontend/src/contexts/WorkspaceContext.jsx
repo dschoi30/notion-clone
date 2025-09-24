@@ -18,6 +18,8 @@ export function WorkspaceProvider({ children }) {
   const [currentWorkspace, setCurrentWorkspace] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const wlog = createLogger('WorkspaceContext');
 
   const fetchWorkspaces = useCallback(async () => {
@@ -137,6 +139,10 @@ export function WorkspaceProvider({ children }) {
     currentWorkspace,
     loading,
     error,
+    isSettingsPanelOpen,
+    setIsSettingsPanelOpen,
+    isSearchModalOpen,
+    setIsSearchModalOpen,
     fetchWorkspaces,
     createWorkspace,
     updateWorkspace,

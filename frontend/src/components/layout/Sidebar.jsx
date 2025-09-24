@@ -4,6 +4,7 @@ import DocumentList from '@/components/documents/DocumentList';
 import TrashButton from './TrashButton';
 import Notifications from '@/components/notifications/Notifications';
 import SearchButton from './SearchButton';
+import { Z_INDEX } from '@/constants/zIndex';
 
 export default function Sidebar() {
   return (
@@ -12,7 +13,7 @@ export default function Sidebar() {
       style={{
         backgroundColor: '#F8F8F7',
         height: '100vh',
-        zIndex: 30
+        zIndex: Z_INDEX.SIDEBAR
       }}
     >
       <WorkspaceList />

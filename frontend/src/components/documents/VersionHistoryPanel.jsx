@@ -7,6 +7,7 @@ import { formatKoreanDateSmart } from '@/lib/utils';
 import { getColorObj } from '@/lib/colors';
 import UserBadge from '@/components/documents/shared/UserBadge';
 import { resolveUserDisplay } from '@/components/documents/shared/resolveUserDisplay';
+import { Z_INDEX } from '@/constants/zIndex';
 
 function VersionProperties({ propertiesJson, valuesJson, tagOptionsByPropId }) {
   const props = useMemo(() => {
@@ -194,7 +195,11 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
   }, [hasMore, loadingMore, loading, page]);
   
   return (
-    <div className="fixed inset-0 z-[9999] flex justify-center items-center bg-black/30" onClick={onClose}>
+    <div 
+      className="fixed inset-0 flex justify-center items-center bg-black/30" 
+      style={{ zIndex: Z_INDEX.VERSION_HISTORY }}
+      onClick={onClose}
+    >
       <div className="relative bg-white w-[1040px] h-[85vh] rounded-lg shadow-2xl flex" onClick={(e) => e.stopPropagation()}>
         {/* 메인 영역 */}
         <div className="overflow-auto flex-1 p-8">

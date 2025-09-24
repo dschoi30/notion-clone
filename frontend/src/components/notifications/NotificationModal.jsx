@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNotification } from '@/contexts/NotificationContext';
 import { Button } from '@/components/ui/button';
+import { Z_INDEX } from '@/constants/zIndex';
 
 export default function NotificationModal({ onClose }) {
   const { notifications, fetchNotifications, acceptNotification, rejectNotification } = useNotification();
@@ -10,7 +11,10 @@ export default function NotificationModal({ onClose }) {
   }, [fetchNotifications]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+    <div 
+      className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30"
+      style={{ zIndex: Z_INDEX.NOTIFICATION_MODAL }}
+    >
       <div className="p-6 bg-white rounded shadow-lg w-96">
         <h2 className="mb-4 text-lg font-semibold">알림</h2>
         {notifications.length === 0 ? (
