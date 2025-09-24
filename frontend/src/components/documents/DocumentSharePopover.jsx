@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ChevronDown } from 'lucide-react';
 import UserBadge from '@/components/documents/shared/UserBadge';
+import { Z_INDEX } from '@/constants/zIndex';
 
 function PermissionDropdown({ value, onChange, disabled, loading, menuEnabled = true }) {
   const options = [
@@ -36,7 +37,7 @@ function PermissionDropdown({ value, onChange, disabled, loading, menuEnabled = 
         </button>
       </DropdownMenuTrigger>
       {!isOwner && menuEnabled && (
-        <DropdownMenuContent align="end" className="min-w-[100px]" style={{ zIndex: 9999 }}>
+        <DropdownMenuContent align="end" className="min-w-[100px]" style={{ zIndex: Z_INDEX.POPOVER }}>
           {options.map(opt => (
             <DropdownMenuItem
               key={opt.value}
@@ -205,7 +206,7 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
             margin: 0,
             transform: 'none',
             minWidth: 280,
-            zIndex: 9998,
+            zIndex: Z_INDEX.POPOVER,
             transformOrigin: 'top right',
           }}
           className="p-6 bg-white rounded-lg border shadow-xl transition-none"

@@ -9,6 +9,7 @@ export function useNotification() {
 
 export function NotificationProvider({ children }) {
   const [notifications, setNotifications] = useState([]);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
 
   const fetchNotifications = useCallback(async () => {
     const data = await notificationApi.getNotifications();
@@ -31,6 +32,8 @@ export function NotificationProvider({ children }) {
       fetchNotifications,
       acceptNotification,
       rejectNotification,
+      isNotificationModalOpen,
+      setIsNotificationModalOpen,
     }}>
       {children}
     </NotificationContext.Provider>

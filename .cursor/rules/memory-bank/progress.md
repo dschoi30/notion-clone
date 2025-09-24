@@ -802,3 +802,30 @@
   - scrollToBottom 함수로 DOM 업데이트 후 100ms 지연하여 스크롤을 맨 아래로 이동
   - 새 문서 생성 후 자동으로 스크롤이 맨 아래로 이동하여 새로 생성된 문서를 확인 가능
 - **결과**: 신규 문서 생성 시 깜빡임 없이 부드러운 사용자 경험 제공 및 새 문서 위치 자동 확인 가능
+
+## 2025-09-24 (DocumentHeader 모달 배경색 문제 해결)
+- **문제**: VersionHistoryPanel, SettingsPanel, NotificationModal 띄울 때 DocumentHeader에 배경색이 하얗게 표시되는 현상
+- **원인**: DocumentHeader의 고정 헤더가 `bg-white` 클래스로 하드코딩되어 있고, z-index가 모달들과 겹치는 문제
+- **해결방법**:
+  - 모달이 열려있을 때(`showVersions || showShareModal`) 배경색을 미적용하도록 변경
+- **수정된 파일**:
+  - `DocumentHeader.jsx`: 조건부 배경색 및 z-index 조정
+- **결과**: 모달이 열려있을 때 DocumentHeader의 배경색이 미적용되어 시각적 간섭 없이 모달이 정상 표시됨
+
+## 2025-09-24 (z-index 관리 시스템 구현)
+- **목표**: 애플리케이션 전체의 z-index 값을 효율적으로 관리하고 일관성 있게 적용
+- **구현 내용**:
+  - **중앙화된 z-index 상수 파일 생성**: `constants/zIndex.js`
+    - 레이어별 z-index 값 정의
+    - 유틸리티 함수 제공 (동적 z-index 계산, 배경색 조건부 적용)
+  - **모든 모달/팝오버 컴포넌트 z-index 상수 적용**:
+- **z-index 레이어 시스템**:
+- **유틸리티 함수**:
+  - `ZIndexUtils.getTableToolbarZIndex(isModalOpen)`: 모달 상태에 따른 동적 z-index
+  - `ZIndexUtils.getDocumentHeaderBackground(isModalOpen)`: 모달 상태에 따른 배경색
+- **결과**: 
+  - z-index 값의 중앙화된 관리로 일관성 확보
+  - 모달 간 겹침 문제 해결
+  - 유지보수성 향상 (z-index 변경 시 한 파일만 수정)
+  - 동적 z-index 처리로 사용자 경험 개선
+  - 타입 안전성 확보 (상수 사용으로 오타 방지)

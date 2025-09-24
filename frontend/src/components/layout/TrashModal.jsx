@@ -4,6 +4,7 @@ import { TrashIcon, Undo } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import useTrash from '@/hooks/useTrash';
 import { createLogger } from '@/lib/logger';
+import { Z_INDEX } from '@/constants/zIndex';
 
 export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRestore }) {
   const dialogRef = useRef(null);
@@ -81,7 +82,7 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
             transform: 'none',
             minWidth: 320,
             maxWidth: 400,
-            zIndex: 50,
+            zIndex: Z_INDEX.MODAL,
             transformOrigin: 'bottom left',
           }}
           onOpenAutoFocus={(e) => e.preventDefault()}

@@ -5,6 +5,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import WorkspaceGeneralForm from './WorkspaceGeneralForm';
 import AccountBasicForm from './AccountBasicForm';
+import { Z_INDEX } from '@/constants/zIndex';
 
 // 단순 레이아웃 셸: VersionHistoryPanel과 동일한 패널/오버레이 구조
 // 좌측 네비 + 우측 컨텐츠 영역만 제공. 세부 폼은 후속 태스크에서 구현.
@@ -34,7 +35,11 @@ export default function SettingsPanel({ onClose }) {
   }, [selected, currentWorkspace]);
 
   return (
-    <div className="fixed inset-0 flex justify-center items-center bg-black/30" style={{zIndex: 99999}} onClick={onClose}>
+    <div 
+      className="fixed inset-0 flex justify-center items-center bg-black/30" 
+      style={{ zIndex: Z_INDEX.SETTINGS_PANEL }}
+      onClick={onClose}
+    >
       <div className="relative bg-white w-[1040px] h-[85vh] rounded-lg shadow-2xl flex" onClick={(e) => e.stopPropagation()}>
         {/* 좌측 네비 (좌측 배치 + 구분선) */}
         <div className="flex relative flex-col p-4 w-80 h-full bg-white rounded-l-lg border-r">

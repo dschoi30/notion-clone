@@ -1,8 +1,9 @@
-import React, { Fragment, useCallback } from 'react';
+import React, { Fragment, useCallback, useState } from 'react';
 import UserBadge from '@/components/documents/shared/UserBadge';
 import { Button } from '@/components/ui/button';
 import VersionHistoryPanel from './VersionHistoryPanel';
 import DocumentSharePopover from './DocumentSharePopover';
+import { Z_INDEX } from '@/constants/zIndex';
 
 export default function DocumentHeader({
   title,
@@ -15,17 +16,17 @@ export default function DocumentHeader({
   shareButtonRef,
   currentDocument,
   viewers,
-  user,
   currentWorkspace,
   path,
   onPathClick
 }) {
-  const [showVersions, setShowVersions] = React.useState(false);
+  const [showVersions, setShowVersions] = useState(false);
   const handleCloseVersions = useCallback(() => setShowVersions(false), []);
   const isTableView = currentDocument?.viewType === 'TABLE';
   const paddingClasses = isTableView
     ? 'px-20'
     : 'px-6 sm:px-8 md:px-[10vw] lg:px-[14vw] xl:px-[18vw]';
+  
   return (
     <div className="flex flex-col w-full">
       <div className={`flex relative justify-between items-center pt-12 pb-6 ${paddingClasses}`}>
@@ -39,7 +40,10 @@ export default function DocumentHeader({
           disabled={isReadOnly}
         />
         {/* 문서 경로/공유/저장 상태/권한자 이니셜 영역을 fixed로 분리 */}
-        <div className="flex fixed top-0 left-64 right-0 z-50 items-center justify-between px-4 py-2 bg-white backdrop-blur-sm">
+        <div 
+          className="flex fixed top-0 left-64 right-0 items-center justify-between px-4 py-2 bg-white backdrop-blur-sm"
+          style={{ zIndex: Z_INDEX.FIXED }}
+        >
           {/* 경로 표시 - 왼쪽 끝 */}
           {path && path.length >= 1 && (
             <div className="text-sm text-gray-700">
