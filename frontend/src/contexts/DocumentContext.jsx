@@ -40,7 +40,8 @@ export function DocumentProvider({ children }) {
     try {
       setDocumentsLoading(true);
       setError(null);
-      const data = await documentApi.getDocuments(currentWorkspace.id);
+      // 경량 API 사용으로 성능 최적화
+      const data = await documentApi.getDocumentList(currentWorkspace.id);
       
       // 백엔드에서 다른 워크스페이스 문서가 섞여서 올 경우를 대비한 필터링
       const filteredData = data.filter(doc => {
