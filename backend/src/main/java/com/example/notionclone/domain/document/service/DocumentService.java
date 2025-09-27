@@ -1,6 +1,7 @@
 package com.example.notionclone.domain.document.service;
 
 import com.example.notionclone.domain.document.dto.DocumentResponse;
+import com.example.notionclone.domain.document.dto.DocumentListResponse;
 import com.example.notionclone.domain.document.entity.Document;
 import com.example.notionclone.domain.document.repository.DocumentRepository;
 import com.example.notionclone.domain.user.entity.User;
@@ -84,6 +85,63 @@ public class DocumentService {
           return applyLatestMeta(resp, doc);
         })
         .collect(Collectors.toList());
+  }
+
+  /**
+   * DocumentList 조회용 경량 메서드
+   * content, properties, permissions 등 불필요한 데이터를 제거하여 성능을 최적화합니다.
+   * N+1 문제를 해결하기 위해 배치 쿼리를 사용합니다.
+   * 
+   * @param workspaceId 워크스페이스 ID
+   * @param user 사용자
+   * @return DocumentListResponse 목록
+   */
+  public List<DocumentListResponse> getDocumentListByWorkspace(Long workspaceId, User user) {
+    // 1. 사용자가 소유한 문서 조회
+    List<Document> ownedDocuments = documentRepository.findByWorkspaceIdAndUserIdAndIsTrashedFalse(workspaceId,
+        user.getId());
+
+    // 2. 사용자가 공유받은 문서 ID 조회
+    List<Long> sharedDocumentIds = permissionRepository.findAcceptedDocumentIdsByUserAndWorkspace(user.getId(),
+        PermissionStatus.ACCEPTED, workspaceId);
+
+    // 3. 공유받은 문서 정보 조회 및 휴지통 상태 필터링
+    List<Document> sharedDocuments = documentRepository.findAllById(sharedDocumentIds).stream()
+        .filter(doc -> !doc.isTrashed())
+        .collect(Collectors.toList());
+
+    // 4. 두 목록을 합치고 중복 제거
+    List<Document> allDocuments = Stream.concat(ownedDocuments.stream(), sharedDocuments.stream())
+        .distinct()
+        .collect(Collectors.toList());
+
+    // 5. N+1 문제 해결: 한 번의 쿼리로 모든 hasChildren 정보 조회
+    List<Long> documentIds = allDocuments.stream().map(Document::getId).collect(Collectors.toList());
+    Map<Long, Boolean> hasChildrenMap = getHasChildrenMap(documentIds);
+
+    // 6. 경량 DTO로 변환
+    return allDocuments.stream()
+        .map(doc -> DocumentListResponse.fromDocument(doc, hasChildrenMap.getOrDefault(doc.getId(), false)))
+        .collect(Collectors.toList());
+  }
+
+  /**
+   * 배치 쿼리를 사용하여 hasChildren 정보를 조회합니다.
+   * 
+   * @param documentIds 문서 ID 목록
+   * @return 문서 ID와 hasChildren 여부의 매핑
+   */
+  private Map<Long, Boolean> getHasChildrenMap(List<Long> documentIds) {
+    if (documentIds.isEmpty()) {
+      return new HashMap<>();
+    }
+    
+    List<Object[]> results = documentRepository.findHasChildrenByDocumentIds(documentIds);
+    return results.stream()
+        .collect(Collectors.toMap(
+            result -> (Long) result[0],
+            result -> (Boolean) result[1]
+        ));
   }
 
   public DocumentResponse getDocument(Long id, User user) {

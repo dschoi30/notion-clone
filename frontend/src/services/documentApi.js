@@ -1,9 +1,15 @@
 // src/services/documentApi.js
 import api from './api';
 
-// 문서 목록 조회
+// 문서 목록 조회 (전체 데이터)
 export async function getDocuments(workspaceId) {
   const response = await api.get(`/api/workspaces/${workspaceId}/documents`);
+  return response.data;
+}
+
+// 문서 목록 조회 (경량 버전 - DocumentList용)
+export async function getDocumentList(workspaceId) {
+  const response = await api.get(`/api/workspaces/${workspaceId}/documents/list`);
   return response.data;
 }
 
