@@ -46,4 +46,18 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
     @Modifying
     @Query("UPDATE Document d SET d.sortOrder = :sortOrder WHERE d.parent.id = :parentId AND d.id = :docId")
     void updateChildSortOrder(@Param("parentId") Long parentId, @Param("docId") Long docId, @Param("sortOrder") int sortOrder);
+
+    /**
+     * N+1 문제 해결을 위한 배치 쿼리
+     * 여러 문서의 hasChildren 정보를 한 번의 쿼리로 조회합니다.
+     * 
+     * @param documentIds 문서 ID 목록
+     * @return 문서 ID와 hasChildren 여부의 매핑
+     */
+    @Query("SELECT d.id, COUNT(c.id) > 0 " +
+           "FROM Document d " +
+           "LEFT JOIN Document c ON d.id = c.parent.id AND c.isTrashed = false " +
+           "WHERE d.id IN :documentIds " +
+           "GROUP BY d.id")
+    List<Object[]> findHasChildrenByDocumentIds(@Param("documentIds") List<Long> documentIds);
 } 
