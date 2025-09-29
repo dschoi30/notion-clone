@@ -26,6 +26,7 @@ public class DocumentListResponse {
     private String updatedBy;
     private LocalDateTime createdAt;
     private String createdBy;
+    private boolean isShared; // 공유 문서 여부 (프론트엔드 분류를 위해 필요)
     
     // content, properties, permissions 제외 - 목록 조회 시 불필요한 데이터
 
@@ -33,9 +34,10 @@ public class DocumentListResponse {
      * Document 엔티티에서 DocumentListResponse로 변환
      * @param document Document 엔티티
      * @param hasChildren 자식 문서 존재 여부
+     * @param isShared 공유 문서 여부
      * @return DocumentListResponse
      */
-    public static DocumentListResponse fromDocument(Document document, boolean hasChildren) {
+    public static DocumentListResponse fromDocument(Document document, boolean hasChildren, boolean isShared) {
         return DocumentListResponse.builder()
                 .id(document.getId())
                 .title(document.getTitle())
@@ -49,15 +51,16 @@ public class DocumentListResponse {
                 .updatedBy(document.getUpdatedBy())
                 .createdAt(document.getCreatedAt())
                 .createdBy(document.getCreatedBy())
+                .isShared(isShared)
                 .build();
     }
 
     /**
-     * Document 엔티티에서 DocumentListResponse로 변환 (hasChildren 기본값 false)
+     * Document 엔티티에서 DocumentListResponse로 변환 (hasChildren 기본값 false, isShared 기본값 false)
      * @param document Document 엔티티
      * @return DocumentListResponse
      */
     public static DocumentListResponse fromDocument(Document document) {
-        return fromDocument(document, false);
+        return fromDocument(document, false, false);
     }
 }
