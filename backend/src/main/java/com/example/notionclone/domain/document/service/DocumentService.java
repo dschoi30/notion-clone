@@ -136,7 +136,6 @@ public class DocumentService {
     
     // 소유한 문서 중에서 다른 사용자와 공유된 문서 찾기 (N+1 문제 해결을 위해 배치 쿼리 사용)
     if (!ownedDocuments.isEmpty()) {
-      List<Long> ownedDocumentIds = ownedDocuments.stream().map(Document::getId).collect(Collectors.toList());
       List<Long> sharedOwnedDocumentIds = findSharedOwnedDocuments(ownedDocumentIds, user.getId());
       sharedDocumentIdSet.addAll(sharedOwnedDocumentIds);
     }
