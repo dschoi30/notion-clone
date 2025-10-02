@@ -1,5 +1,5 @@
 // src/contexts/DocumentContext.jsx
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import * as documentApi from '@/services/documentApi';
 import { createLogger } from '@/lib/logger';
 import { useWorkspace } from './WorkspaceContext';
@@ -43,19 +43,11 @@ export function DocumentProvider({ children }) {
       // 경량 API 사용으로 성능 최적화
       const data = await documentApi.getDocumentList(currentWorkspace.id);
       
-      // 백엔드에서 다른 워크스페이스 문서가 섞여서 올 경우를 대비한 필터링
+      // 백엔드에서 다른 워크스페이스 문서가 섞여서 올 경우를 대비한 필터링 (성능 최적화)
+      const currentWorkspaceId = String(currentWorkspace.id);
       const filteredData = data.filter(doc => {
-        // workspaceId 또는 workspace.id로 확인
         const docWorkspaceId = doc.workspaceId || doc.workspace?.id;
-        
-        // fetchDocuments 호출 시점과 완료 시점에 currentWorkspace가 동일한지 확인
-        // (비동기 처리 중에 워크스페이스가 바뀔 수 있음)
-        // 단순히 ID만 비교
-        if (docWorkspaceId && String(docWorkspaceId) !== String(currentWorkspace.id)) {
-          console.warn(`잘못된 워크스페이스 문서 필터링: 문서 ${doc.id}는 워크스페이스 ${docWorkspaceId}에 속함 (현재: ${currentWorkspace.id})`);
-          return false;
-        }
-        return true;
+        return !docWorkspaceId || String(docWorkspaceId) === currentWorkspaceId;
       });
       
       setDocuments(filteredData);
@@ -255,7 +247,8 @@ export function DocumentProvider({ children }) {
     }
   }, [currentWorkspace]);
 
-  const value = {
+  // Context value 메모이제이션으로 불필요한 리렌더링 방지
+  const value = useMemo(() => ({
     documents,
     currentDocument,
     error,
@@ -270,7 +263,22 @@ export function DocumentProvider({ children }) {
     refreshAllChildDocuments,
     documentsLoading,
     documentLoading,
-  };
+  }), [
+    documents,
+    currentDocument,
+    error,
+    fetchDocuments,
+    fetchChildDocuments,
+    createDocument,
+    updateDocument,
+    deleteDocument,
+    selectDocument,
+    updateDocumentOrder,
+    fetchDocument,
+    refreshAllChildDocuments,
+    documentsLoading,
+    documentLoading,
+  ]);
 
   return (
     <DocumentContext.Provider value={value}>
