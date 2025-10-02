@@ -7,9 +7,32 @@ export async function getDocuments(workspaceId) {
   return response.data;
 }
 
-// 문서 목록 조회 (경량 버전 - DocumentList용)
-export async function getDocumentList(workspaceId) {
-  const response = await api.get(`/api/workspaces/${workspaceId}/documents/list`);
+// 문서 목록 조회 (경량 버전 - DocumentList용, 페이지네이션 지원)
+export async function getDocumentList(workspaceId, page = null, size = null, sort = 'sortOrder,asc') {
+  const params = {};
+  if (page !== null && size !== null) {
+    params.page = page;
+    params.size = size;
+    params.sort = sort;
+  }
+  
+  const response = await api.get(`/api/workspaces/${workspaceId}/documents/list`, { params });
+  return response.data;
+}
+
+// 필드 선택을 지원하는 문서 목록 조회
+export async function getDocumentsWithFields(workspaceId, fields) {
+  const response = await api.get(`/api/workspaces/${workspaceId}/documents`, {
+    params: { fields }
+  });
+  return response.data;
+}
+
+// 무한 스크롤을 지원하는 문서 목록 조회
+export async function getDocumentsInfinite(workspaceId, page = 0, size = 20, cursor = null) {
+  const response = await api.get(`/api/workspaces/${workspaceId}/documents/infinite`, {
+    params: { page, size, cursor }
+  });
   return response.data;
 }
 
