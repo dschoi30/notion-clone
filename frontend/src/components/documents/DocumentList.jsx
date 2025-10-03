@@ -273,9 +273,19 @@ export default function DocumentList() {
     const accessibleIds = new Set(documents.map(d => d.id));
     const isRootCandidate = (doc) => (doc.parentId == null) || !accessibleIds.has(doc.parentId);
 
+    // 디버깅을 위한 로그 추가
+    dlog.info('문서 데이터 확인:', documents.map(doc => ({ 
+      id: doc.id, 
+      title: doc.title, 
+      isShared: doc.isShared, 
+      shared: doc.shared, // Jackson 직렬화로 인해 실제로는 shared 필드로 전달됨
+      userId: doc.userId,
+      currentUserId: user.id,
+      rawData: doc // 전체 데이터 확인
+    })));
+
     const shared = documents.filter(doc =>
-      isRootCandidate(doc) &&
-      (doc.userId !== user.id || (doc.permissions && doc.permissions.some(p => p.userId !== user.id)))
+      isRootCandidate(doc) && doc.shared // Jackson 직렬화로 인해 shared 필드 사용
     ).sort((a, b) => {
       // sortOrder로 정렬 (null 값은 맨 뒤로)
       const sortOrderA = a.sortOrder;
@@ -287,9 +297,7 @@ export default function DocumentList() {
       return sortOrderA - sortOrderB;
     });
     const personal = documents.filter(doc =>
-      isRootCandidate(doc) &&
-      doc.userId === user.id &&
-      (!doc.permissions || !doc.permissions.some(p => p.userId !== user.id))
+      isRootCandidate(doc) && !doc.shared // Jackson 직렬화로 인해 shared 필드 사용
     ).sort((a, b) => {
       // sortOrder로 정렬 (null 값은 맨 뒤로)
       const sortOrderA = a.sortOrder;

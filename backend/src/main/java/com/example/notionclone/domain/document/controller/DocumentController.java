@@ -3,6 +3,7 @@ package com.example.notionclone.domain.document.controller;
 import com.example.notionclone.domain.document.dto.CreateDocumentRequest;
 import com.example.notionclone.domain.document.dto.DocumentOrderRequest;
 import com.example.notionclone.domain.document.dto.DocumentResponse;
+import com.example.notionclone.domain.document.dto.DocumentListResponse;
 import com.example.notionclone.domain.document.dto.UpdateDocumentRequest;
 import com.example.notionclone.domain.document.entity.Document;
 import com.example.notionclone.domain.document.entity.DocumentProperty;
@@ -59,6 +60,20 @@ public class DocumentController {
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
         return ResponseEntity.ok(documentService.getDocumentsByWorkspace(workspaceId, user));
+    }
+
+    /**
+     * DocumentList 조회용 경량 API
+     * content, properties, permissions 등 불필요한 데이터를 제거하여 성능을 최적화합니다.
+     */
+    @GetMapping("/list")
+    public ResponseEntity<List<DocumentListResponse>> getDocumentListByWorkspace(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId) {
+        log.debug("Get document list request for workspace: {} by user: {}", workspaceId, userPrincipal.getId());
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
+        return ResponseEntity.ok(documentService.getDocumentListByWorkspace(workspaceId, user));
     }
 
     @GetMapping("/{id}")
