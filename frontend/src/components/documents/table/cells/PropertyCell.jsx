@@ -1,4 +1,4 @@
-import React, { createRef, useEffect, useRef } from 'react';
+import React, { createRef, useEffect, useRef, memo } from 'react';
 import DatePopover from '../../DatePopover';
 import TagPopover from '../../TagPopover';
 import { formatKoreanDateSmart } from '@/lib/utils';
@@ -7,7 +7,7 @@ import { resolveUserDisplay } from '@/components/documents/shared/resolveUserDis
 import { useDocument } from '@/contexts/DocumentContext';
 import { getColorObj } from '@/lib/colors';
 
-function PropertyCell({
+const PropertyCell = memo(function PropertyCell({
   row,
   property,
   idx,
@@ -217,7 +217,7 @@ function PropertyCell({
       )}
     </div>
   );
-}
+});
 
 export default PropertyCell;
 

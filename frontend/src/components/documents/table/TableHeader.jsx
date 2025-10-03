@@ -1,11 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, memo } from 'react';
 import { Text } from 'lucide-react';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import SortablePropertyHeader from './SortablePropertyHeader';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Z_INDEX } from '@/constants/zIndex';
 
-function TableHeader({
+const TableHeader = memo(function TableHeader({
   colWidths,
   properties,
   handleResizeMouseDown,
@@ -48,7 +48,7 @@ function TableHeader({
 
   return (
     <div 
-      className="sticky top-12 flex items-center group bg-white"
+      className="flex sticky top-12 items-center bg-white group"
       style={{ zIndex: Z_INDEX.TABLE_HEADER }}
     >
       {/* 헤더 좌측 레일: 읽기 전용이 아닐 때만 표시 */}
@@ -102,7 +102,7 @@ function TableHeader({
       )}
     </div>
   );
-}
+});
 
 export default TableHeader;
 

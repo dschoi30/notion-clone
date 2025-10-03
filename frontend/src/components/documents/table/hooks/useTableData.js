@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   getProperties,
   addProperty,
@@ -63,7 +63,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     fetchTableData();
   }, [workspaceId, documentId]);
 
-  const handleAddProperty = async (name, type) => {
+  const handleAddProperty = useCallback(async (name, type) => {
     if (!name || !type) return;
     try {
       const newProperty = await addProperty(workspaceId, documentId, { name, type, sortOrder: properties.length });
@@ -88,7 +88,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
         showToast: true
       });
     }
-  };
+  }, [workspaceId, documentId, properties.length, rows, stableSystemMap, handleError]);
 
   const handleDeleteProperty = async (propertyId) => {
     if (!window.confirm('정말로 이 속성을 삭제하시겠습니까?')) return;
