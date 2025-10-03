@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
+import { useThrottle } from '@/hooks/useThrottle';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -40,40 +41,34 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   
   const systemPropTypeMap = useMemo(() => buildSystemPropTypeMapForTable(), []);
   
-  // 스크롤 이벤트 핸들러 - 팝오버 위치 업데이트 (디바운싱 적용)
-  useEffect(() => {
-    let timeoutId;
-    
-    function handleScroll() {
-      if (editingCell && tagPopoverRect) {
-        // 디바운싱 적용 (16ms = 60fps)
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => {
-          const { rowId, propertyId } = editingCell;
-          const cellElement = document.querySelector(`[data-cell-id="${rowId}_${propertyId}"]`);
-          if (cellElement) {
-            const rect = cellElement.getBoundingClientRect();
-            setTagPopoverRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
-          }
-        }, 16); // 60fps = 1000ms / 60fps = 16.67ms, 16ms마다 한 번씩 처리하면 60fps와 동기화
+  // 쓰로틀링된 스크롤 핸들러 (16ms = 60fps)
+  const throttledScrollHandler = useThrottle(useCallback(() => {
+    if (editingCell && tagPopoverRect) {
+      const { rowId, propertyId } = editingCell;
+      const cellElement = document.querySelector(`[data-cell-id="${rowId}_${propertyId}"]`);
+      if (cellElement) {
+        const rect = cellElement.getBoundingClientRect();
+        setTagPopoverRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
       }
     }
-    
+  }, [editingCell, tagPopoverRect]), 16);
+
+  // 스크롤 이벤트 핸들러 - 팝오버 위치 업데이트 (쓰로틀링 적용)
+  useEffect(() => {
     // 테이블 컨테이너와 윈도우 스크롤 이벤트 모두 처리
     const tableContainer = tableContainerRef.current;
     if (tableContainer) {
-      tableContainer.addEventListener('scroll', handleScroll, { passive: true });
+      tableContainer.addEventListener('scroll', throttledScrollHandler, { passive: true });
     }
-    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('scroll', throttledScrollHandler, { passive: true });
     
     return () => {
-      clearTimeout(timeoutId);
       if (tableContainer) {
-        tableContainer.removeEventListener('scroll', handleScroll);
+        tableContainer.removeEventListener('scroll', throttledScrollHandler);
       }
-      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('scroll', throttledScrollHandler);
     };
-  }, [editingCell, tagPopoverRect]);
+  }, [throttledScrollHandler]);
   
   // 에러 처리 훅
   const { handleError, clearError } = useErrorHandler();
