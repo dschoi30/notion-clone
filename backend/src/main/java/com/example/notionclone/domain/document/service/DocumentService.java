@@ -1,6 +1,7 @@
 package com.example.notionclone.domain.document.service;
 
 import com.example.notionclone.domain.document.dto.DocumentResponse;
+import com.example.notionclone.domain.document.dto.DocumentListResponse;
 import com.example.notionclone.domain.document.entity.Document;
 import com.example.notionclone.domain.document.repository.DocumentRepository;
 import com.example.notionclone.domain.user.entity.User;
@@ -85,6 +86,106 @@ public class DocumentService {
         })
         .collect(Collectors.toList());
   }
+
+  /**
+   * DocumentList 조회용 경량 메서드
+   * content, properties, permissions 등 불필요한 데이터를 제거하여 성능을 최적화합니다.
+   * N+1 문제를 해결하기 위해 배치 쿼리를 사용합니다.
+   * 
+   * @param workspaceId 워크스페이스 ID
+   * @param user 사용자
+   * @return DocumentListResponse 목록
+   */
+  public List<DocumentListResponse> getDocumentListByWorkspace(Long workspaceId, User user) {
+    // 1. 사용자가 소유한 문서 조회
+    List<Document> ownedDocuments = documentRepository.findByWorkspaceIdAndUserIdAndIsTrashedFalse(workspaceId,
+        user.getId());
+
+    // 2. 사용자가 공유받은 문서 ID 조회 (소유자가 소유한 문서 제외)
+    List<Long> allPermissionDocumentIds = permissionRepository.findAcceptedDocumentIdsByUserAndWorkspace(user.getId(),
+        PermissionStatus.ACCEPTED, workspaceId);
+    
+    // 소유자가 소유한 문서 ID 목록
+    List<Long> ownedDocumentIds = ownedDocuments.stream().map(Document::getId).collect(Collectors.toList());
+    
+    // 공유받은 문서 ID = 모든 권한 문서 ID - 소유한 문서 ID
+    List<Long> sharedDocumentIds = allPermissionDocumentIds.stream()
+        .filter(docId -> !ownedDocumentIds.contains(docId))
+        .collect(Collectors.toList());
+    
+    log.info("모든 권한 문서 ID 목록: {}", allPermissionDocumentIds);
+    log.info("소유한 문서 ID 목록: {}", ownedDocumentIds);
+    log.info("공유받은 문서 ID 목록: {}", sharedDocumentIds);
+    // 3. 공유받은 문서 정보 조회 및 휴지통 상태 필터링
+    List<Document> sharedDocuments = documentRepository.findAllById(sharedDocumentIds).stream()
+        .filter(doc -> !doc.isTrashed())
+        .collect(Collectors.toList());
+
+    // 4. 두 목록을 합치고 중복 제거
+    List<Document> allDocuments = Stream.concat(ownedDocuments.stream(), sharedDocuments.stream())
+        .distinct()
+        .collect(Collectors.toList());
+
+    // 5. N+1 문제 해결: 한 번의 쿼리로 모든 hasChildren 정보 조회
+    List<Long> documentIds = allDocuments.stream().map(Document::getId).collect(Collectors.toList());
+    Map<Long, Boolean> hasChildrenMap = getHasChildrenMap(documentIds);
+
+    // 6. 공유 문서 ID 집합 생성
+    // 공유받은 문서는 자동으로 공유 문서
+    Set<Long> sharedDocumentIdSet = new HashSet<>(sharedDocumentIds);
+    
+    // 소유한 문서 중에서 다른 사용자와 공유된 문서 찾기 (N+1 문제 해결을 위해 배치 쿼리 사용)
+    if (!ownedDocuments.isEmpty()) {
+      List<Long> sharedOwnedDocumentIds = findSharedOwnedDocuments(ownedDocumentIds, user.getId());
+      sharedDocumentIdSet.addAll(sharedOwnedDocumentIds);
+    }
+    
+    log.info("공유 문서 ID 목록: {}", sharedDocumentIdSet);
+    log.info("전체 문서 ID 목록: {}", allDocuments.stream().map(Document::getId).collect(Collectors.toList()));
+    
+    return allDocuments.stream()
+        .map(doc -> {
+          boolean hasChildren = hasChildrenMap.getOrDefault(doc.getId(), false);
+          boolean isShared = sharedDocumentIdSet.contains(doc.getId());
+          log.info("문서 {} (제목: {}) - isShared: {}, 소유자: {}", doc.getId(), doc.getTitle(), isShared, doc.getUser().getId());
+          return DocumentListResponse.fromDocument(doc, hasChildren, isShared);
+        })
+        .collect(Collectors.toList());
+  }
+
+  /**
+   * 배치 쿼리를 사용하여 hasChildren 정보를 조회합니다.
+   * 
+   * @param documentIds 문서 ID 목록
+   * @return 문서 ID와 hasChildren 여부의 매핑
+   */
+  private Map<Long, Boolean> getHasChildrenMap(List<Long> documentIds) {
+    if (documentIds.isEmpty()) {
+      return new HashMap<>();
+    }
+    
+    List<Object[]> results = documentRepository.findHasChildrenByDocumentIds(documentIds);
+    return results.stream()
+        .collect(Collectors.toMap(
+            result -> (Long) result[0],
+            result -> (Boolean) result[1]
+        ));
+  }
+
+  /**
+   * 소유한 문서 중에서 다른 사용자와 공유된 문서 ID 목록을 조회합니다.
+   * N+1 문제를 해결하기 위해 배치 쿼리를 사용합니다.
+   * 
+   * @param ownedDocumentIds 소유한 문서 ID 목록
+   * @param ownerId 소유자 ID
+   * @return 공유된 소유 문서 ID 목록
+   */
+  private List<Long> findSharedOwnedDocuments(List<Long> ownedDocumentIds, Long ownerId) {    
+    // 소유자를 제외한 다른 사용자 권한이 있는 문서 ID 조회
+    List<Long> sharedDocumentIds = permissionRepository.findDocumentIdsWithOtherUserPermissions(ownedDocumentIds, ownerId);
+    return sharedDocumentIds;
+  }
+
 
   public DocumentResponse getDocument(Long id, User user) {
     Document document = documentRepository.findById(id)
