@@ -45,6 +45,7 @@ export const logout = () => {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('user');
   localStorage.removeItem('userId');
+  // 로그인 페이지로 리다이렉트
   window.location.href = '/login';
 };
 

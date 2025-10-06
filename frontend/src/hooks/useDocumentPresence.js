@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
+import { authSync } from '@/utils/authSync';
 
 /**
  * 문서 실시간 접속자(presence) 목록을 관리하는 커스텀 훅
