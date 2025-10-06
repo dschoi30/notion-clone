@@ -1,11 +1,20 @@
 // services/api.js
 import axios from 'axios';
+import { authSync } from '@/utils/authSync';
+import { getToastMessageFromError } from '@/lib/errorUtils';
 
-// 토큰 만료 시 리다이렉트를 위한 전역 함수
-let redirectToLogin = null;
+// Toast 메시지를 위한 전역 함수
+let globalToast = null;
 
-export const setRedirectToLogin = (redirectFn) => {
-  redirectToLogin = redirectFn;
+export const setGlobalToast = (toastFn) => {
+  globalToast = toastFn;
+};
+
+// 토큰 제거 공통 함수
+const clearTokens = () => {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('user');
+  localStorage.removeItem('userId');
 };
 
 // 운영(Nginx) 및 개발(Vite proxy) 모두에서 '/' 상대 경로 사용을 우선
@@ -22,13 +31,22 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken');
+    const currentUserId = localStorage.getItem('userId');
+    let token = null;
     
+    console.log('API 요청 - 현재 사용자 ID:', currentUserId);
+    
+    // 기존 방식 사용
+    token = localStorage.getItem('accessToken');
+
     if (token) {
       config.headers = {
         ...config.headers,
         Authorization: `Bearer ${token}`
       };
+      console.log('토큰 설정 완료');
+    } else {
+      console.log('토큰 없음 - 인증되지 않은 요청');
     }
     return config;
   },
@@ -48,43 +66,61 @@ api.interceptors.response.use(
     
     // 401 Unauthorized - 토큰 만료 또는 인증 실패
     if (error.response?.status === 401) {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('user');
-      localStorage.removeItem('userId');
-      // 로그인 페이지로 리다이렉트
-      if (redirectToLogin) {
-        redirectToLogin();
+      console.log('401 에러 발생 - 리다이렉트 시작');
+      
+      // 다른 탭에 토큰 만료 알림 (현재 사용자 ID 포함)
+      const currentUserId = localStorage.getItem('userId');
+      console.log('현재 사용자 ID:', currentUserId);
+      
+      // 다른 탭에 토큰 만료 알림 (현재 사용자 ID 포함)
+      // authSync.notifyLogout('TOKEN_EXPIRED', currentUserId);
+      console.log('401 에러 - authSync 알림 비활성화');
+      
+      clearTokens();
+      
+      // 세션 만료 toast 메시지 표시
+      const toastMessage = getToastMessageFromError(error);
+      console.log('Toast 메시지:', toastMessage);
+      if (globalToast) {
+        globalToast(toastMessage);
+        console.log('Toast 메시지 표시됨');
       } else {
-        window.location.href = '/login';
+        console.log('globalToast가 설정되지 않음');
       }
+      
+      // Toast 메시지 표시 후 리다이렉트 (1.5초 후)
+      console.log('1.5초 후 리다이렉트 예약');
+      setTimeout(() => {
+        console.log('리다이렉트 실행');
+        window.location.href = '/login';
+      }, 1500);
     }
     
-    // 403 Forbidden - 토큰 만료 또는 권한 없음
+    // 403 Forbidden - 권한 없음 (토큰은 유효하지만 접근 권한이 없는 경우)
     if (error.response?.status === 403) {
-      // 특정 엔드포인트는 토큰 만료로 간주하고 로그인 페이지로 리다이렉트
-      const tokenExpiredEndpoints = [
-        '/api/workspaces/accessible',
-        '/api/users/profile',
-        '/api/documents'
-      ];
+      console.log('403 에러 발생 - 세션 무효화 가능성');
       
-      const isTokenExpired = tokenExpiredEndpoints.some(endpoint => 
-        error.config?.url?.includes(endpoint)
-      );
+      // 403 에러도 세션 무효화일 수 있으므로 토큰 제거 및 리다이렉트
+      // 토큰 제거 전에 사용자 ID 저장
+      const currentUserId = localStorage.getItem('userId');
+      console.log('현재 사용자 ID:', currentUserId);
       
-      if (isTokenExpired) {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('user');
-        localStorage.removeItem('userId');
-        if (redirectToLogin) {
-          redirectToLogin();
-        } else {
-          window.location.href = '/login';
-        }
-      } else {
-        // 일반적인 권한 문제는 토큰을 제거하지 않음
-        console.warn('403 Forbidden - 권한이 없습니다:', error.response.data);
+      // 다른 탭에 토큰 만료 알림 (현재 사용자 ID 포함)
+      // authSync.notifyLogout('TOKEN_EXPIRED', currentUserId);
+      console.log('403 에러 - authSync 알림 비활성화');
+      
+      clearTokens();
+      
+      const toastMessage = getToastMessageFromError(error);
+      if (globalToast) {
+        globalToast(toastMessage);
       }
+      
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 1500);
+      
+      return Promise.reject(error);
     }
     
     // 500+ 서버 에러

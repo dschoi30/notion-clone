@@ -24,6 +24,7 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import java.util.Collections;
 import java.util.UUID;
+import java.time.LocalDateTime;
 
 import org.springframework.beans.factory.annotation.Value;
 
@@ -42,6 +43,28 @@ public class AuthController {
     @Value("${google.client.id}")
     private String googleClientId;
 
+    /**
+     * 사용자 세션을 업데이트하고 JWT 토큰을 생성하는 공통 메서드
+     * 브라우저별로 독립적인 세션 관리 (여러 계정 동시 로그인 허용)
+     */
+    private String createTokenWithSession(User user) {
+        // 새로운 세션 ID 생성 (브라우저별 독립 세션)
+        String sessionId = UUID.randomUUID().toString();
+        String previousSessionId = user.getCurrentSessionId();
+        
+        user.setCurrentSessionId(sessionId);
+        user.setLastLoginAt(LocalDateTime.now());
+        userRepository.save(user);
+        
+        log.info("세션 생성 - 사용자: {}, 이전 세션: {}, 새 세션: {}", 
+                user.getEmail(), previousSessionId, sessionId);
+        
+        String jwt = jwtTokenProvider.createToken(user.getEmail(), sessionId, user.getId());
+        log.info("JWT 토큰 생성 완료 - 사용자: {}, 세션: {}", user.getEmail(), sessionId);
+        
+        return jwt;
+    }
+
     
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
@@ -53,10 +76,11 @@ public class AuthController {
         );
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtTokenProvider.createToken(loginRequest.getEmail());
         
         User user = userRepository.findByEmail(loginRequest.getEmail())
             .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String jwt = createTokenWithSession(user);
 
         return ResponseEntity.ok(new AuthResponse(jwt, new UserResponse(user)));
     }
@@ -89,7 +113,7 @@ public class AuthController {
                 // 워크스페이스 생성 실패해도 회원가입은 성공으로 처리
             }
 
-            String jwt = jwtTokenProvider.createToken(user.getEmail());
+            String jwt = createTokenWithSession(user);
             return ResponseEntity.ok(new AuthResponse(jwt, new UserResponse(user)));
         } catch (Exception e) {
             log.error("Error during registration", e);
@@ -141,8 +165,7 @@ public class AuthController {
                         return savedUser;
                     });
 
-                // JWT 토큰 생성
-                String jwt = jwtTokenProvider.createToken(email);
+                String jwt = createTokenWithSession(user);
                 return ResponseEntity.ok(new AuthResponse(jwt, new UserResponse(user)));
             }
             return ResponseEntity.badRequest().body("Invalid ID token");

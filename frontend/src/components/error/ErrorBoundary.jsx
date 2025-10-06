@@ -1,11 +1,14 @@
 import React from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getReactErrorMessage } from '@/lib/errorUtils';
+import { createLogger } from '@/lib/logger';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null };
+    this.logger = createLogger('ErrorBoundary');
   }
 
   static getDerivedStateFromError(error) {
@@ -15,12 +18,34 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     // 에러 로깅 서비스에 에러를 기록할 수 있습니다.
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    this.logger.error('ErrorBoundary caught an error:', error, errorInfo);
     this.setState({
       error: error,
       errorInfo: errorInfo
     });
   }
+
+  getErrorMessage = () => {
+    const { error } = this.state;
+    const errorInfo = getReactErrorMessage(error);
+    
+    // 세션 만료인 경우 자동 리다이렉트
+    if (errorInfo.shouldRedirect) {
+      const delay = errorInfo.redirectDelay || 2000;
+      setTimeout(() => {
+        try {
+          window.location.href = '/login';
+        } catch (redirectError) {
+          this.logger.error('리다이렉트 실패:', redirectError);
+        }
+      }, delay);
+    }
+    
+    return {
+      title: errorInfo.title,
+      description: errorInfo.description
+    };
+  };
 
   handleRetry = () => {
     this.setState({ hasError: false, error: null, errorInfo: null });
@@ -30,8 +55,11 @@ class ErrorBoundary extends React.Component {
     window.location.href = '/';
   };
 
+
   render() {
     if (this.state.hasError) {
+      const errorMessage = this.getErrorMessage();
+      
       // 폴백 UI를 렌더링합니다.
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -41,15 +69,14 @@ class ErrorBoundary extends React.Component {
             </div>
             
             <h1 className="text-2xl font-bold text-gray-900 mb-4">
-              예상치 못한 오류가 발생했습니다
+              {errorMessage.title}
             </h1>
             
             <p className="text-gray-600 mb-6">
-              죄송합니다. 시스템에 일시적인 문제가 발생했습니다. 
-              잠시 후 다시 시도해주세요.
+              {errorMessage.description}
             </p>
 
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <details className="mb-6 text-left">
                 <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
                   개발자 정보 (클릭하여 확장)
