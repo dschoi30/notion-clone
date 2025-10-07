@@ -23,14 +23,13 @@ public class JwtTokenProvider {
         this.validityInMilliseconds = validityInMilliseconds;
     }
 
-    public String createToken(String email, String sessionId, Long userId) {
+    public String createToken(String email, String sessionId) {
         Date now = new Date();
         Date validity = new Date(now.getTime() + validityInMilliseconds);
 
         Map<String, Object> claims = new HashMap<>();
         claims.put("email", email);
         claims.put("sessionId", sessionId);
-        claims.put("userId", userId);
 
         return Jwts.builder()
                 .setClaims(claims)
@@ -60,15 +59,6 @@ public class JwtTokenProvider {
         return claims.get("sessionId", String.class);
     }
 
-    public Long getUserIdFromToken(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-
-        return claims.get("userId", Long.class);
-    }
 
     public boolean validateToken(String token) {
         try {

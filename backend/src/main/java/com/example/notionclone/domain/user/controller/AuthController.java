@@ -7,8 +7,8 @@ import com.example.notionclone.domain.user.dto.LoginRequest;
 import com.example.notionclone.domain.user.dto.RegisterRequest;
 import com.example.notionclone.domain.user.dto.UserResponse;
 import com.example.notionclone.domain.user.repository.UserRepository;
+import com.example.notionclone.domain.user.service.AuthService;
 import com.example.notionclone.domain.workspace.service.WorkspaceService;
-import com.example.notionclone.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -24,7 +24,6 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import java.util.Collections;
 import java.util.UUID;
-import java.time.LocalDateTime;
 
 import org.springframework.beans.factory.annotation.Value;
 
@@ -37,33 +36,12 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtTokenProvider jwtTokenProvider;
+    private final AuthService authService;
     private final WorkspaceService workspaceService;
     
     @Value("${google.client.id}")
     private String googleClientId;
 
-    /**
-     * 사용자 세션을 업데이트하고 JWT 토큰을 생성하는 공통 메서드
-     * 브라우저별로 독립적인 세션 관리 (여러 계정 동시 로그인 허용)
-     */
-    private String createTokenWithSession(User user) {
-        // 새로운 세션 ID 생성 (브라우저별 독립 세션)
-        String sessionId = UUID.randomUUID().toString();
-        String previousSessionId = user.getCurrentSessionId();
-        
-        user.setCurrentSessionId(sessionId);
-        user.setLastLoginAt(LocalDateTime.now());
-        userRepository.save(user);
-        
-        log.info("세션 생성 - 사용자: {}, 이전 세션: {}, 새 세션: {}", 
-                user.getEmail(), previousSessionId, sessionId);
-        
-        String jwt = jwtTokenProvider.createToken(user.getEmail(), sessionId, user.getId());
-        log.info("JWT 토큰 생성 완료 - 사용자: {}, 세션: {}", user.getEmail(), sessionId);
-        
-        return jwt;
-    }
 
     
     @PostMapping("/login")
@@ -80,7 +58,7 @@ public class AuthController {
         User user = userRepository.findByEmail(loginRequest.getEmail())
             .orElseThrow(() -> new RuntimeException("User not found"));
 
-        String jwt = createTokenWithSession(user);
+        String jwt = authService.createTokenWithSession(user);
 
         return ResponseEntity.ok(new AuthResponse(jwt, new UserResponse(user)));
     }
@@ -113,7 +91,7 @@ public class AuthController {
                 // 워크스페이스 생성 실패해도 회원가입은 성공으로 처리
             }
 
-            String jwt = createTokenWithSession(user);
+            String jwt = authService.createTokenWithSession(user);
             return ResponseEntity.ok(new AuthResponse(jwt, new UserResponse(user)));
         } catch (Exception e) {
             log.error("Error during registration", e);
@@ -121,14 +99,6 @@ public class AuthController {
         }
     }
 
-    @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("User not found"));
-        
-        return ResponseEntity.ok(new UserResponse(user));
-    }
 
     @PostMapping("/google")
     public ResponseEntity<?> googleLogin(@RequestBody GoogleLoginRequest request) {
@@ -165,7 +135,7 @@ public class AuthController {
                         return savedUser;
                     });
 
-                String jwt = createTokenWithSession(user);
+                String jwt = authService.createTokenWithSession(user);
                 return ResponseEntity.ok(new AuthResponse(jwt, new UserResponse(user)));
             }
             return ResponseEntity.badRequest().body("Invalid ID token");
