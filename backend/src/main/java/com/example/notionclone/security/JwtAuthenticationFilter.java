@@ -18,7 +18,6 @@ import com.example.notionclone.domain.user.entity.User;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Enumeration;
 import java.util.List;
 
 @Slf4j
@@ -70,18 +69,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             log.debug("JWT Token: {}", jwt);
 
             if (jwt == null) {
-                // JWT 토큰이 없는 경우 (이미 로그아웃된 상태)
-                log.warn("No JWT token found in request - user already logged out");
-                log.warn("Request URI: {}", request.getRequestURI());
-                log.warn("Authorization header: {}", request.getHeader("Authorization"));
-                
-                // 헤더 정보 출력
-                Enumeration<String> headerNames = request.getHeaderNames();
-                while (headerNames.hasMoreElements()) {
-                    String headerName = headerNames.nextElement();
-                    log.warn("Header {}: {}", headerName, request.getHeader(headerName));
-                }
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                // JWT 토큰이 없는 경우 - 인증이 필요한 요청인지 확인
+                log.debug("No JWT token found in request");
+                // 토큰이 없어도 필터 체인을 계속 진행 (Spring Security가 인증 필요 여부 판단)
+                filterChain.doFilter(request, response);
                 return;
             } else if (jwtTokenProvider.validateToken(jwt)) {
                 String email = jwtTokenProvider.getEmailFromToken(jwt);
@@ -91,19 +82,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 
                 // DB에서 사용자 확인 및 세션 ID 검증
                 User user = userRepository.findByEmail(email).orElse(null);
-                log.info("JWT 검증 - 사용자: {}, 토큰 세션: {}, DB 세션: {}", 
+                log.debug("JWT 검증 - 사용자: {}, 토큰 세션: {}, DB 세션: {}", 
                         email, sessionId, user != null ? user.getCurrentSessionId() : "null");
                 
                 if (user == null) {
-                    // 사용자가 존재하지 않는 경우 401 반환
+                    // 사용자가 존재하지 않는 경우 - 인증이 필요한 요청인지 확인
                     log.warn("사용자 검증 실패 - 사용자: {} 존재하지 않음", email);
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    // 사용자가 없어도 필터 체인을 계속 진행 (Spring Security가 인증 필요 여부 판단)
+                    filterChain.doFilter(request, response);
                     return;
-                } else if (sessionId == null || !sessionId.equals(user.getCurrentSessionId())) {
+                } else if (sessionId == null || user.getCurrentSessionId() == null || !sessionId.equals(user.getCurrentSessionId())) {
                     // 사용자는 존재하지만 세션이 무효화된 경우 (다른 사용자가 로그인함)
+                    // 또는 기존 사용자의 currentSessionId가 NULL인 경우 (하위 호환성)
                     log.warn("세션 무효화 - 사용자: {}, 토큰 세션: {}, DB 세션: {}", 
-                            email, sessionId, user.getCurrentSessionId());
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            email, sessionId, user.getCurrentSessionId() != null ? user.getCurrentSessionId() : "NULL");
+                    // 세션이 무효화되어도 필터 체인을 계속 진행 (Spring Security가 인증 필요 여부 판단)
+                    filterChain.doFilter(request, response);
                     return;
                 } else {
                     // 세션이 유효한 경우에만 인증 처리
@@ -129,9 +123,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     log.debug("Current Authentication: {}", SecurityContextHolder.getContext().getAuthentication());
                 }
             } else {
-                // JWT 토큰이 유효하지 않은 경우
+                // JWT 토큰이 유효하지 않은 경우 - 인증이 필요한 요청인지 확인
                 log.debug("Invalid JWT token");
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                // 유효하지 않은 토큰이어도 필터 체인을 계속 진행 (Spring Security가 인증 필요 여부 판단)
+                filterChain.doFilter(request, response);
                 return;
             }
         } catch (Exception e) {

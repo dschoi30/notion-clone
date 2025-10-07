@@ -51,7 +51,7 @@ export const logout = () => {
 
 export const getCurrentUser = async () => {
   try {
-    const response = await api.get('/api/auth/me');
+    const response = await api.get('/api/users/me');
     return response.data;
   } catch (error) {
     localStorage.removeItem('accessToken');

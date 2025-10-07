@@ -48,7 +48,7 @@ export function AuthProvider({ children }) {
 
       // 현재 사용자와 다른 사용자의 세션 무효화인지 확인
       const currentUserId = localStorage.getItem('userId');
-      if (userId && currentUserId && userId !== currentUserId) {
+      if (userId && currentUserId && String(userId) !== currentUserId) {
         alog.info('다른 사용자의 세션 무효화 - 현재 사용자에게 영향 없음');
         return;
       }
@@ -137,7 +137,7 @@ export function AuthProvider({ children }) {
       setError(null);
       
       // 기존 토큰 제거
-      clearExistingTokens();
+      clearTokens();
       
       const data = await auth.register(email, password, name);
       const userData = {
@@ -173,7 +173,7 @@ export function AuthProvider({ children }) {
       setError(null);
       
       // 기존 토큰 제거
-      clearExistingTokens();
+      clearTokens();
       
       const data = await auth.loginWithGoogle(credential);
       const userData = {

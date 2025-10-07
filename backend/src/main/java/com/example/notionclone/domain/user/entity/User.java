@@ -33,4 +33,7 @@ public class User extends BaseEntity {
 
     @Column(name = "current_session_id")
     private String currentSessionId;
+
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
 } 
