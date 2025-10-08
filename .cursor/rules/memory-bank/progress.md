@@ -883,3 +883,16 @@
   - authSync.notifyLogout() 호출 의도를 명확히 주석으로 표시 (현재 비활성화)
   - 에러 처리 로직의 일관성 향상 및 유지보수성 개선
   - TOKEN_EXPIRED와 SESSION_INVALID 구분으로 에러 원인 명확화
+- JwtAuthenticationFilter에서 filterChain.doFilter() 이중 실행 버그 수정
+  - JWT 토큰이 null이거나 유효하지 않을 때 try 블록 내에서 filterChain.doFilter() 호출 후 return을 시도하던 문제 해결
+  - 예외 발생 시 메서드 끝의 filterChain.doFilter()가 다시 실행되어 이중 실행되는 문제 방지
+  - 모든 경우에 대해 메서드 끝에서 한 번만 filterChain.doFilter() 호출하도록 구조 개선
+  - 예외 처리 안정성 향상 및 예상치 못한 동작 방지
+- 프로덕션 환경 과도한 로깅 문제 해결
+  - AuthService에서 log.info()를 log.debug()로 변경하여 로그인/로그아웃 시에만 상세 로그 출력
+  - AuthController에서 회원가입 관련 log.info()를 log.debug()로 변경하여 중요한 이벤트만 로그
+  - DocumentService에서 문서 조회 관련 log.info()를 log.debug()로 변경하여 성능 최적화
+  - 프론트엔드 api.js에서 request interceptor의 log.info()를 log.debug()로 변경하여 API 호출 로그 최적화
+  - application-prod.yml 생성으로 프로덕션 환경에서 WARN 레벨 이상만 로그 출력하도록 설정
+  - 환경변수를 통한 로그 레벨 동적 설정으로 개발/운영 환경별 로깅 전략 분리
+  - 프로덕션 환경에서 I/O 부하 감소 및 로그 파일 크기 최적화로 성능 향상
