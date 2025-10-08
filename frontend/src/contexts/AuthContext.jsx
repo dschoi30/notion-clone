@@ -1,5 +1,6 @@
 // contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as auth from '@/services/auth';
 import { createLogger } from '@/lib/logger';
 import { authSync } from '@/utils/authSync';
@@ -17,6 +18,7 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }) {
+  const navigate = useNavigate();
   const alog = createLogger('AuthContext');
   const { toast } = useToast();
   const [user, setUser] = useState(() => {
@@ -76,7 +78,7 @@ export function AuthProvider({ children }) {
       // 세션 만료인 경우 toast 메시지 표시 후 리다이렉트
       if (reason === 'TOKEN_EXPIRED') {
         setTimeout(() => {
-          window.location.href = '/login';
+          navigate('/login', { replace: true });
         }, 1500);
       }
     };
@@ -93,7 +95,7 @@ export function AuthProvider({ children }) {
       window.removeEventListener('authSyncLogout', handleAuthSyncLogout);
       window.removeEventListener('authSyncLogin', handleAuthSyncLogin);
     };
-  }, [alog, toast]);
+  }, [alog, toast, navigate]);
 
   const login = useCallback(async (email, password) => {
     try {

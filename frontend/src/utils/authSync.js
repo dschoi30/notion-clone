@@ -1,5 +1,7 @@
 // utils/authSync.js
 // 브라우저 탭 간 인증 상태 동기화를 위한 유틸리티
+import { createLogger } from '@/lib/logger';
+const alog = createLogger('authSync');
 
 class AuthSync {
   constructor() {
@@ -39,16 +41,16 @@ class AuthSync {
     // 현재 로그인한 사용자와 다른 사용자의 세션 무효화인지 확인
     const currentUserId = localStorage.getItem('userId');
     
-    console.log('authSync handleAutoLogout:', { reason, userId, currentUserId });
+    alog.info('authSync handleAutoLogout:', { reason, userId, currentUserId });
     
     // userId가 있고, currentUserId가 있고, 둘이 다른 경우에만 무시
     if (userId && currentUserId && userId !== currentUserId) {
       // 다른 사용자의 세션 무효화이므로 현재 사용자는 영향받지 않음
-      console.log('다른 사용자의 세션 무효화 - 현재 사용자에게 영향 없음');
+      alog.info('다른 사용자의 세션 무효화 - 현재 사용자에게 영향 없음');
       return;
     }
 
-    console.log('현재 사용자의 세션 무효화 - 로그아웃 처리');
+    alog.info('현재 사용자의 세션 무효화 - 로그아웃 처리');
     
     // 현재 사용자의 세션 무효화인 경우에만 로그아웃 처리
     localStorage.removeItem('accessToken');
@@ -71,7 +73,7 @@ class AuthSync {
     
     // 다른 사용자가 로그인한 경우 현재 사용자 로그아웃
     if (currentUserId && currentUserId !== user.id.toString()) {
-      console.log('다른 사용자 로그인 - 현재 사용자 로그아웃:', currentUserId, '->', user.id);
+      alog.info('다른 사용자 로그인 - 현재 사용자 로그아웃:', currentUserId, '->', user.id);
       localStorage.removeItem('accessToken');
       localStorage.removeItem('user');
       localStorage.removeItem('userId');
