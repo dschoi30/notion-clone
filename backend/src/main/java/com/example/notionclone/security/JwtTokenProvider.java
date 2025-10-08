@@ -9,7 +9,9 @@ import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Component
 public class JwtTokenProvider {
 
@@ -56,7 +58,11 @@ public class JwtTokenProvider {
                 .parseClaimsJws(token)
                 .getBody();
 
-        return claims.get("sessionId", String.class);
+        String sessionId = claims.get("sessionId", String.class);
+        if (sessionId == null) {
+            log.warn("JWT token missing sessionId claim - legacy token detected");
+        }
+        return sessionId;
     }
 
 
