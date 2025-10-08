@@ -72,8 +72,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // JWT 토큰이 없는 경우 - 인증이 필요한 요청인지 확인
                 log.debug("No JWT token found in request");
                 // 토큰이 없어도 필터 체인을 계속 진행 (Spring Security가 인증 필요 여부 판단)
-                filterChain.doFilter(request, response);
-                return;
             } else if (jwtTokenProvider.validateToken(jwt)) {
                 String email = jwtTokenProvider.getEmailFromToken(jwt);
                 String sessionId = jwtTokenProvider.getSessionIdFromToken(jwt);
@@ -89,16 +87,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     // 사용자가 존재하지 않는 경우 - 인증이 필요한 요청인지 확인
                     log.warn("사용자 검증 실패 - 사용자: {} 존재하지 않음", email);
                     // 사용자가 없어도 필터 체인을 계속 진행 (Spring Security가 인증 필요 여부 판단)
-                    filterChain.doFilter(request, response);
-                    return;
                 } else if (sessionId == null || user.getCurrentSessionId() == null || !sessionId.equals(user.getCurrentSessionId())) {
                     // 사용자는 존재하지만 세션이 무효화된 경우 (다른 사용자가 로그인함)
                     // 또는 기존 사용자의 currentSessionId가 NULL인 경우 (하위 호환성)
                     log.warn("세션 무효화 - 사용자: {}, 토큰 세션: {}, DB 세션: {}", 
                             email, sessionId, user.getCurrentSessionId() != null ? user.getCurrentSessionId() : "NULL");
                     // 세션이 무효화되어도 필터 체인을 계속 진행 (Spring Security가 인증 필요 여부 판단)
-                    filterChain.doFilter(request, response);
-                    return;
                 } else {
                     // 세션이 유효한 경우에만 인증 처리
                     UserDetails userDetails = userDetailsService.loadUserByUsername(email);
@@ -126,13 +120,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // JWT 토큰이 유효하지 않은 경우 - 인증이 필요한 요청인지 확인
                 log.debug("Invalid JWT token");
                 // 유효하지 않은 토큰이어도 필터 체인을 계속 진행 (Spring Security가 인증 필요 여부 판단)
-                filterChain.doFilter(request, response);
-                return;
             }
         } catch (Exception e) {
             log.error("Could not set user authentication in security context", e);
         }
 
+        // 모든 경우에 대해 한 번만 필터 체인을 계속 진행
         filterChain.doFilter(request, response);
     }
 

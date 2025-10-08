@@ -41,11 +41,11 @@ public class AuthService {
         // saveAndFlush()를 사용하여 즉시 DB에 반영하여 동시성 제어
         userRepository.saveAndFlush(user);
         
-        log.info("세션 생성 - 사용자: {}, 이전 세션: {}, 새 세션: {}", 
+        log.debug("세션 생성 - 사용자: {}, 이전 세션: {}, 새 세션: {}", 
                 user.getEmail(), previousSessionId, sessionId);
         
         String jwt = jwtTokenProvider.createToken(user.getEmail(), sessionId);
-        log.info("JWT 토큰 생성 완료 - 사용자: {}, 세션: {}", user.getEmail(), sessionId);
+        log.debug("JWT 토큰 생성 완료 - 사용자: {}, 세션: {}", user.getEmail(), sessionId);
         
         return jwt;
     }

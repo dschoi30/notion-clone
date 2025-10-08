@@ -1,4 +1,6 @@
 spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
@@ -20,9 +22,16 @@ spring:
 
 logging:
   level:
-    org.springframework.security: TRACE
-    com.example.notionclone: DEBUG
-    org.hibernate.orm.jdbc.bind: TRACE
+    # 개발 환경에서는 상세 로그, 프로덕션에서는 WARN 이상만
+    org.springframework.security: ${LOG_LEVEL_SECURITY:TRACE}
+    com.example.notionclone: ${LOG_LEVEL_APP:DEBUG}
+    org.hibernate.orm.jdbc.bind: ${LOG_LEVEL_HIBERNATE:TRACE}
+    # 프로덕션 환경에서 과도한 로깅 방지
+    com.example.notionclone.security.JwtAuthenticationFilter: ${LOG_LEVEL_JWT_FILTER:DEBUG}
+    com.example.notionclone.domain.user.service.AuthService: ${LOG_LEVEL_AUTH_SERVICE:DEBUG}
+  pattern:
+    # 프로덕션에서는 간단한 로그 포맷 사용
+    console: ${LOG_PATTERN:%-5level [%thread] %logger{36} - %msg%n}
 
 jwt:
   secret: ${JWT_SECRET}

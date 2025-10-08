@@ -25,28 +25,28 @@ const handleAuthFailure = (error, reason = 'TOKEN_EXPIRED') => {
   
   // 현재 사용자 ID 저장
   const currentUserId = localStorage.getItem('userId');
-  alog.info('현재 사용자 ID:', currentUserId);
+  alog.debug('현재 사용자 ID:', currentUserId);
   
   // 다른 탭에 인증 실패 알림 (현재는 비활성화)
   // authSync.notifyLogout(reason, currentUserId);
-  alog.info(`${error.response?.status} 에러 - authSync 알림 비활성화`);
+  alog.debug(`${error.response?.status} 에러 - authSync 알림 비활성화`);
   
   // 토큰 제거
   clearTokens();
   
   // Toast 메시지 표시
   const toastMessage = getToastMessageFromError(error);
-  alog.info('Toast 메시지:', toastMessage);
+  alog.debug('Toast 메시지:', toastMessage);
   if (globalToast) {
     globalToast(toastMessage);
-    alog.info('Toast 메시지 표시됨');
+    alog.debug('Toast 메시지 표시됨');
   } else {
-    alog.info('globalToast가 설정되지 않음');
+    alog.debug('globalToast가 설정되지 않음');
   }
   
   // Toast 메시지 표시 후 리다이렉트 (1.5초 후)
   setTimeout(() => {
-    alog.info('리다이렉트 실행');
+    alog.debug('리다이렉트 실행');
     window.location.href = '/login';
   }, 1500);
 };
@@ -68,7 +68,7 @@ api.interceptors.request.use(
     const currentUserId = localStorage.getItem('userId');
     let token = null;
     
-    alog.info('API 요청 - 현재 사용자 ID:', currentUserId);
+    alog.debug('API 요청 - 현재 사용자 ID:', currentUserId);
     
     // 기존 방식 사용
     token = localStorage.getItem('accessToken');
@@ -78,9 +78,9 @@ api.interceptors.request.use(
         ...config.headers,
         Authorization: `Bearer ${token}`
       };
-      alog.info('토큰 설정 완료');
+      alog.debug('토큰 설정 완료');
     } else {
-      alog.info('토큰 없음 - 인증되지 않은 요청');
+      alog.debug('토큰 없음 - 인증되지 않은 요청');
     }
     return config;
   },
