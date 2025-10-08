@@ -30,20 +30,14 @@ const AppContent = () => {
 
 const App = () => {
   return (
-    <Router>
-      <AppContent />
-    </Router>
-  );
-};
-
-const Root = () => {
-  return (
     <ErrorBoundary>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
+      <Router>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </Router>
     </ErrorBoundary>
   );
 };
 
-export default Root;
+export default App;
