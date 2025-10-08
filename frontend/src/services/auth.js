@@ -45,12 +45,13 @@ export const logout = () => {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('user');
   localStorage.removeItem('userId');
+  // 로그인 페이지로 리다이렉트
   window.location.href = '/login';
 };
 
 export const getCurrentUser = async () => {
   try {
-    const response = await api.get('/api/auth/me');
+    const response = await api.get('/api/users/me');
     return response.data;
   } catch (error) {
     localStorage.removeItem('accessToken');

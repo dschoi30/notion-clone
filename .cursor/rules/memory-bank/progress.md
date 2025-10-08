@@ -829,3 +829,70 @@
   - 유지보수성 향상 (z-index 변경 시 한 파일만 수정)
   - 동적 z-index 처리로 사용자 경험 개선
   - 타입 안전성 확보 (상수 사용으로 오타 방지)
+
+## 2025-01-15
+- AuthContext.jsx에서 `clearExistingTokens()` 함수 호출 오류 수정
+  - `register`와 `loginWithGoogle` 함수에서 정의되지 않은 `clearExistingTokens()` 함수를 호출하던 문제를 `clearTokens()`로 수정
+  - 런타임 ReferenceError 방지 및 일관된 토큰 정리 로직 적용
+- JwtAuthenticationFilter에서 인증이 필요하지 않은 요청에 대한 401 응답 문제 수정
+  - JWT 토큰이 없거나 유효하지 않을 때 무조건 401을 반환하던 문제를 해결
+  - 토큰이 없거나 유효하지 않아도 필터 체인을 계속 진행하도록 수정하여 Spring Security가 인증 필요 여부를 판단하도록 개선
+  - 공개 엔드포인트가 정상적으로 작동하도록 보장
+- JwtAuthenticationFilter에서 사용자 검증 실패 및 세션 무효화 시 401 응답 문제 추가 수정
+  - 사용자가 존재하지 않거나 세션이 무효화된 경우에도 401을 반환하고 요청을 조기 종료하던 문제를 해결
+  - 사용자 검증 실패나 세션 무효화 시에도 필터 체인을 계속 진행하도록 수정
+  - Spring Security가 인증 필요 여부를 올바르게 판단할 수 있도록 개선하여 공개 엔드포인트 접근 보장
+- JwtAuthenticationFilter에서 로그 레벨 과다 사용 문제 수정
+  - 모든 요청마다 log.info() 사용으로 인한 운영 환경 로그 파일 급증 문제 해결
+  - JWT 검증 로그를 log.debug()로 변경하여 개발 환경에서만 상세 로그 출력
+  - 운영 환경에서 불필요한 로그 출력 최소화로 성능 및 저장 공간 개선
+- AuthController에서 동시 로그인 시 race condition 문제 해결
+  - createTokenWithSession 메서드에 @Transactional 어노테이션 추가하여 동시성 제어
+  - userRepository.save()를 saveAndFlush()로 변경하여 즉시 DB 반영으로 race condition 방지
+  - 여러 브라우저에서 동시 로그인 시 세션 ID 충돌 및 데이터 일관성 문제 해결
+- AuthController 비즈니스 로직 분리 및 아키텍처 개선
+  - AuthService 클래스 생성하여 토큰 생성 및 DB 저장 로직을 컨트롤러에서 서비스 레이어로 이동
+  - @Transactional을 서비스 레이어로 이동하여 트랜잭션 관리 일관성 확보
+  - 단일 책임 원칙(SRP) 준수 및 관심사 분리로 코드 품질 향상
+  - YAGNI 원칙 적용으로 불필요한 인터페이스 제거하여 코드 단순화
+- AuthController와 UserController 구조 개선 및 중복 엔드포인트 제거
+  - /api/auth/me 엔드포인트 제거하여 /api/users/me로 통합
+  - AuthController는 순수 인증 기능만 담당 (login, register, google)
+  - UserController는 사용자 관리 기능 담당 (profile 조회/수정, 비밀번호 변경)
+  - RESTful API 설계 원칙 준수 및 책임 분리 명확화
+- 프론트엔드 API 경로 변경 반영
+  - frontend/src/services/auth.js에서 getCurrentUser 함수의 API 경로를 /api/auth/me에서 /api/users/me로 변경
+  - 백엔드 API 구조 변경에 따른 프론트엔드 호출 경로 일관성 확보
+  - 사용자 정보 조회 API 통합으로 클라이언트 코드 단순화
+- JWT 토큰 보안 강화 및 민감한 정보 제거
+  - JwtTokenProvider에서 userId를 JWT 토큰에서 제거하여 보안 강화
+  - JWT는 base64 인코딩으로 누구나 디코딩 가능하므로 민감한 정보 포함 방지
+  - createToken 메서드에서 userId 매개변수 제거 및 getUserIdFromToken 메서드 삭제
+  - AuthService에서 JWT 생성 시 userId 전달 제거로 최소 권한 원칙 적용
+- AuthContext에서 타입 불일치 문제 해결
+  - userId(number)와 currentUserId(string) 타입 불일치로 인한 비교 오류 수정
+  - String(userId) !== currentUserId로 타입 일치하여 정확한 사용자 ID 비교 보장
+  - 세션 무효화 로직의 안정성 향상 및 예상치 못한 동작 방지
+- JwtAuthenticationFilter에서 하위 호환성 문제 해결
+  - 기존 사용자의 currentSessionId가 NULL인 경우 서비스 중단 위험 해결
+  - user.getCurrentSessionId() == null 체크 추가로 NullPointerException 방지
+  - 마이그레이션 전까지 기존 사용자들의 정상적인 서비스 이용 보장
+  - 세션 기반 인증 시스템 도입 시 하위 호환성 확보
+- API 에러 처리 로직 리팩토링 및 중복 제거
+  - 401과 403 에러 처리 로직의 중복 코드를 handleAuthFailure 공통 함수로 통합
+  - authSync.notifyLogout() 호출 의도를 명확히 주석으로 표시 (현재 비활성화)
+  - 에러 처리 로직의 일관성 향상 및 유지보수성 개선
+  - TOKEN_EXPIRED와 SESSION_INVALID 구분으로 에러 원인 명확화
+- JwtAuthenticationFilter에서 filterChain.doFilter() 이중 실행 버그 수정
+  - JWT 토큰이 null이거나 유효하지 않을 때 try 블록 내에서 filterChain.doFilter() 호출 후 return을 시도하던 문제 해결
+  - 예외 발생 시 메서드 끝의 filterChain.doFilter()가 다시 실행되어 이중 실행되는 문제 방지
+  - 모든 경우에 대해 메서드 끝에서 한 번만 filterChain.doFilter() 호출하도록 구조 개선
+  - 예외 처리 안정성 향상 및 예상치 못한 동작 방지
+- 프로덕션 환경 과도한 로깅 문제 해결
+  - AuthService에서 log.info()를 log.debug()로 변경하여 로그인/로그아웃 시에만 상세 로그 출력
+  - AuthController에서 회원가입 관련 log.info()를 log.debug()로 변경하여 중요한 이벤트만 로그
+  - DocumentService에서 문서 조회 관련 log.info()를 log.debug()로 변경하여 성능 최적화
+  - 프론트엔드 api.js에서 request interceptor의 log.info()를 log.debug()로 변경하여 API 호출 로그 최적화
+  - application-prod.yml 생성으로 프로덕션 환경에서 WARN 레벨 이상만 로그 출력하도록 설정
+  - 환경변수를 통한 로그 레벨 동적 설정으로 개발/운영 환경별 로깅 전략 분리
+  - 프로덕션 환경에서 I/O 부하 감소 및 로그 파일 크기 최적화로 성능 향상
