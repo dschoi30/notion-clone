@@ -3,6 +3,7 @@ package com.example.notionclone.domain.user.service;
 import com.example.notionclone.domain.user.dto.ChangePasswordRequest;
 import com.example.notionclone.domain.user.dto.UpdateProfileRequest;
 import com.example.notionclone.domain.user.dto.UserProfileResponse;
+import com.example.notionclone.domain.user.dto.UserResponse;
 import com.example.notionclone.domain.user.entity.User;
 import com.example.notionclone.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,17 @@ public class UserService {
     
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+
+    /**
+     * 현재 사용자 기본 정보 조회
+     */
+    public UserResponse getCurrentUser(Long userId) {
+        log.debug("Getting current user for user: {}", userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        return new UserResponse(user);
+    }
 
     /**
      * 사용자 프로필 조회

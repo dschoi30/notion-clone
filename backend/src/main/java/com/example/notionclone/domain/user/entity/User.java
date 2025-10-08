@@ -4,10 +4,14 @@ import com.example.notionclone.domain.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import java.time.LocalDateTime;
 
 
 @Entity
-@Table(name = "users")
+@Table(name = "users", indexes = {
+    @Index(name = "idx_users_email", columnList = "email"),
+    @Index(name = "idx_users_current_session_id", columnList = "current_session_id")
+})
 @Getter
 @Setter
 public class User extends BaseEntity {
@@ -26,4 +30,10 @@ public class User extends BaseEntity {
 
     @Column(name = "profile_image_url")
     private String profileImageUrl;
+
+    @Column(name = "current_session_id")
+    private String currentSessionId;
+
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
 } 

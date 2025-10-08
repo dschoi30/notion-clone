@@ -113,9 +113,9 @@ public class DocumentService {
         .filter(docId -> !ownedDocumentIds.contains(docId))
         .collect(Collectors.toList());
     
-    log.info("모든 권한 문서 ID 목록: {}", allPermissionDocumentIds);
-    log.info("소유한 문서 ID 목록: {}", ownedDocumentIds);
-    log.info("공유받은 문서 ID 목록: {}", sharedDocumentIds);
+    log.debug("모든 권한 문서 ID 목록: {}", allPermissionDocumentIds);
+    log.debug("소유한 문서 ID 목록: {}", ownedDocumentIds);
+    log.debug("공유받은 문서 ID 목록: {}", sharedDocumentIds);
     // 3. 공유받은 문서 정보 조회 및 휴지통 상태 필터링
     List<Document> sharedDocuments = documentRepository.findAllById(sharedDocumentIds).stream()
         .filter(doc -> !doc.isTrashed())
@@ -140,14 +140,14 @@ public class DocumentService {
       sharedDocumentIdSet.addAll(sharedOwnedDocumentIds);
     }
     
-    log.info("공유 문서 ID 목록: {}", sharedDocumentIdSet);
-    log.info("전체 문서 ID 목록: {}", allDocuments.stream().map(Document::getId).collect(Collectors.toList()));
+    log.debug("공유 문서 ID 목록: {}", sharedDocumentIdSet);
+    log.debug("전체 문서 ID 목록: {}", allDocuments.stream().map(Document::getId).collect(Collectors.toList()));
     
     return allDocuments.stream()
         .map(doc -> {
           boolean hasChildren = hasChildrenMap.getOrDefault(doc.getId(), false);
           boolean isShared = sharedDocumentIdSet.contains(doc.getId());
-          log.info("문서 {} (제목: {}) - isShared: {}, 소유자: {}", doc.getId(), doc.getTitle(), isShared, doc.getUser().getId());
+          log.debug("문서 {} (제목: {}) - isShared: {}, 소유자: {}", doc.getId(), doc.getTitle(), isShared, doc.getUser().getId());
           return DocumentListResponse.fromDocument(doc, hasChildren, isShared);
         })
         .collect(Collectors.toList());
@@ -601,7 +601,7 @@ public class DocumentService {
     // 기존 updateDocumentOrder 메서드 활용
     updateDocumentOrder(parentDocument.getWorkspace().getId(), sortedDocumentIds);
     
-    log.info("Child sort order updated for document {} by user {} with {} children", 
+    log.debug("Child sort order updated for document {} by user {} with {} children", 
         documentId, userId, sortedDocumentIds.size());
   }
 }
