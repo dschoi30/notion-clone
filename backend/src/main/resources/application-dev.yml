@@ -1,0 +1,22 @@
+# 개발 환경 설정
+spring:
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+logging:
+  level:
+    # 개발 환경에서는 상세 로그
+    org.springframework.security: DEBUG
+    com.example.notionclone: DEBUG
+    org.hibernate.orm.jdbc.bind: DEBUG
+    # JWT 필터와 AuthService는 DEBUG 레벨로 상세 로그
+    com.example.notionclone.security.JwtAuthenticationFilter: DEBUG
+    com.example.notionclone.domain.user.service.AuthService: DEBUG
+    # 루트 로거는 INFO 레벨
+    root: INFO
+  pattern:
+    # 개발 환경에서는 상세한 로그 포맷
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

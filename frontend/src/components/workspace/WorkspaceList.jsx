@@ -138,18 +138,20 @@ export default function WorkspaceList() {
                   setIsOpen(false);
                 }}
               >
-                <div className="flex items-center text-sm text-gray-700">
+                <div className="flex items-center space-x-2 text-sm text-gray-700 min-w-0">
                   <WorkspaceIcon 
                     name={workspace.name}
                     iconUrl={workspace.iconUrl}
                     size={16}
-                    showLabel={true}
+                    showLabel={false}
+                    className="flex-shrink-0"
                   />
+                  <span className="truncate flex-1">{workspace.name}</span>
                   {workspace.ownerId !== user.id && (
-                    <User className="ml-2 w-4 h-4 text-blue-500" />
-                  )}
-                  {workspace.ownerId !== user.id && (
-                    <span className="ml-1 text-xs text-blue-500">(게스트)</span>
+                    <>
+                      <User className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                      <span className="text-xs text-blue-500 flex-shrink-0">(게스트)</span>
+                    </>
                   )}
                 </div>
               </div>

@@ -1,0 +1,30 @@
+# 프로덕션 환경 설정
+spring:
+  profiles:
+    active: prod
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+logging:
+  level:
+    # 프로덕션에서는 WARN 이상만 로그 출력
+    org.springframework.security: WARN
+    com.example.notionclone: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+    # JWT 필터와 AuthService는 INFO 레벨로 중요한 이벤트만 로그
+    com.example.notionclone.security.JwtAuthenticationFilter: INFO
+    com.example.notionclone.domain.user.service.AuthService: INFO
+    # 루트 로거는 WARN 레벨
+    root: WARN
+  pattern:
+    # 프로덕션에서는 간단한 로그 포맷
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    # 로그 파일 설정
+    name: logs/notion-clone.log
+    max-size: 100MB
+    max-history: 30

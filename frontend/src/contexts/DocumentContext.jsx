@@ -95,6 +95,8 @@ export function DocumentProvider({ children }) {
       }
     } catch (err) {
       console.error(`❌ fetchDocuments 에러:`, err);
+      
+      
       setError(err.message);
     } finally {
       setDocumentsLoading(false);
@@ -114,6 +116,7 @@ export function DocumentProvider({ children }) {
       setDocuments(prev => [...prev, newDocument]);
       return newDocument;
     } catch (err) {
+      
       setError(err.message);
       throw err;
     } finally {
@@ -141,6 +144,7 @@ export function DocumentProvider({ children }) {
       if (currentDocument?.id === id) setCurrentDocument(mergedUpdated);
       return mergedUpdated;
     } catch (err) {
+      
       setError(err.message);
       throw err;
     }
@@ -158,6 +162,7 @@ export function DocumentProvider({ children }) {
         setCurrentDocument(documents.find(d => d.id !== id) || null);
       }
     } catch (err) {
+      
       setError(err.message);
       throw err;
     } finally {
@@ -205,6 +210,7 @@ export function DocumentProvider({ children }) {
       lastSelectRef.current = { id: document.id, at: Date.now() };
       localStorage.setItem(`lastDocumentId:${currentWorkspace.id}`, document.id);
     } catch (err) {
+      
       setError(err.message);
       console.error('Failed to fetch document:', err);
       // 에러 발생 시 현재 문서를 유지 (예기치 않은 문서 전환 방지)
@@ -247,6 +253,7 @@ export function DocumentProvider({ children }) {
       if (apply) setCurrentDocument(fullDocument);
       return fullDocument;
     } catch (err) {
+      
       setError(err.message);
       console.error('Failed to fetch document:', err);
     } finally {
@@ -266,6 +273,12 @@ export function DocumentProvider({ children }) {
       const data = await documentApi.getChildDocuments(currentWorkspace.id, parentId);
       return data;
     } catch (err) {
+      // 403 에러는 API 인터셉터에서 처리하므로 여기서는 조용히 종료
+      if (err.response?.status === 403) {
+        console.warn('403 Forbidden - API 인터셉터에서 처리됨');
+        return []; // 에러 상태 설정하지 않고 조용히 종료
+      }
+      
       setError(err.message);
       return [];
     } finally {
@@ -284,6 +297,7 @@ export function DocumentProvider({ children }) {
       const allDocuments = await documentApi.getDocuments(currentWorkspace.id);
       setDocuments(allDocuments);
     } catch (err) {
+      
       setError(err.message);
       console.error('Failed to refresh child documents:', err);
     }

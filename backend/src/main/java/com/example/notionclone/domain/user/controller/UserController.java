@@ -4,6 +4,7 @@ import com.example.notionclone.domain.user.dto.ChangePasswordRequest;
 import com.example.notionclone.domain.user.dto.ProfileUpdateResponse;
 import com.example.notionclone.domain.user.dto.UpdateProfileRequest;
 import com.example.notionclone.domain.user.dto.UserProfileResponse;
+import com.example.notionclone.domain.user.dto.UserResponse;
 import com.example.notionclone.domain.user.service.UserService;
 import com.example.notionclone.security.CurrentUser;
 import com.example.notionclone.security.UserPrincipal;
@@ -19,6 +20,16 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+
+    /**
+     * 현재 사용자 기본 정보 조회 (인증 후 사용자 정보)
+     */
+    @GetMapping("/me")
+    public ResponseEntity<UserResponse> getCurrentUser(@CurrentUser UserPrincipal userPrincipal) {
+        log.debug("Get current user request for user: {}", userPrincipal.getId());
+        UserResponse userResponse = userService.getCurrentUser(userPrincipal.getId());
+        return ResponseEntity.ok(userResponse);
+    }
 
     /**
      * 현재 사용자 프로필 조회
