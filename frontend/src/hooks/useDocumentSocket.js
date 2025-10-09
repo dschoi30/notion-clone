@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
+import { createLogger } from '@/lib/logger';
 
 /**
  * 문서 실시간 협업용 WebSocket 커스텀 훅
@@ -10,6 +11,7 @@ import { Client } from '@stomp/stompjs';
  * @returns {object} sendEdit(메시지 전송 함수)
  */
 export default function useDocumentSocket(documentId, onRemoteEdit) {
+  const rlog = createLogger('useDocumentSocket');
   const stompClientRef = useRef(null);
   const onRemoteEditRef = useRef(onRemoteEdit);
 
@@ -20,7 +22,7 @@ export default function useDocumentSocket(documentId, onRemoteEdit) {
 
   useEffect(() => {
     if (!documentId){
-      console.log('useDocumentSocket: documentId 없음, 연결 시도 안함');
+      rlog.debug('useDocumentSocket: documentId 없음, 연결 시도 안함');
       return;
     }
     // console.log('useDocumentSocket: documentId 있음, 연결 시도');
@@ -57,7 +59,7 @@ export default function useDocumentSocket(documentId, onRemoteEdit) {
         body: JSON.stringify(editData),
       });
     } else {
-      console.log('WebSocket 연결 안 됨, 메시지 전송 실패');
+      rlog.debug('WebSocket 연결 안 됨, 메시지 전송 실패');
     }
   };
 

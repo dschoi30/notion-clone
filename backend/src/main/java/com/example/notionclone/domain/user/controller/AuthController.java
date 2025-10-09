@@ -7,8 +7,8 @@ import com.example.notionclone.domain.user.dto.LoginRequest;
 import com.example.notionclone.domain.user.dto.RegisterRequest;
 import com.example.notionclone.domain.user.dto.UserResponse;
 import com.example.notionclone.domain.user.repository.UserRepository;
+import com.example.notionclone.domain.user.service.AuthService;
 import com.example.notionclone.domain.workspace.service.WorkspaceService;
-import com.example.notionclone.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -36,11 +36,12 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtTokenProvider jwtTokenProvider;
+    private final AuthService authService;
     private final WorkspaceService workspaceService;
     
     @Value("${google.client.id}")
     private String googleClientId;
+
 
     
     @PostMapping("/login")
@@ -53,17 +54,18 @@ public class AuthController {
         );
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtTokenProvider.createToken(loginRequest.getEmail());
         
         User user = userRepository.findByEmail(loginRequest.getEmail())
             .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String jwt = authService.createTokenWithSession(user);
 
         return ResponseEntity.ok(new AuthResponse(jwt, new UserResponse(user)));
     }
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest registerRequest) {
-        log.info("Registering new user with email: {}", registerRequest.getEmail());
+        log.debug("Registering new user with email: {}", registerRequest.getEmail());
         
         try {
             if (userRepository.existsByEmail(registerRequest.getEmail())) {
@@ -83,13 +85,13 @@ public class AuthController {
             try {
                 String defaultWorkspaceName = user.getName() + "의 워크스페이스";
                 workspaceService.createWorkspace(user, defaultWorkspaceName);
-                log.info("Default workspace created for user: {}", user.getEmail());
+                log.debug("Default workspace created for user: {}", user.getEmail());
             } catch (Exception e) {
                 log.error("Failed to create default workspace for user: {}", user.getEmail(), e);
                 // 워크스페이스 생성 실패해도 회원가입은 성공으로 처리
             }
 
-            String jwt = jwtTokenProvider.createToken(user.getEmail());
+            String jwt = authService.createTokenWithSession(user);
             return ResponseEntity.ok(new AuthResponse(jwt, new UserResponse(user)));
         } catch (Exception e) {
             log.error("Error during registration", e);
@@ -97,14 +99,6 @@ public class AuthController {
         }
     }
 
-    @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("User not found"));
-        
-        return ResponseEntity.ok(new UserResponse(user));
-    }
 
     @PostMapping("/google")
     public ResponseEntity<?> googleLogin(@RequestBody GoogleLoginRequest request) {
@@ -132,7 +126,7 @@ public class AuthController {
                         try {
                             String defaultWorkspaceName = savedUser.getName() + "의 워크스페이스";
                             workspaceService.createWorkspace(savedUser, defaultWorkspaceName);
-                            log.info("Default workspace created for Google user: {}", savedUser.getEmail());
+                            log.debug("Default workspace created for Google user: {}", savedUser.getEmail());
                         } catch (Exception e) {
                             log.error("Failed to create default workspace for Google user: {}", savedUser.getEmail(), e);
                             // 워크스페이스 생성 실패해도 회원가입은 성공으로 처리
@@ -141,8 +135,7 @@ public class AuthController {
                         return savedUser;
                     });
 
-                // JWT 토큰 생성
-                String jwt = jwtTokenProvider.createToken(email);
+                String jwt = authService.createTokenWithSession(user);
                 return ResponseEntity.ok(new AuthResponse(jwt, new UserResponse(user)));
             }
             return ResponseEntity.badRequest().body("Invalid ID token");

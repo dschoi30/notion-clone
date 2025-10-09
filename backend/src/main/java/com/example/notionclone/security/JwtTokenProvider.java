@@ -9,7 +9,9 @@ import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Component
 public class JwtTokenProvider {
 
@@ -23,12 +25,13 @@ public class JwtTokenProvider {
         this.validityInMilliseconds = validityInMilliseconds;
     }
 
-    public String createToken(String email) {
+    public String createToken(String email, String sessionId) {
         Date now = new Date();
         Date validity = new Date(now.getTime() + validityInMilliseconds);
 
         Map<String, Object> claims = new HashMap<>();
         claims.put("email", email);
+        claims.put("sessionId", sessionId);
 
         return Jwts.builder()
                 .setClaims(claims)
@@ -47,6 +50,21 @@ public class JwtTokenProvider {
 
         return claims.get("email", String.class);
     }
+
+    public String getSessionIdFromToken(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+
+        String sessionId = claims.get("sessionId", String.class);
+        if (sessionId == null) {
+            log.warn("JWT token missing sessionId claim - legacy token detected");
+        }
+        return sessionId;
+    }
+
 
     public boolean validateToken(String token) {
         try {
