@@ -28,14 +28,15 @@ export function WorkspaceProvider({ children }) {
       setError(null);
       wlog.info(`🔄 fetchWorkspaces 시작`);
       const data = await workspaceApi.getAccessibleWorkspaces();
-      wlog.info(`📋 워크스페이스 목록 로드:`, data.map(ws => `${ws.id}(${ws.name})`).join(', '));
-      setWorkspaces(data);
+      const filtered = Array.isArray(data) ? data.filter(ws => !ws.isTrashed) : [];
+      wlog.info(`📋 워크스페이스 목록 로드:`, filtered.map(ws => `${ws.id}(${ws.name})`).join(', '));
+      setWorkspaces(filtered);
       
       // localStorage 기반 설정은 별도 useEffect에서 처리하므로 여기서는 자동 설정하지 않음
       // 이전 로직: if (data.length > 0 && !currentWorkspace) { setCurrentWorkspace(data[0]); }
       // 이는 잘못된 워크스페이스(data[0])를 임시로 설정하여 불필요한 API 호출을 유발함
       
-      wlog.info(`✅ fetchWorkspaces 완료: ${data.length}개 워크스페이스`);
+      wlog.info(`✅ fetchWorkspaces 완료: ${filtered.length}개 워크스페이스`);
     } catch (err) {
       console.error(`❌ fetchWorkspaces 에러:`, err);
       
@@ -84,7 +85,7 @@ export function WorkspaceProvider({ children }) {
     try {
       setLoading(true);
       setError(null);
-      await workspaceApi.deleteWorkspace(id);
+      await workspaceApi.softDeleteWorkspace(id);
       setWorkspaces(prev => prev.filter(workspace => workspace.id !== id));
       if (currentWorkspace?.id === id) {
         setCurrentWorkspace(workspaces.find(w => w.id !== id) || null);

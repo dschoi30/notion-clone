@@ -21,8 +21,8 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
 
 import java.util.List;
-import java.util.Set;
-import java.util.Map;
+ 
+ 
 import java.util.stream.Collectors;
 import java.util.ArrayList;
 import org.springframework.data.domain.Page;
@@ -497,6 +497,38 @@ public class DocumentService {
     documentRepository.delete(d);
   }
 
+  /**
+   * 워크스페이스의 모든 문서를 안전 순서(자식 → 부모)로 하드 삭제
+   * FK 제약(versions/values/permissions) 위반을 방지
+   */
+  @Transactional
+  public void hardDeleteAllDocumentsInWorkspace(Long workspaceId) {
+    List<Document> all = documentRepository.findByWorkspaceId(workspaceId);
+    if (all == null || all.isEmpty()) return;
+
+    // 빠른 조회용 맵/셋
+    Map<Long, Document> byId = new HashMap<>();
+    for (Document d : all) byId.put(d.getId(), d);
+
+    // 루트 후보: 부모가 없거나(전역 루트) 부모가 같은 워크스페이스에 포함되지 않은 문서
+    List<Document> roots = new ArrayList<>();
+    for (Document d : all) {
+      Document p = d.getParent();
+      if (p == null || !byId.containsKey(p.getId())) {
+        roots.add(d);
+      }
+    }
+
+    // 각 루트 서브트리를 자식부터 삭제
+    for (Document root : roots) {
+      List<Document> subtree = collectDescendants(root);
+      for (int i = subtree.size() - 1; i >= 0; i--) {
+        hardDeleteSingleDocument(subtree.get(i));
+      }
+      hardDeleteSingleDocument(root);
+    }
+  }
+
   public List<DocumentResponse> getAccessibleDocuments(Long workspaceId, User user) {
     // 1. 내가 소유한 문서(개인)
     List<Document> personalDocs = documentRepository.findByWorkspaceIdAndUserId(workspaceId, user.getId());
@@ -551,6 +583,23 @@ public class DocumentService {
           return applyLatestMeta(resp, doc);
         })
         .collect(Collectors.toList());
+  }
+
+  /**
+   * 자식 문서 페이지네이션 (TABLE 뷰의 무한 스크롤용)
+   */
+  @Transactional(readOnly = true)
+  public Page<DocumentListResponse> getChildDocumentsPaged(Long parentId, User user, Pageable pageable) {
+    Page<Document> page = documentRepository.findByParentIdAndIsTrashedFalseOrderBySortOrderAscIdAsc(parentId, pageable);
+    // 권한 필터링은 간단화: 소유자이거나 부모 권한/직접 권한이 있다고 가정 (상세 권한 검사는 컨트롤러 상위에서 처리)
+    List<Document> content = page.getContent();
+    // hasChildren 배치 조회
+    List<Long> ids = content.stream().map(Document::getId).collect(Collectors.toList());
+    Map<Long, Boolean> hasChildrenMap = getHasChildrenMap(ids);
+    List<DocumentListResponse> responses = content.stream()
+        .map(doc -> DocumentListResponse.fromDocument(doc, hasChildrenMap.getOrDefault(doc.getId(), false), false))
+        .collect(Collectors.toList());
+    return new org.springframework.data.domain.PageImpl<>(responses, pageable, page.getTotalElements());
   }
 
   @Transactional
