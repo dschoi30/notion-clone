@@ -48,6 +48,7 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Comparator;
 
 @Slf4j
 @Service
@@ -589,10 +590,49 @@ public class DocumentService {
    * 자식 문서 페이지네이션 (TABLE 뷰의 무한 스크롤용)
    */
   @Transactional(readOnly = true)
-  public Page<DocumentListResponse> getChildDocumentsPaged(Long parentId, User user, Pageable pageable) {
+  public Page<DocumentListResponse> getChildDocumentsPaged(Long parentId, User user, Pageable pageable,
+      String sortField, String sortDir, Long sortPropertyId) {
+    // 기본 데이터 페이지 조회 (정렬은 응답 단계에서 적용)
     Page<Document> page = documentRepository.findByParentIdAndIsTrashedFalseOrderBySortOrderAscIdAsc(parentId, pageable);
-    // 권한 필터링은 간단화: 소유자이거나 부모 권한/직접 권한이 있다고 가정 (상세 권한 검사는 컨트롤러 상위에서 처리)
-    List<Document> content = page.getContent();
+    List<Document> content = new ArrayList<>(page.getContent());
+
+    // 속성값 정렬 처리 (text/number/date/createdBy/updatedBy 등)
+    if (sortField != null) {
+      Comparator<Document> comparator = null;
+      switch (sortField) {
+        case "title":
+          comparator = Comparator.comparing(d -> Optional.ofNullable(d.getTitle()).orElse(""), String.CASE_INSENSITIVE_ORDER);
+          break;
+        case "createdAt":
+          comparator = Comparator.comparing(d -> Optional.ofNullable(d.getCreatedAt()).orElse(java.time.LocalDateTime.MIN));
+          break;
+        case "updatedAt":
+          comparator = Comparator.comparing(d -> Optional.ofNullable(d.getUpdatedAt()).orElse(java.time.LocalDateTime.MIN));
+          break;
+        case "createdBy":
+          comparator = Comparator.comparing(d -> Optional.ofNullable(d.getCreatedBy()).orElse(""), String.CASE_INSENSITIVE_ORDER);
+          break;
+        case "updatedBy":
+          comparator = Comparator.comparing(d -> Optional.ofNullable(d.getUpdatedBy()).orElse(""), String.CASE_INSENSITIVE_ORDER);
+          break;
+        case "prop":
+          if (sortPropertyId != null) {
+            // 문서별 해당 property의 값 조회 후 캐시
+            Map<Long, String> byDoc = documentPropertyValueRepository.findByDocumentIdIn(
+                content.stream().map(Document::getId).toList())
+                .stream()
+                .filter(v -> v.getProperty().getId().equals(sortPropertyId))
+                .collect(Collectors.toMap(v -> v.getDocument().getId(), v -> Optional.ofNullable(v.getValue()).orElse(""), (a,b)->a));
+            comparator = Comparator.comparing(d -> byDoc.getOrDefault(d.getId(), ""), String.CASE_INSENSITIVE_ORDER);
+          }
+          break;
+      }
+      if (comparator != null) {
+        if ("desc".equalsIgnoreCase(sortDir)) comparator = comparator.reversed();
+        content.sort(comparator);
+      }
+    }
+
     // hasChildren 배치 조회
     List<Long> ids = content.stream().map(Document::getId).collect(Collectors.toList());
     Map<Long, Boolean> hasChildrenMap = getHasChildrenMap(ids);

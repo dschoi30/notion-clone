@@ -22,6 +22,9 @@ const TableHeader = memo(function TableHeader({
   onToggleAll,
   isReadOnly = false,
 }) {
+  // properties를 안전하게 필터링
+  const safeProperties = properties?.filter(p => p && p.id) || [];
+  
   const popoverRef = useRef(null);
 
   useEffect(() => {
@@ -67,13 +70,13 @@ const TableHeader = memo(function TableHeader({
       )}
       <div
         className="flex relative items-center text-gray-500"
-        style={{ minWidth: colWidths[0], width: colWidths[0], padding: '8px', borderLeft: 'none', borderRight: properties.length === 0 ? 'none' : '1px solid #e9e9e7' }}
+        style={{ minWidth: colWidths[0], width: colWidths[0], padding: '8px', borderLeft: 'none', borderRight: safeProperties.length === 0 ? 'none' : '1px solid #e9e9e7' }}
       >
         <Text className="inline mr-1" size={16} />이름
         <div style={{ position: 'absolute', right: 0, top: 0, width: 6, height: '100%', cursor: 'col-resize', zIndex: 10 }} onMouseDown={(e) => handleResizeMouseDown(e, 0)} />
       </div>
-      <SortableContext items={properties.map((p) => p.id)} strategy={horizontalListSortingStrategy}>
-        {properties.map((p, idx) => (
+      <SortableContext items={safeProperties.map((p) => p.id)} strategy={horizontalListSortingStrategy}>
+        {safeProperties.map((p, idx) => (
           <SortablePropertyHeader
             key={p.id}
             property={p}

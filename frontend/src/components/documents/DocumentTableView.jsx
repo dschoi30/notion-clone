@@ -25,7 +25,6 @@ import { DEFAULT_PROPERTY_WIDTH, SYSTEM_PROP_TYPES } from '@/components/document
 import { buildSystemPropTypeMapForTable } from '@/components/documents/shared/systemPropTypeMap';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDocument } from '@/contexts/DocumentContext';
-import DummyDataTestPanel from './DummyDataTestPanel';
 
 const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   const navigate = useNavigate(); // useNavigate 훅 추가
@@ -85,6 +84,9 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     rows,
     setRows,
     isLoading,
+    isFetchingMore,
+    hasMore,
+    fetchNextPage,
     error,
     editingHeader,
     setEditingHeader,
@@ -170,18 +172,15 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
       (entries) => {
         const target = entries[0];
         if (target.isIntersecting) {
-          setDisplayedRows(prev => {
-            // 현재 표시된 행 수가 전체 행 수보다 적을 때만 증가
-            if (prev < finalFilteredRows.length) {
-              return Math.min(prev + 50, finalFilteredRows.length);
-            }
-            return prev;
-          });
+          // 다음 페이지 로드 트리거
+          fetchNextPage?.();
+          setDisplayedRows(prev => Math.min(prev + 50, finalFilteredRows.length + 50));
         }
       },
       {
-        threshold: 0.1,
-        rootMargin: '100px'
+        threshold: 0,
+        // 하단 고정 여백(푸터 등)을 고려해 충분히 큰 bottom margin을 준다
+        rootMargin: '0px 0px 320px 0px'
       }
     );
     
@@ -194,7 +193,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
         observer.unobserve(loadMoreRef.current);
       }
     };
-  }, [finalFilteredRows.length]); // displayedRows 의존성 제거
+  }, [finalFilteredRows.length]);
 
   // 검색/필터 변경 시 displayedRows 초기화
   useEffect(() => {
@@ -628,25 +627,23 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
             boxSizing: 'border-box' // 패딩을 포함한 너비 계산
           }}
         >
-                 <span className="absolute right-2 top-1/2 -translate-y-1/2">
-                   개수 {finalFilteredRows.length}
-                 </span>
+        <span className="absolute right-2 top-1/2 -translate-y-1/2">
+          개수 {finalFilteredRows.length}
+        </span>
         </div>
       </div>
 
-      {/* 무한 스크롤 로딩 인디케이터 */}
-      {visibleRows.length < finalFilteredRows.length && (
-        <div ref={loadMoreRef} className="flex justify-center items-center py-4 text-gray-500">
-          <div className="mr-2 w-6 h-6 rounded-full border-b-2 border-blue-600 animate-spin"></div>
-          <span>더 많은 문서를 불러오는 중...</span>
+      {/* 무한 스크롤 센티넬 (푸터 여백 영향 방지용 항상 표시) */}
+      {hasMore && (
+        <div ref={loadMoreRef} className="flex justify-center items-center py-6 text-gray-500 min-h-[1px]">
+          {isFetchingMore && (
+            <>
+              <div className="mr-2 w-6 h-6 rounded-full border-b-2 border-blue-600 animate-spin"></div>
+              <span>더 많은 문서를 불러오는 중...</span>
+            </>
+          )}
         </div>
       )}
-      
-
-      {/* 더미 데이터 테스트 패널 - 테스트용으로 모든 사용자에게 표시 */}
-      <div className="pt-6 mt-8 border-t border-gray-200">
-        <DummyDataTestPanel workspaceId={workspaceId} />
-      </div>
 
       {/* 정렬 제거 확인 모달 */}
       <Dialog open={showSortClearModal} onOpenChange={setShowSortClearModal}>

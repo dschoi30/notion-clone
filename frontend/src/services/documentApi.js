@@ -121,6 +121,17 @@ export async function getChildDocuments(workspaceId, parentId) {
   return response.data;
 }
 
+// 자식 문서 페이지네이션 (TABLE 뷰 무한 스크롤용)
+export async function getChildDocumentsPaged(workspaceId, parentId, page = 0, size = 50, sortField, sortDir, propId) {
+  const url = `/api/workspaces/${workspaceId}/documents/${parentId}/children`;
+  const params = { page, size };
+  if (sortField) params.sortField = sortField;
+  if (sortDir) params.sortDir = sortDir;
+  if (propId) params.propId = propId;
+  const response = await api.get(url, { params });
+  return response.data; // { content, totalElements, totalPages, number, size }
+}
+
 // 자식 문서(행) 순서 업데이트
 export async function updateChildDocumentOrder(workspaceId, parentId, documentIds) {
   return api.patch(`/api/workspaces/${workspaceId}/documents/${parentId}/children/order`, documentIds);

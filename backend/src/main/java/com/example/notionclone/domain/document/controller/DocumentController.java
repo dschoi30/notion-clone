@@ -289,6 +289,25 @@ public class DocumentController {
         return ResponseEntity.ok(documentService.getChildDocuments(parentId, user));
     }
 
+    /**
+     * 자식 문서 페이지네이션 API (TABLE 뷰의 무한 스크롤용)
+     */
+    @GetMapping("/{parentId}/children")
+    public ResponseEntity<Page<DocumentListResponse>> getChildDocumentsPaged(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId,
+            @PathVariable Long parentId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(required = false) String sortField,
+            @RequestParam(required = false, defaultValue = "asc") String sortDir,
+            @RequestParam(required = false, name = "propId") Long sortPropertyId) {
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(documentService.getChildDocumentsPaged(parentId, user, pageable, sortField, sortDir, sortPropertyId));
+    }
+
     @PatchMapping("/{parentId}/children/order")
     public ResponseEntity<Void> updateChildOrder(
             @CurrentUser UserPrincipal userPrincipal,
