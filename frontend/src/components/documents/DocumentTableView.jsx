@@ -25,6 +25,7 @@ import { DEFAULT_PROPERTY_WIDTH, SYSTEM_PROP_TYPES } from '@/components/document
 import { buildSystemPropTypeMapForTable } from '@/components/documents/shared/systemPropTypeMap';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDocument } from '@/contexts/DocumentContext';
+import DummyDataTestPanel from './DummyDataTestPanel';
 
 const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   const navigate = useNavigate(); // useNavigate 훅 추가
@@ -38,6 +39,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   const [tagPopoverRect, setTagPopoverRect] = useState(null);
   const [showSortClearModal, setShowSortClearModal] = useState(false);
   const [pendingDragEvent, setPendingDragEvent] = useState(null);
+  const [displayedRows, setDisplayedRows] = useState(50); // 무한 스크롤용 표시 행 수
   
   const systemPropTypeMap = useMemo(() => buildSystemPropTypeMapForTable(), []);
   
@@ -75,8 +77,6 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   
   // 소유자 확인
   const { user } = useAuth();
-  const { currentDocument } = useDocument();
-  const isOwner = currentDocument && String(currentDocument.userId) === String(user?.id);
 
   // data hook
   const {
@@ -94,7 +94,11 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     handleAddRowBottom,
     handleCellValueChange,
     handleHeaderNameChange,
+    currentDocument,
   } = useTableData({ workspaceId, documentId, systemPropTypeMap });
+
+  // 소유자 확인
+  const isOwner = currentDocument && String(currentDocument.userId) === String(user?.id);
 
   // search hook
   const {
@@ -157,6 +161,50 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   
   // 최종 필터링된 데이터 (검색 + 필터 + 정렬 적용)
   const finalFilteredRows = useMemo(() => sortedRows, [sortedRows]);
+  
+  // 무한 스크롤 로직 (Intersection Observer 사용)
+  const loadMoreRef = useRef(null);
+  
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const target = entries[0];
+        if (target.isIntersecting) {
+          setDisplayedRows(prev => {
+            // 현재 표시된 행 수가 전체 행 수보다 적을 때만 증가
+            if (prev < finalFilteredRows.length) {
+              return Math.min(prev + 50, finalFilteredRows.length);
+            }
+            return prev;
+          });
+        }
+      },
+      {
+        threshold: 0.1,
+        rootMargin: '100px'
+      }
+    );
+    
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+    
+    return () => {
+      if (loadMoreRef.current) {
+        observer.unobserve(loadMoreRef.current);
+      }
+    };
+  }, [finalFilteredRows.length]); // displayedRows 의존성 제거
+
+  // 검색/필터 변경 시 displayedRows 초기화
+  useEffect(() => {
+    setDisplayedRows(50);
+  }, [searchQuery, activeFilters, activeSorts]);
+
+  // 표시할 행 데이터 (무한 스크롤 적용)
+  const visibleRows = useMemo(() => {
+    return finalFilteredRows.slice(0, displayedRows);
+  }, [finalFilteredRows, displayedRows]);
 
   // 상단 툴바에서 새 문서 추가 (첫 번째 행에 추가)
   const handleAddNewDocument = useCallback(async () => {
@@ -272,20 +320,16 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
       if (direction === 'up') {
         // 위로 이동 시: 셀이 화면 상단에서 bufferRows만큼의 여백보다 위에 있으면 스크롤
         const threshold = containerScrollTop + bufferHeight;
-        console.log(`UP: cellTop=${cellTop}, threshold=${threshold}, bufferRows=${bufferRows}`);
         if (cellTop <= threshold) { // <= 로 변경하여 더 민감하게
           shouldScroll = true;
           targetScrollTop = cellTop - bufferHeight;
-          console.log(`UP 스크롤 실행: targetScrollTop=${targetScrollTop}`);
         }
       } else if (direction === 'down') {
         // 아래로 이동 시: 셀이 화면 하단에서 bufferRows만큼의 여백보다 아래에 있으면 스크롤
         const threshold = containerScrollTop + containerHeight - bufferHeight;
-        console.log(`DOWN: cellBottom=${cellBottom}, threshold=${threshold}, bufferRows=${bufferRows}`);
         if (cellBottom >= threshold) { // >= 로 변경하여 더 민감하게
           shouldScroll = true;
           targetScrollTop = cellBottom - containerHeight + bufferHeight;
-          console.log(`DOWN 스크롤 실행: targetScrollTop=${targetScrollTop}`);
         }
       }
       
@@ -468,6 +512,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
           onSortRemove={removeSort}
           isReadOnly={isReadOnly}
           anchorRef={tableContainerRef}
+          documentCount={finalFilteredRows.length}
           isOwner={isOwner}
           workspaceId={workspaceId}
           documentId={documentId}
@@ -515,9 +560,10 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
               {hasActiveSearch || hasActiveFilters ? '검색 결과 없음' : '빈 행'}
             </div>
           ) : (
+            // 무한 스크롤 테이블 사용
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={isReadOnly ? undefined : handleRowDragEnd}>
-              <SortableContext items={finalFilteredRows.map((r) => r.id)} strategy={verticalListSortingStrategy}>
-                {finalFilteredRows.map((row, rowIdx) => (
+              <SortableContext items={visibleRows.map((r) => r.id)} strategy={verticalListSortingStrategy}>
+                {visibleRows.map((row, rowIdx) => (
                   <TableRow
                     key={row.id}
                     row={row}
@@ -582,10 +628,24 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
             boxSizing: 'border-box' // 패딩을 포함한 너비 계산
           }}
         >
-          <span className="absolute right-2 top-1/2 -translate-y-1/2">
-            개수 {finalFilteredRows.length}
-          </span>
+                 <span className="absolute right-2 top-1/2 -translate-y-1/2">
+                   개수 {finalFilteredRows.length}
+                 </span>
         </div>
+      </div>
+
+      {/* 무한 스크롤 로딩 인디케이터 */}
+      {visibleRows.length < finalFilteredRows.length && (
+        <div ref={loadMoreRef} className="flex justify-center items-center py-4 text-gray-500">
+          <div className="mr-2 w-6 h-6 rounded-full border-b-2 border-blue-600 animate-spin"></div>
+          <span>더 많은 문서를 불러오는 중...</span>
+        </div>
+      )}
+      
+
+      {/* 더미 데이터 테스트 패널 - 테스트용으로 모든 사용자에게 표시 */}
+      <div className="pt-6 mt-8 border-t border-gray-200">
+        <DummyDataTestPanel workspaceId={workspaceId} />
       </div>
 
       {/* 정렬 제거 확인 모달 */}
