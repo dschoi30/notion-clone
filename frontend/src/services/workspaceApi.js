@@ -24,6 +24,11 @@ export async function deleteWorkspace(id) {
   await api.delete(`/api/workspaces/${id}`);
 }
 
+export async function softDeleteWorkspace(id) {
+  // 현재 DELETE가 소프트 삭제로 동작하게 바뀌었지만, 명시적 함수 제공
+  await api.delete(`/api/workspaces/${id}`);
+}
+
 export async function getWorkspaceMembers(id) {
   const response = await api.get(`/api/workspaces/${id}/members`);
   return response.data;

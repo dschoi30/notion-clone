@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { PlusIcon, TrashIcon, GripVertical, ChevronRight, ChevronDown, FileText, Table } from 'lucide-react';
 import { useDocument } from '@/contexts/DocumentContext';
@@ -25,10 +25,23 @@ import { useNavigate } from 'react-router-dom';
 import { slugify } from '@/lib/utils';
 import { createLogger } from '@/lib/logger';
 
-function SortableDocumentTreeItem({ document, currentDocument, onSelect, onDelete, openedIds, setOpenedIds, childrenMap, setChildrenMap, fetchChildDocuments, level = 0, idPath = [] }) {
+// 문서 아이템 컴포넌트
+const DocumentItem = memo(({ 
+  document,
+  currentDocument, 
+  onSelect, 
+  onDelete, 
+  openedIds, 
+  setOpenedIds, 
+  childrenMap, 
+  setChildrenMap, 
+  fetchChildDocuments, 
+  idPath,
+  sensors,
+  onDragEnd,
+  style
+}) => {
   const [hovered, setHovered] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const children = childrenMap[document.id] || [];
 
   const {
     attributes,
@@ -39,17 +52,18 @@ function SortableDocumentTreeItem({ document, currentDocument, onSelect, onDelet
     isDragging,
   } = useSortable({ 
     id: document.id,
-    animateLayoutChanges: () => true, // 레이아웃 변경 시 애니메이션 활성화
+    animateLayoutChanges: () => true,
   });
 
-  const style = {
+  const itemStyle = useMemo(() => ({
+    ...style,
     transform: CSS.Transform.toString(transform),
     transition: isDragging ? 'none' : transition,
-    opacity: isDragging ? 0.4 : 1, // 노션 스타일로 더 연하게
+    opacity: isDragging ? 0.4 : 1,
     zIndex: isDragging ? 1000 : 'auto',
-  };
+  }), [style, transform, transition, isDragging]);
 
-  const handleToggle = async (e) => {
+  const handleToggle = useCallback(async (e) => {
     e.stopPropagation();
     if (openedIds.has(document.id)) {
       setOpenedIds(prev => {
@@ -60,115 +74,263 @@ function SortableDocumentTreeItem({ document, currentDocument, onSelect, onDelet
     } else {
       setOpenedIds(prev => new Set(prev).add(document.id));
       if (!childrenMap[document.id]) {
-        setLoading(true);
-        const docs = await fetchChildDocuments(document.id, { silent: true }); // DocumentList 깜빡임 방지를 위해 silent 옵션 사용
+        const docs = await fetchChildDocuments(document.id, { silent: true });
         setChildrenMap(prev => ({ ...prev, [document.id]: docs }));
-        setLoading(false);
       }
     }
-  };
+  }, [document.id, openedIds, childrenMap, setOpenedIds, setChildrenMap, fetchChildDocuments]);
+
+  const handleSelect = useCallback(() => {
+    onSelect(document);
+  }, [onSelect, document]);
+
+  const handleDelete = useCallback((e) => {
+    e.stopPropagation();
+    onDelete(document.id);
+  }, [onDelete, document.id]);
 
   const Icon = document.viewType === 'TABLE' ? Table : FileText;
-
-  return (
-    <>
+  
+  // 자식 문서인 경우 간단한 렌더링
+  if (document.isChild) {
+    const isSelected = currentDocument?.id === document.id;
+    return (
       <div
-        ref={setNodeRef}
+        className={`flex items-center ml-4 min-w-0 h-8 rounded transition-colors group`}
         style={{
-          ...style,
-          paddingLeft: level * 20,
-          background: idPath.includes(document.id)
-            ? '#F0F0EF'
-            : hovered
-              ? '#F1F1EF'
-              : undefined
+          ...itemStyle,
+          background: isSelected && hovered
+            ? '#E8E8E6'  // 선택 + 호버: 더 진한 색상
+            : isSelected 
+              ? '#F0F0EF'  // 선택만: 기본 색상
+              : hovered
+                ? '#F0F0EF'  // 호버만: 기본 색상
+                : undefined
         }}
-        className="flex items-center min-w-0 h-8 transition-colors group"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        {/* 드래그 핸들 */}
-        <div
-          {...attributes}
-          {...listeners}
-          className="flex justify-center items-center p-0 mr-1 w-8 h-8 rounded cursor-grab hover:bg-gray-200"
-          style={{ minWidth: 32 }}
-        >
-          <GripVertical className="w-4 h-4 text-gray-400" />
-        </div>
-        
-        {document.hasChildren ? (
-          hovered ? (
-            <button
-              onClick={handleToggle}
-              className="flex justify-center items-center p-0 mr-1 w-8 h-8"
-              style={{ minWidth: 32 }}
-            >
-              {openedIds.has(document.id)
-                ? <ChevronDown className="w-4 h-4" />
-                : <ChevronRight className="w-4 h-4" />}
-            </button>
-          ) : (
-            <span className="flex justify-center items-center mr-1 w-8 h-8">
-              <Icon className="w-4 h-4 text-gray-400" />
-            </span>
-          )
-        ) : (
-          <span className="flex justify-center items-center mr-1 w-8 h-8">
-            <Icon className="w-4 h-4 text-gray-400" />
-          </span>
-        )}
+        <span className="flex justify-center items-center mr-1 w-8 h-8">
+          <Icon className="w-4 h-4 text-gray-400" />
+        </span>
         <span
-          className="flex-1 items-center px-1 h-8 truncate whitespace-nowrap rounded cursor-pointer"
+          className={`flex-1 items-center px-1 h-8 truncate whitespace-nowrap rounded cursor-pointer ${
+            isSelected ? 'font-medium text-gray-900' : 'text-gray-900'
+          }`}
           style={{ 
             lineHeight: '2rem', 
             display: 'flex',
             alignItems: 'center',
-            minWidth: 0, // flex item이 축소될 수 있도록 함
+            minWidth: 0,
           }}
-          onClick={() => onSelect(document)}
-          title={document.title} // 호버 시 전체 제목 표시
+          onClick={handleSelect}
+          title={document.title}
         >
           {document.title}
         </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={e => {
-            e.stopPropagation();
-            onDelete(document.id);
-          }}
-          className="hidden justify-center items-center p-0 w-8 h-8 group-hover:flex"
-          style={{ minWidth: 32 }}
-        >
-          <TrashIcon className="w-4 h-4 text-red-500" />
-        </Button>
       </div>
-      {openedIds.has(document.id) && (loading ? (
-        <div className="pl-8 text-sm text-gray-400">로딩 중...</div>
-      ) : (
-        children.map(child => (
-          <SortableDocumentTreeItem
-            key={child.id}
-            document={child}
-            currentDocument={currentDocument}
-            onSelect={onSelect}
-            onDelete={onDelete}
-            openedIds={openedIds}
-            setOpenedIds={setOpenedIds}
-            childrenMap={childrenMap}
-            setChildrenMap={setChildrenMap}
-            fetchChildDocuments={fetchChildDocuments}
-            level={level + 1}
-            idPath={idPath}
-          />
-        ))
-      ))}
-    </>
-  );
-}
+    );
+  }
 
-export default function DocumentList() {
+  // 선택 상태 확인
+  const isSelected = currentDocument?.id === document.id;
+  
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex items-center min-w-0 h-8 transition-colors group rounded ${document.isChild ? 'ml-4' : ''}`}
+      style={{
+        ...itemStyle,
+        background: isSelected && hovered
+          ? '#E8E8E6'  // 선택 + 호버: 더 진한 색상
+          : isSelected 
+            ? '#F0F0EF'  // 선택만: 기본 색상
+            : hovered
+              ? '#F0F0EF'  // 호버만: 기본 색상
+              : undefined
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* 드래그 핸들 */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="flex justify-center items-center p-0 mr-1 w-8 h-8 rounded cursor-grab"
+        style={{
+          minWidth: 32,
+          background: isSelected && hovered
+            ? '#E8E8E6'  // 선택 + 호버: 더 진한 색상
+            : hovered
+              ? '#F0F0EF'  // 호버만: 기본 색상
+              : undefined
+        }}
+      >
+        <GripVertical className="w-4 h-4 text-gray-400" />
+      </div>
+      
+      {document.hasChildren ? (
+        hovered ? (
+          <button
+            onClick={handleToggle}
+            className="flex justify-center items-center p-0 mr-1 w-8 h-8 rounded"
+            style={{ 
+              minWidth: 32,
+              background: isSelected && hovered
+                ? '#E8E8E6'  // 선택 + 호버: 더 진한 색상
+                : hovered
+                  ? '#F0F0EF'  // 호버만: 기본 색상
+                  : undefined
+            }}
+          >
+            {openedIds.has(document.id)
+              ? <ChevronDown className="w-4 h-4" />
+              : <ChevronRight className="w-4 h-4" />}
+          </button>
+        ) : (
+          <span className="flex justify-center items-center mr-1 w-8 h-8">
+            <Icon className="w-4 h-4 text-gray-400" />
+          </span>
+        )
+      ) : (
+        <span className="flex justify-center items-center mr-1 w-8 h-8">
+          <Icon className="w-4 h-4 text-gray-400" />
+        </span>
+      )}
+      <span
+        className={`flex-1 items-center px-1 h-8 truncate whitespace-nowrap rounded cursor-pointer ${
+          isSelected ? 'font-medium text-gray-900' : 'text-gray-900'
+        }`}
+        style={{ 
+          lineHeight: '2rem', 
+          display: 'flex',
+          alignItems: 'center',
+          minWidth: 0,
+        }}
+        onClick={handleSelect}
+        title={document.title}
+      >
+        {document.title}
+      </span>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={handleDelete}
+        className={`hidden justify-center items-center p-0 w-8 h-8 rounded ${
+          hovered ? 'flex' : 'group-hover:flex'
+        }`}
+        style={{ 
+          minWidth: 32,
+          background: isSelected && hovered
+            ? '#E8E8E6'  // 선택 + 호버: 더 진한 색상
+            : hovered
+              ? '#F0F0EF'  // 호버만: 기본 색상
+              : undefined
+        }}
+      >
+        <TrashIcon className="w-4 h-4 text-red-500" />
+      </Button>
+    </div>
+  );
+});
+
+// 문서 섹션 컴포넌트
+const DocumentSection = memo(({ 
+  title, 
+  documents, 
+  currentDocument, 
+  onSelect, 
+  onDelete, 
+  openedIds, 
+  setOpenedIds, 
+  childrenMap, 
+  setChildrenMap, 
+  fetchChildDocuments, 
+  idPath,
+  sensors,
+  onDragEnd,
+  showCreateButton = false,
+  onCreateDocument
+}) => {
+  // 자식 문서를 포함한 전체 문서 목록 생성
+  const allVisibleDocuments = useMemo(() => {
+    const result = [];
+    documents.forEach(doc => {
+      result.push(doc);
+      // 자식 문서가 열려있으면 추가
+      if (openedIds.has(doc.id) && childrenMap[doc.id]) {
+        childrenMap[doc.id].forEach(child => {
+          result.push({ ...child, isChild: true, parentId: doc.id });
+        });
+      }
+    });
+    return result;
+  }, [documents, openedIds, childrenMap]);
+
+  // 드래그 가능한 문서 ID 목록
+  const sortableItems = useMemo(() => {
+    return documents.map(doc => doc.id);
+  }, [documents]);
+
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="text-lg font-semibold">{title}</h2>
+        {showCreateButton && (
+          <Button onClick={onCreateDocument} size="sm">
+            <PlusIcon className="mr-1 w-4 h-4" /> 새 문서
+          </Button>
+        )}
+      </div>
+      {documents.length === 0 ? (
+        <div className="text-center text-gray-500">
+          {title === '공유 문서' ? '공유 문서가 없습니다.' : '개인 문서가 없습니다.'}
+        </div>
+      ) : (
+        <div className="relative">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onDragEnd}
+          >
+            <SortableContext
+              items={sortableItems}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-1">
+                {allVisibleDocuments.map((document) => (
+                  <DocumentItem
+                    key={document.isChild ? `${document.parentId}-${document.id}` : document.id}
+                    document={document}
+                    currentDocument={currentDocument}
+                    onSelect={onSelect}
+                    onDelete={onDelete}
+                    openedIds={openedIds}
+                    setOpenedIds={setOpenedIds}
+                    childrenMap={childrenMap}
+                    setChildrenMap={setChildrenMap}
+                    fetchChildDocuments={fetchChildDocuments}
+                    idPath={idPath}
+                    sensors={sensors}
+                    onDragEnd={onDragEnd}
+                    style={{ 
+                      height: 32,
+                      paddingLeft: document.isChild ? 20 : 0
+                    }}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </div>
+      )}
+    </div>
+  );
+});
+
+// 메인 DocumentList 컴포넌트
+const DocumentList = memo(() => {
   const {
     documents,
     fetchDocuments,
@@ -187,26 +349,12 @@ export default function DocumentList() {
   const dlog = createLogger('DocumentList');
   const { handleError } = useErrorHandler();
   
-  // 스크롤 컨테이너 참조
-  const scrollContainerRef = useRef(null);
   
-  // 스크롤을 맨 아래로 이동하는 함수
-  const scrollToBottom = () => {
-    if (scrollContainerRef.current) {
-      setTimeout(() => {
-        scrollContainerRef.current.scrollTo({
-          top: scrollContainerRef.current.scrollHeight,
-          behavior: 'smooth'
-        });
-      }, 100); // DOM 업데이트 후 스크롤
-    }
-  };
-
   // dnd-kit 센서 설정
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // 8px 이동 후 드래그 시작
+        distance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -214,13 +362,46 @@ export default function DocumentList() {
     })
   );
   
+  // 공유/개인 문서 분류
+  const { sharedDocuments, personalDocuments } = useMemo(() => {
+    if (documents.length === 0) {
+      return { sharedDocuments: [], personalDocuments: [] };
+    }
+    
+    const accessibleIds = new Set(documents.map(d => d.id));
+    const isRootCandidate = (doc) => (doc.parentId == null) || !accessibleIds.has(doc.parentId);
+
+    const shared = [];
+    const personal = [];
+    
+    documents.forEach(doc => {
+      if (isRootCandidate(doc)) {
+        if (doc.shared) {
+          shared.push(doc);
+        } else {
+          personal.push(doc);
+        }
+      }
+    });
+    
+    const sortByOrder = (a, b) => {
+      const sortOrderA = a.sortOrder ?? Number.MAX_SAFE_INTEGER;
+      const sortOrderB = b.sortOrder ?? Number.MAX_SAFE_INTEGER;
+      return sortOrderA - sortOrderB;
+    };
+    
+    shared.sort(sortByOrder);
+    personal.sort(sortByOrder);
+    
+    return { sharedDocuments: shared, personalDocuments: personal };
+  }, [documents, user.id]);
+
   // 드래그 앤 드롭 핸들러
-  const handleDragEnd = async (event) => {
+  const handleDragEnd = useCallback(async (event) => {
     const { active, over } = event;
     
     if (active.id !== over.id) {
       try {
-        // 드래그된 문서가 개인 문서인지 공유 문서인지 확인
         const draggedDoc = documents.find(doc => doc.id === active.id);
         const targetDoc = documents.find(doc => doc.id === over.id);
         
@@ -247,7 +428,6 @@ export default function DocumentList() {
           const newOrder = arrayMove(categoryDocuments, oldIndex, newIndex);
           const documentIds = newOrder.map(doc => doc.id);
           
-          // DocumentContext의 updateDocumentOrder 사용
           await updateDocumentOrder(documentIds);
         }
       } catch (err) {
@@ -258,7 +438,7 @@ export default function DocumentList() {
         });
       }
     }
-  };
+  }, [documents, user.id, personalDocuments, sharedDocuments, updateDocumentOrder, handleError, dlog]);
 
   useEffect(() => {
     if (currentWorkspace) {
@@ -266,64 +446,14 @@ export default function DocumentList() {
     }
   }, [currentWorkspace, fetchDocuments]);
 
-  // 공유/개인 문서 분류 (루트 후보: 부모가 없거나, 부모에 접근 불가한 문서 포함)
-  // 백엔드에서 접근 가능한 문서만 오므로, 부모 미접근 자식 문서는 최상위로 승격해 표시
-  const { sharedDocuments, personalDocuments } = useMemo(() => {
-    dlog.info('문서 분류 및 정렬 시작:', documents.length, '개 문서');
-    const accessibleIds = new Set(documents.map(d => d.id));
-    const isRootCandidate = (doc) => (doc.parentId == null) || !accessibleIds.has(doc.parentId);
-
-    // 디버깅을 위한 로그 추가
-    dlog.info('문서 데이터 확인:', documents.map(doc => ({ 
-      id: doc.id, 
-      title: doc.title, 
-      isShared: doc.isShared, 
-      shared: doc.shared, // Jackson 직렬화로 인해 실제로는 shared 필드로 전달됨
-      userId: doc.userId,
-      currentUserId: user.id,
-      rawData: doc // 전체 데이터 확인
-    })));
-
-    const shared = documents.filter(doc =>
-      isRootCandidate(doc) && doc.shared // Jackson 직렬화로 인해 shared 필드 사용
-    ).sort((a, b) => {
-      // sortOrder로 정렬 (null 값은 맨 뒤로)
-      const sortOrderA = a.sortOrder;
-      const sortOrderB = b.sortOrder;
-      
-      if (sortOrderA == null && sortOrderB == null) return 0;
-      if (sortOrderA == null) return 1;
-      if (sortOrderB == null) return -1;
-      return sortOrderA - sortOrderB;
-    });
-    const personal = documents.filter(doc =>
-      isRootCandidate(doc) && !doc.shared // Jackson 직렬화로 인해 shared 필드 사용
-    ).sort((a, b) => {
-      // sortOrder로 정렬 (null 값은 맨 뒤로)
-      const sortOrderA = a.sortOrder;
-      const sortOrderB = b.sortOrder;
-      
-      if (sortOrderA == null && sortOrderB == null) return 0;
-      if (sortOrderA == null) return 1;
-      if (sortOrderB == null) return -1;
-      return sortOrderA - sortOrderB;
-    });
-    
-    dlog.info('공유 문서:', shared.map(d => ({ id: d.id, title: d.title, sortOrder: d.sortOrder })));
-    dlog.info('개인 문서:', personal.map(d => ({ id: d.id, title: d.title, sortOrder: d.sortOrder })));
-    
-    return { sharedDocuments: shared, personalDocuments: personal };
-  }, [documents, user.id]);
 
   const [openedIds, setOpenedIds] = useState(new Set());
-  const [childrenMap, setChildrenMap] = useState({}); // { [parentId]: [children] }
+  const [childrenMap, setChildrenMap] = useState({});
 
   // 선택된 문서에서 루트까지 id 경로 계산
-  const [idPath, setIdPath] = useState([]);
-  useEffect(() => {
+  const idPath = useMemo(() => {
     if (!currentDocument) {
-      setIdPath([]);
-      return;
+      return [];
     }
     const path = [];
     let doc = currentDocument;
@@ -331,13 +461,12 @@ export default function DocumentList() {
       path.unshift(doc.id);
       doc = documents.find(d => d.id === doc.parentId);
     }
-    setIdPath(path);
+    return path;
   }, [currentDocument, documents]);
 
-  // 새 문서 생성 (최상위에 생성)
-  const handleCreateDocument = async () => {
+  // 새 문서 생성
+  const handleCreateDocument = useCallback(async () => {
     try {
-      // 깜빡임 방지를 위해 silent 옵션 사용
       const newDocument = await createDocument({
         title: '',
         content: '',
@@ -345,28 +474,48 @@ export default function DocumentList() {
         viewType: 'PAGE',
       }, { silent: true });
       
-      // 새 문서 생성 후 스크롤을 맨 아래로 이동
-      scrollToBottom();
-      
       handleSelectDocument(newDocument);
     } catch (err) {
       console.error('문서 생성 실패:', err);
     }
-  };
+  }, [createDocument]);
 
-  const handleDeleteDocument = async (id) => {
+  const handleDeleteDocument = useCallback(async (id) => {
     try {
       await deleteDocument(id);
     } catch (err) {
       console.error('문서 삭제 실패:', err);
     }
-  };
+  }, [deleteDocument]);
 
   // 문서 클릭 시 라우팅
-  const handleSelectDocument = (document) => {
+  const handleSelectDocument = useCallback((document) => {
     navigate(`/${document.id}-${slugify(document.title || 'untitled')}`);
     selectDocument(document);
-  };
+  }, [navigate, selectDocument]);
+
+  // 전체 높이 계산 - 통합 스크롤용
+  const totalHeight = useMemo(() => {
+    const sectionHeight = 60; // 섹션 헤더 높이
+    const padding = 32; // 전체 패딩
+    const itemHeight = 32; // 문서 아이템 높이
+    
+    // 공유 문서 섹션 높이
+    const sharedSectionHeight = sharedDocuments.length > 0 ? 
+      sectionHeight + (sharedDocuments.length * itemHeight) : 0;
+    
+    // 개인 문서 섹션 높이  
+    const personalSectionHeight = personalDocuments.length > 0 ?
+      sectionHeight + (personalDocuments.length * itemHeight) : 0;
+    
+    // 전체 높이 계산
+    const calculatedHeight = sharedSectionHeight + personalSectionHeight + padding;
+    
+    // 최대 높이 제한 (화면 높이의 80% 정도)
+    const maxHeight = Math.min(window.innerHeight * 0.8, 600);
+    
+    return Math.min(calculatedHeight, maxHeight);
+  }, [sharedDocuments.length, personalDocuments.length]);
 
   if (!currentWorkspace) {
     return (
@@ -385,86 +534,52 @@ export default function DocumentList() {
   }
 
   return (
-    <div ref={scrollContainerRef} className="overflow-y-auto flex-1">
-      <div className="px-4 py-2 space-y-8">
+    <div 
+      className="flex-1"
+      style={{ 
+        height: `${totalHeight}px`,
+        overflowY: 'auto' // 통합 스크롤 활성화
+      }}
+    >
+      <div className="px-4 space-y-8">
         {/* 공유 문서 섹션 */}
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <h2 className="text-lg font-semibold">공유 문서</h2>
-          </div>
-          {sharedDocuments.length === 0 ? (
-            <div className="text-center text-gray-500">공유 문서가 없습니다.</div>
-          ) : (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={sharedDocuments.map(doc => doc.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                {sharedDocuments.map(document => (
-                  <SortableDocumentTreeItem
-                    key={document.id}
-                    document={document}
-                    currentDocument={currentDocument}
-                    onSelect={handleSelectDocument}
-                    onDelete={handleDeleteDocument}
-                    openedIds={openedIds}
-                    setOpenedIds={setOpenedIds}
-                    childrenMap={childrenMap}
-                    setChildrenMap={setChildrenMap}
-                    fetchChildDocuments={fetchChildDocuments}
-                    idPath={idPath}
-                  />
-                ))}
-              </SortableContext>
-            </DndContext>
-          )}
-        </div>
+        <DocumentSection
+          title="공유 문서"
+          documents={sharedDocuments}
+          currentDocument={currentDocument}
+          onSelect={handleSelectDocument}
+          onDelete={handleDeleteDocument}
+          openedIds={openedIds}
+          setOpenedIds={setOpenedIds}
+          childrenMap={childrenMap}
+          setChildrenMap={setChildrenMap}
+          fetchChildDocuments={fetchChildDocuments}
+          idPath={idPath}
+          sensors={sensors}
+          onDragEnd={handleDragEnd}
+        />
+        
         {/* 개인 문서 섹션 */}
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <h2 className="text-lg font-semibold">개인 문서</h2>
-            {currentWorkspace.ownerId === user.id && (
-              <Button onClick={handleCreateDocument} size="sm">
-                <PlusIcon className="mr-1 w-4 h-4" /> 새 문서
-              </Button>
-            )}
-          </div>
-          {personalDocuments.length === 0 ? (
-            <div className="text-center text-gray-500">개인 문서가 없습니다.</div>
-          ) : (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={personalDocuments.map(doc => doc.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                {personalDocuments.map(document => (
-                  <SortableDocumentTreeItem
-                    key={document.id}
-                    document={document}
-                    currentDocument={currentDocument}
-                    onSelect={handleSelectDocument}
-                    onDelete={handleDeleteDocument}
-                    openedIds={openedIds}
-                    setOpenedIds={setOpenedIds}
-                    childrenMap={childrenMap}
-                    setChildrenMap={setChildrenMap}
-                    fetchChildDocuments={fetchChildDocuments}
-                    idPath={idPath}
-                  />
-                ))}
-              </SortableContext>
-            </DndContext>
-          )}
-        </div>
+        <DocumentSection
+          title="개인 문서"
+          documents={personalDocuments}
+          currentDocument={currentDocument}
+          onSelect={handleSelectDocument}
+          onDelete={handleDeleteDocument}
+          openedIds={openedIds}
+          setOpenedIds={setOpenedIds}
+          childrenMap={childrenMap}
+          setChildrenMap={setChildrenMap}
+          fetchChildDocuments={fetchChildDocuments}
+          idPath={idPath}
+          sensors={sensors}
+          onDragEnd={handleDragEnd}
+          showCreateButton={currentWorkspace.ownerId === user.id}
+          onCreateDocument={handleCreateDocument}
+        />
       </div>
     </div>
   );
-}
+});
+
+export default DocumentList;

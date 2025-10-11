@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { updatePropertyWidth } from '@/services/documentApi';
+import { useThrottle } from '@/hooks/useThrottle';
 
 export function useColumnResize({
   properties,
@@ -31,7 +32,8 @@ export function useColumnResize({
     window.addEventListener('mouseup', handleResizeMouseUp);
   };
 
-  const handleResizeMouseMove = (e) => {
+  // 쓰로틀링된 마우스 이동 핸들러 (16ms = 60fps)
+  const throttledMouseMove = useThrottle((e) => {
     if (resizingCol.current == null) return;
     const dx = e.clientX - startX.current;
     const newWidth = Math.max(100, startWidth.current + dx);
@@ -41,7 +43,11 @@ export function useColumnResize({
       return next;
     });
     liveWidths.current[resizingCol.current] = newWidth;
-  };
+  }, 16);
+
+  const handleResizeMouseMove = useCallback((e) => {
+    throttledMouseMove(e);
+  }, [throttledMouseMove]);
 
   const handleResizeMouseUp = async () => {
     if (resizingCol.current == null) return;

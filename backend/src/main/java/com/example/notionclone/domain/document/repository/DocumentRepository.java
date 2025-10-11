@@ -8,6 +8,8 @@ import org.springframework.data.repository.query.Param;
 import com.example.notionclone.domain.document.entity.Document;
 
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface DocumentRepository extends JpaRepository<Document, Long> {
     
@@ -39,6 +41,8 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
 
     List<Document> findByParentIdAndIsTrashedFalseOrderBySortOrderAscIdAsc(Long parentId);
 
+    Page<Document> findByParentIdAndIsTrashedFalseOrderBySortOrderAscIdAsc(Long parentId, Pageable pageable);
+
     boolean existsByParentIdAndIsTrashedFalse(Long parentId);
 
     List<Document> findByParentId(Long parentId);
@@ -60,4 +64,6 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
            "WHERE d.id IN :documentIds " +
            "GROUP BY d.id")
     List<Object[]> findHasChildrenByDocumentIds(@Param("documentIds") List<Long> documentIds);
+
+    List<Document> findByTitleContainingIgnoreCase(String searchTerm);
 } 

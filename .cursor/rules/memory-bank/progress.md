@@ -830,7 +830,7 @@
   - 동적 z-index 처리로 사용자 경험 개선
   - 타입 안전성 확보 (상수 사용으로 오타 방지)
 
-## 2025-01-15
+## 2025-10-08
 - AuthContext.jsx에서 `clearExistingTokens()` 함수 호출 오류 수정
   - `register`와 `loginWithGoogle` 함수에서 정의되지 않은 `clearExistingTokens()` 함수를 호출하던 문제를 `clearTokens()`로 수정
   - 런타임 ReferenceError 방지 및 일관된 토큰 정리 로직 적용
@@ -895,4 +895,13 @@
   - 프론트엔드 api.js에서 request interceptor의 log.info()를 log.debug()로 변경하여 API 호출 로그 최적화
   - application-prod.yml 생성으로 프로덕션 환경에서 WARN 레벨 이상만 로그 출력하도록 설정
   - 환경변수를 통한 로그 레벨 동적 설정으로 개발/운영 환경별 로깅 전략 분리
-  - 프로덕션 환경에서 I/O 부하 감소 및 로그 파일 크기 최적화로 성능 향상
+  - 프로덕션 환경에서 I/O 부하 감소 및 로그 파일 크기 최적화로 성능 
+  
+## 2025-10-12
+- FE(Settings): 워크스페이스 삭제 기능 추가
+  - `frontend/src/components/settings/WorkspaceGeneralForm.jsx`에 "워크스페이스 삭제" 버튼 추가(저장/취소 우측)
+  - Radix 기반 확인 모달(Dialog) 구현: "정말로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+  - 삭제 확정 시 `WorkspaceContext.deleteWorkspace` 호출하여 백엔드 API(`/api/workspaces/{id}` DELETE) 연동
+  - 로딩 상태(`deleting`) 및 버튼 가드 적용, 취소/삭제 버튼 비활성화 처리
+  - 성공 시 toast 노출("워크스페이스가 삭제되었습니다.")
+  - 권한 가드: 워크스페이스 소유자만 버튼 활성화

@@ -28,7 +28,8 @@ const TableToolbar = ({
   isOwner = false,
   workspaceId,
   documentId,
-  getSortedDocumentIds
+  getSortedDocumentIds,
+  documentCount = 0
 }) => {
   const [fixedTop, setFixedTop] = useState(null);
   const { isNotificationModalOpen } = useNotification();
@@ -132,6 +133,7 @@ const TableToolbar = ({
             clearSearch={clearSearch}
             onToggle={() => setIsSearchOpen(!isSearchOpen)}
           />
+          
           
           {!isReadOnly && (
             <Button 

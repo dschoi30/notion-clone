@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   getProperties,
   addProperty,
@@ -7,30 +7,65 @@ import {
   addOrUpdatePropertyValue,
   getPropertyValuesByChildDocuments,
   getChildDocuments,
+  getChildDocumentsPaged,
   updateChildDocumentOrder,
 } from '@/services/documentApi';
 import { useDocument } from '@/contexts/DocumentContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
   const [properties, setProperties] = useState([]);
   const [rows, setRows] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [error, setError] = useState(null);
   const [editingHeader, setEditingHeader] = useState({ id: null, name: '' });
-  const { createDocument, updateDocument, fetchDocument } = useDocument();
+  const { createDocument, updateDocument, fetchDocument, currentDocument } = useDocument();
+  const { user } = useAuth();
   const { handleError } = useErrorHandler();
 
   // 시스템 속성 맵은 참조 안정화를 위해 캡처
   const stableSystemMap = useMemo(() => systemPropTypeMap || {}, [systemPropTypeMap]);
 
+  // 서버 정렬 파라미터 계산 (title/createdAt/updatedAt만 서버 정렬 지원)
+  // useTableSort와 동일한 키로 저장된 정렬을 읽어 서버 정렬 파라미터 산출
+  const getServerSortParams = () => {
+    try {
+      if (!user?.id || !documentId) return {};
+      const key = `tableSort_${user.id}_${documentId}`;
+      const stored = localStorage.getItem(key);
+      const sorts = stored ? JSON.parse(stored) : [];
+      if (!Array.isArray(sorts) || sorts.length === 0) return {};
+      const s = sorts[0];
+      // 이름(Title)
+      if ((s.propertyId === 0 && s.propertyType === 'TEXT') || s.propertyName === '이름') {
+        return { sortField: 'title', sortDir: s.order };
+      }
+      if (s.propertyType === 'CREATED_AT') return { sortField: 'createdAt', sortDir: s.order };
+      if (s.propertyType === 'LAST_UPDATED_AT') return { sortField: 'updatedAt', sortDir: s.order };
+      // 사용자 정의 속성: 텍스트/숫자/날짜/생성자/수정자 등은 서버 정렬로 위임 (문자열 비교)
+      if (typeof s.propertyId === 'number') {
+        // 타입별로 서버에서 처리할 수 있도록 키만 전달, 서버는 propId 기준 문자열 비교
+        let sortField = 'prop';
+        return { sortField, sortDir: s.order, propId: s.propertyId };
+      }
+      return {};
+    } catch (e) {
+      return {};
+    }
+  };
+
+  // 최초 로드: 속성 + 첫 페이지(50)
   async function fetchTableData() {
     setIsLoading(true);
     setError(null);
     try {
       const props = await getProperties(workspaceId, documentId);
       setProperties(props);
-      const children = await getChildDocuments(workspaceId, documentId);
+      const { sortField, sortDir, propId } = getServerSortParams();
+      const page0 = await getChildDocumentsPaged(workspaceId, documentId, 0, 50, sortField, sortDir, propId);
+      const children = page0?.content || [];
       setRows([]);
       if (!children || children.length === 0) {
         setProperties([]);
@@ -50,6 +85,8 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
         document: child,
       }));
       setRows(tableRows);
+      setNextPage(1);
+      setHasMore((page0?.number + 1) < (page0?.totalPages || 0));
     } catch (err) {
       setError(err);
       console.error('테이블 데이터 로딩 실패:', err);
@@ -58,12 +95,51 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     }
   }
 
+  const [nextPage, setNextPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+
+  const fetchNextPage = useCallback(async () => {
+    if (isFetchingMore || !hasMore) return;
+    setIsFetchingMore(true);
+    try {
+      const { sortField, sortDir, propId } = getServerSortParams();
+      const pageResp = await getChildDocumentsPaged(workspaceId, documentId, nextPage, 50, sortField, sortDir, propId);
+      const children = pageResp?.content || [];
+      if (children.length === 0) {
+        setHasMore(false);
+        return;
+      }
+      // 기존 all-values API는 전체 자식 기준이므로, 비용이 크면 서버 최적화 필요
+      const allValues = await getPropertyValuesByChildDocuments(workspaceId, documentId);
+      const valuesByRowId = allValues.reduce((acc, val) => {
+        if (!acc[val.documentId]) acc[val.documentId] = {};
+        acc[val.documentId][val.propertyId] = val.value;
+        return acc;
+      }, {});
+      const pageRows = children.map((child) => ({
+        id: child.id,
+        title: child.title,
+        values: valuesByRowId[child.id] || {},
+        document: child,
+      }));
+      setRows((prev) => [...prev, ...pageRows]);
+      const newPage = (pageResp?.number || nextPage) + 1;
+      setNextPage(newPage);
+      setHasMore(newPage < (pageResp?.totalPages || 0));
+    } catch (e) {
+      console.error('다음 페이지 로드 실패:', e);
+      setHasMore(false);
+    } finally {
+      setIsFetchingMore(false);
+    }
+  }, [workspaceId, documentId, nextPage, hasMore, isFetchingMore]);
+
   useEffect(() => {
     if (!workspaceId || !documentId) return;
     fetchTableData();
   }, [workspaceId, documentId]);
 
-  const handleAddProperty = async (name, type) => {
+  const handleAddProperty = useCallback(async (name, type) => {
     if (!name || !type) return;
     try {
       const newProperty = await addProperty(workspaceId, documentId, { name, type, sortOrder: properties.length });
@@ -88,7 +164,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
         showToast: true
       });
     }
-  };
+  }, [workspaceId, documentId, properties.length, rows, stableSystemMap, handleError]);
 
   const handleDeleteProperty = async (propertyId) => {
     if (!window.confirm('정말로 이 속성을 삭제하시겠습니까?')) return;
@@ -275,6 +351,9 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     rows,
     setRows,
     isLoading,
+    isFetchingMore,
+    hasMore,
+    fetchNextPage,
     error,
     editingHeader,
     setEditingHeader,
@@ -286,6 +365,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     handleAddRowBottom,
     handleCellValueChange,
     handleHeaderNameChange,
+    currentDocument,
   };
 }
 

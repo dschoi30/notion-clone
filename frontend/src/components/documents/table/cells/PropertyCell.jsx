@@ -1,4 +1,4 @@
-import React, { createRef, useEffect, useRef } from 'react';
+import React, { createRef, useEffect, useRef, memo } from 'react';
 import DatePopover from '../../DatePopover';
 import TagPopover from '../../TagPopover';
 import { formatKoreanDateSmart } from '@/lib/utils';
@@ -7,7 +7,7 @@ import { resolveUserDisplay } from '@/components/documents/shared/resolveUserDis
 import { useDocument } from '@/contexts/DocumentContext';
 import { getColorObj } from '@/lib/colors';
 
-function PropertyCell({
+const PropertyCell = memo(function PropertyCell({
   row,
   property,
   idx,
@@ -30,21 +30,33 @@ function PropertyCell({
   onCellKeyDown,
 }) {
   const { currentDocument } = useDocument();
+  const cellRef = useRef(null);
+  
+  // 셀이 선택되면 자동으로 포커스 설정
+  useEffect(() => {
+    if (!property || !property.id) return;
+    
+    const rowId = row.id;
+    const propertyId = property.id;
+    const isEditing = editingCell && editingCell.rowId === rowId && editingCell.propertyId === propertyId;
+    const isCellSelected = selectedCell && selectedCell.rowId === rowId && selectedCell.propertyId === propertyId;
+    
+    if (isCellSelected && cellRef.current && !isEditing) {
+      cellRef.current.focus();
+    }
+  }, [property, row, editingCell, selectedCell]);
+  
+  // property가 null이거나 id가 없는 경우 렌더링하지 않음
+  if (!property || !property.id) {
+    return null;
+  }
   const rowId = row.id;
-  const propertyId = property?.id;
+  const propertyId = property.id;
   const isEditing = editingCell && editingCell.rowId === rowId && editingCell.propertyId === propertyId;
   const isCellSelected = selectedCell && selectedCell.rowId === rowId && selectedCell.propertyId === propertyId;
   const isSystemProp = systemPropTypes.includes(property.type);
   const value = property ? row.values[property.id] || '' : '';
-  const cellRef = useRef(null);
   let content = value;
-
-      // 셀이 선택되면 자동으로 포커스 설정
-      useEffect(() => {
-        if (isCellSelected && cellRef.current && !isEditing) {
-          cellRef.current.focus();
-        }
-      }, [isCellSelected, isEditing]);
 
   // 시스템 속성은 row.document 메타데이터를 우선 사용(표시 일관성)
   if (property.type === 'CREATED_AT') {
@@ -217,7 +229,7 @@ function PropertyCell({
       )}
     </div>
   );
-}
+});
 
 export default PropertyCell;
 

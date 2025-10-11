@@ -64,8 +64,8 @@ public class WorkspaceController {
         log.debug("Delete workspace request for user principal: {} and workspace: {}", userPrincipal.getId(), workspaceId);
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        workspaceService.deleteWorkspace(user, workspaceId);
-        return ResponseEntity.ok().build();
+        workspaceService.softDeleteWorkspace(user, workspaceId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/accessible")

@@ -1,11 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, memo } from 'react';
 import { Text } from 'lucide-react';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import SortablePropertyHeader from './SortablePropertyHeader';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Z_INDEX } from '@/constants/zIndex';
 
-function TableHeader({
+const TableHeader = memo(function TableHeader({
   colWidths,
   properties,
   handleResizeMouseDown,
@@ -22,6 +22,9 @@ function TableHeader({
   onToggleAll,
   isReadOnly = false,
 }) {
+  // properties를 안전하게 필터링
+  const safeProperties = properties?.filter(p => p && p.id) || [];
+  
   const popoverRef = useRef(null);
 
   useEffect(() => {
@@ -48,7 +51,7 @@ function TableHeader({
 
   return (
     <div 
-      className="sticky top-12 flex items-center group bg-white"
+      className="flex sticky top-12 items-center bg-white group"
       style={{ zIndex: Z_INDEX.TABLE_HEADER }}
     >
       {/* 헤더 좌측 레일: 읽기 전용이 아닐 때만 표시 */}
@@ -67,13 +70,13 @@ function TableHeader({
       )}
       <div
         className="flex relative items-center text-gray-500"
-        style={{ minWidth: colWidths[0], width: colWidths[0], padding: '8px', borderLeft: 'none', borderRight: properties.length === 0 ? 'none' : '1px solid #e9e9e7' }}
+        style={{ minWidth: colWidths[0], width: colWidths[0], padding: '8px', borderLeft: 'none', borderRight: safeProperties.length === 0 ? 'none' : '1px solid #e9e9e7' }}
       >
         <Text className="inline mr-1" size={16} />이름
         <div style={{ position: 'absolute', right: 0, top: 0, width: 6, height: '100%', cursor: 'col-resize', zIndex: 10 }} onMouseDown={(e) => handleResizeMouseDown(e, 0)} />
       </div>
-      <SortableContext items={properties.map((p) => p.id)} strategy={horizontalListSortingStrategy}>
-        {properties.map((p, idx) => (
+      <SortableContext items={safeProperties.map((p) => p.id)} strategy={horizontalListSortingStrategy}>
+        {safeProperties.map((p, idx) => (
           <SortablePropertyHeader
             key={p.id}
             property={p}
@@ -102,7 +105,7 @@ function TableHeader({
       )}
     </div>
   );
-}
+});
 
 export default TableHeader;
 

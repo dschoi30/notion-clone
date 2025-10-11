@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, memo } from 'react';
 
-function NameCell({
+const NameCell = memo(function NameCell({
   row,
   rowIdx,
   colWidth,
@@ -105,7 +105,7 @@ function NameCell({
       )}
     </div>
   );
-}
+});
 
 export default NameCell;
 

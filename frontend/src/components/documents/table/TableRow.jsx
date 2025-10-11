@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -6,7 +6,7 @@ import { GripVertical } from 'lucide-react';
 import NameCell from './cells/NameCell';
 import PropertyCell from './cells/PropertyCell';
 
-function TableRow({
+const TableRow = memo(function TableRow({
   row,
   rowIdx,
   properties,
@@ -109,7 +109,7 @@ function TableRow({
       ))}
     </div>
   );
-}
+});
 
 export default TableRow;
 

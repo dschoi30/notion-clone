@@ -17,10 +17,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 
 import java.util.List;
+ 
+ 
 import java.util.stream.Collectors;
 import java.util.ArrayList;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import com.example.notionclone.domain.document.entity.ViewType;
 import java.util.Optional;
 import com.example.notionclone.domain.document.dto.CreateDocumentRequest;
@@ -42,6 +48,7 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Comparator;
 
 @Slf4j
 @Service
@@ -96,6 +103,7 @@ public class DocumentService {
    * @param user 사용자
    * @return DocumentListResponse 목록
    */
+  @Cacheable(value = "documentList", key = "#workspaceId + '_' + #user.id")
   public List<DocumentListResponse> getDocumentListByWorkspace(Long workspaceId, User user) {
     // 1. 사용자가 소유한 문서 조회
     List<Document> ownedDocuments = documentRepository.findByWorkspaceIdAndUserIdAndIsTrashedFalse(workspaceId,
@@ -233,6 +241,7 @@ public class DocumentService {
   }
 
   @Transactional
+  @CacheEvict(value = {"documentList", "documentListPaginated"}, allEntries = true)
   public DocumentResponse createDocument(Long workspaceId, CreateDocumentRequest request, String creatorEmail) {
     User creator = userRepository.findByEmail(creatorEmail)
         .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + creatorEmail));
@@ -274,6 +283,7 @@ public class DocumentService {
   }
 
   @Transactional
+  @CacheEvict(value = {"documentList", "documentListPaginated"}, allEntries = true)
   public DocumentResponse updateDocument(Long workspaceId, Long documentId, UpdateDocumentRequest request,
       String updaterEmail) {
     User updater = userRepository.findByEmail(updaterEmail)
@@ -337,6 +347,7 @@ public class DocumentService {
   }
 
   @Transactional
+  @CacheEvict(value = {"documentList", "documentListPaginated"}, allEntries = true)
   public void deleteDocument(Long id, User user) {
     log.debug("Soft deleting document: {}", id);
     Document document = documentRepository.findById(id)
@@ -487,6 +498,38 @@ public class DocumentService {
     documentRepository.delete(d);
   }
 
+  /**
+   * 워크스페이스의 모든 문서를 안전 순서(자식 → 부모)로 하드 삭제
+   * FK 제약(versions/values/permissions) 위반을 방지
+   */
+  @Transactional
+  public void hardDeleteAllDocumentsInWorkspace(Long workspaceId) {
+    List<Document> all = documentRepository.findByWorkspaceId(workspaceId);
+    if (all == null || all.isEmpty()) return;
+
+    // 빠른 조회용 맵/셋
+    Map<Long, Document> byId = new HashMap<>();
+    for (Document d : all) byId.put(d.getId(), d);
+
+    // 루트 후보: 부모가 없거나(전역 루트) 부모가 같은 워크스페이스에 포함되지 않은 문서
+    List<Document> roots = new ArrayList<>();
+    for (Document d : all) {
+      Document p = d.getParent();
+      if (p == null || !byId.containsKey(p.getId())) {
+        roots.add(d);
+      }
+    }
+
+    // 각 루트 서브트리를 자식부터 삭제
+    for (Document root : roots) {
+      List<Document> subtree = collectDescendants(root);
+      for (int i = subtree.size() - 1; i >= 0; i--) {
+        hardDeleteSingleDocument(subtree.get(i));
+      }
+      hardDeleteSingleDocument(root);
+    }
+  }
+
   public List<DocumentResponse> getAccessibleDocuments(Long workspaceId, User user) {
     // 1. 내가 소유한 문서(개인)
     List<Document> personalDocs = documentRepository.findByWorkspaceIdAndUserId(workspaceId, user.getId());
@@ -541,6 +584,62 @@ public class DocumentService {
           return applyLatestMeta(resp, doc);
         })
         .collect(Collectors.toList());
+  }
+
+  /**
+   * 자식 문서 페이지네이션 (TABLE 뷰의 무한 스크롤용)
+   */
+  @Transactional(readOnly = true)
+  public Page<DocumentListResponse> getChildDocumentsPaged(Long parentId, User user, Pageable pageable,
+      String sortField, String sortDir, Long sortPropertyId) {
+    // 기본 데이터 페이지 조회 (정렬은 응답 단계에서 적용)
+    Page<Document> page = documentRepository.findByParentIdAndIsTrashedFalseOrderBySortOrderAscIdAsc(parentId, pageable);
+    List<Document> content = new ArrayList<>(page.getContent());
+
+    // 속성값 정렬 처리 (text/number/date/createdBy/updatedBy 등)
+    if (sortField != null) {
+      Comparator<Document> comparator = null;
+      switch (sortField) {
+        case "title":
+          comparator = Comparator.comparing(d -> Optional.ofNullable(d.getTitle()).orElse(""), String.CASE_INSENSITIVE_ORDER);
+          break;
+        case "createdAt":
+          comparator = Comparator.comparing(d -> Optional.ofNullable(d.getCreatedAt()).orElse(java.time.LocalDateTime.MIN));
+          break;
+        case "updatedAt":
+          comparator = Comparator.comparing(d -> Optional.ofNullable(d.getUpdatedAt()).orElse(java.time.LocalDateTime.MIN));
+          break;
+        case "createdBy":
+          comparator = Comparator.comparing(d -> Optional.ofNullable(d.getCreatedBy()).orElse(""), String.CASE_INSENSITIVE_ORDER);
+          break;
+        case "updatedBy":
+          comparator = Comparator.comparing(d -> Optional.ofNullable(d.getUpdatedBy()).orElse(""), String.CASE_INSENSITIVE_ORDER);
+          break;
+        case "prop":
+          if (sortPropertyId != null) {
+            // 문서별 해당 property의 값 조회 후 캐시
+            Map<Long, String> byDoc = documentPropertyValueRepository.findByDocumentIdIn(
+                content.stream().map(Document::getId).toList())
+                .stream()
+                .filter(v -> v.getProperty().getId().equals(sortPropertyId))
+                .collect(Collectors.toMap(v -> v.getDocument().getId(), v -> Optional.ofNullable(v.getValue()).orElse(""), (a,b)->a));
+            comparator = Comparator.comparing(d -> byDoc.getOrDefault(d.getId(), ""), String.CASE_INSENSITIVE_ORDER);
+          }
+          break;
+      }
+      if (comparator != null) {
+        if ("desc".equalsIgnoreCase(sortDir)) comparator = comparator.reversed();
+        content.sort(comparator);
+      }
+    }
+
+    // hasChildren 배치 조회
+    List<Long> ids = content.stream().map(Document::getId).collect(Collectors.toList());
+    Map<Long, Boolean> hasChildrenMap = getHasChildrenMap(ids);
+    List<DocumentListResponse> responses = content.stream()
+        .map(doc -> DocumentListResponse.fromDocument(doc, hasChildrenMap.getOrDefault(doc.getId(), false), false))
+        .collect(Collectors.toList());
+    return new org.springframework.data.domain.PageImpl<>(responses, pageable, page.getTotalElements());
   }
 
   @Transactional
@@ -603,5 +702,89 @@ public class DocumentService {
     
     log.debug("Child sort order updated for document {} by user {} with {} children", 
         documentId, userId, sortedDocumentIds.size());
+  }
+
+  /**
+   * 페이지네이션을 지원하는 DocumentList 조회
+   * 대량 문서 환경에서 성능을 최적화합니다.
+   */
+  @Transactional(readOnly = true)
+  @Cacheable(value = "documentListPaginated", key = "#workspaceId + '_' + #user.id + '_' + #pageable.pageNumber + '_' + #pageable.pageSize")
+  public Page<DocumentListResponse> getDocumentsByWorkspacePaginated(Long workspaceId, User user, Pageable pageable) {
+    log.debug("Get paginated documents for workspace: {} by user: {}, page: {}, size: {}", 
+        workspaceId, user.getId(), pageable.getPageNumber(), pageable.getPageSize());
+    
+    // 1. 사용자가 소유한 문서 조회
+    List<Document> ownedDocuments = documentRepository.findByWorkspaceIdAndUserIdAndIsTrashedFalse(workspaceId, user.getId());
+    
+    // 2. 사용자가 공유받은 문서 ID 조회
+    List<Long> sharedDocumentIds = permissionRepository.findAcceptedDocumentIdsByUserAndWorkspace(user.getId(), 
+        PermissionStatus.ACCEPTED, workspaceId);
+    
+    // 3. 공유받은 문서 정보 조회 및 휴지통 상태 필터링
+    List<Document> sharedDocuments = documentRepository.findAllById(sharedDocumentIds).stream()
+        .filter(doc -> !doc.isTrashed())
+        .collect(Collectors.toList());
+    
+    // 4. 두 목록을 합치고 중복 제거
+    List<Document> allDocuments = Stream.concat(ownedDocuments.stream(), sharedDocuments.stream())
+        .distinct()
+        .collect(Collectors.toList());
+    
+    // 5. 페이지네이션 적용
+    int start = (int) pageable.getOffset();
+    int end = Math.min((start + pageable.getPageSize()), allDocuments.size());
+    List<Document> pagedDocuments = allDocuments.subList(start, end);
+    
+    // 6. N+1 문제 해결: 한 번의 쿼리로 모든 hasChildren 정보 조회
+    List<Long> documentIds = pagedDocuments.stream().map(Document::getId).collect(Collectors.toList());
+    Map<Long, Boolean> hasChildrenMap = getHasChildrenMap(documentIds);
+    
+    // 7. 공유 문서 ID 집합 생성
+    Set<Long> sharedDocumentIdSet = sharedDocuments.stream().map(Document::getId).collect(Collectors.toSet());
+    
+    // 8. DocumentListResponse 변환
+    List<DocumentListResponse> responses = pagedDocuments.stream()
+        .map(doc -> {
+            boolean hasChildren = hasChildrenMap.getOrDefault(doc.getId(), false);
+            boolean isShared = sharedDocumentIdSet.contains(doc.getId());
+            return DocumentListResponse.fromDocument(doc, hasChildren, isShared);
+        })
+        .collect(Collectors.toList());
+    
+    // 9. Page 객체 생성
+    return new org.springframework.data.domain.PageImpl<>(responses, pageable, allDocuments.size());
+  }
+
+  /**
+   * 필드 선택을 지원하는 DocumentList 조회
+   * 필요한 필드만 선택하여 네트워크 트래픽을 최적화합니다.
+   */
+  @Transactional(readOnly = true)
+  public List<DocumentListResponse> getDocumentsByWorkspaceWithFields(Long workspaceId, User user, Set<String> requestedFields) {
+    log.debug("Get documents with fields for workspace: {} by user: {}, fields: {}", 
+        workspaceId, user.getId(), requestedFields);
+    
+    // 기본 필드 선택 로직 (향후 확장 가능)
+    List<DocumentListResponse> documents = getDocumentListByWorkspace(workspaceId, user);
+    
+    // 필드 선택에 따른 필터링 (향후 구현)
+    // 현재는 모든 필드를 반환하지만, 향후 특정 필드만 선택하여 반환할 수 있습니다.
+    
+    return documents;
+  }
+
+  /**
+   * 무한 스크롤을 지원하는 DocumentList 조회
+   * 커서 기반 페이지네이션으로 성능을 최적화합니다.
+   */
+  @Transactional(readOnly = true)
+  public Page<DocumentListResponse> getDocumentsInfinite(Long workspaceId, User user, Pageable pageable, String cursor) {
+    log.debug("Get infinite documents for workspace: {} by user: {}, page: {}, size: {}, cursor: {}", 
+        workspaceId, user.getId(), pageable.getPageNumber(), pageable.getPageSize(), cursor);
+    
+    // 커서 기반 페이지네이션 로직 (향후 구현)
+    // 현재는 일반 페이지네이션을 사용
+    return getDocumentsByWorkspacePaginated(workspaceId, user, pageable);
   }
 }
