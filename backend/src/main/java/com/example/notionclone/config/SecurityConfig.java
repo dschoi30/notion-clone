@@ -59,6 +59,8 @@ public class SecurityConfig {
                 "/api/auth/register", 
                 "/api/auth/google",
                 "/api/image-proxy",
+                "/api/admin/permission-migration/**", // 임시로 마이그레이션 API 허용
+                "/api/dummy/**", // 테스트용 더미 데이터 API 허용
                 "/ws/**",
                 "/ws/document/**",
                 "/ws/document/info/**",
@@ -84,7 +86,18 @@ public class SecurityConfig {
 
   @Bean
   public PasswordEncoder passwordEncoder() {
-    return new BCryptPasswordEncoder();
+    // 테스트용으로 평문 비교 PasswordEncoder 사용
+    return new PasswordEncoder() {
+      @Override
+      public String encode(CharSequence rawPassword) {
+        return rawPassword.toString();
+      }
+
+      @Override
+      public boolean matches(CharSequence rawPassword, String encodedPassword) {
+        return rawPassword.toString().equals(encodedPassword);
+      }
+    };
   }
 
   @Bean

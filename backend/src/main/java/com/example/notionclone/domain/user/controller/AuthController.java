@@ -1,6 +1,7 @@
 package com.example.notionclone.domain.user.controller;
 
 import com.example.notionclone.domain.user.entity.User;
+import com.example.notionclone.domain.user.entity.UserRole;
 import com.example.notionclone.domain.user.dto.AuthResponse;
 import com.example.notionclone.domain.user.dto.GoogleLoginRequest;
 import com.example.notionclone.domain.user.dto.LoginRequest;
@@ -57,7 +58,6 @@ public class AuthController {
         
         User user = userRepository.findByEmail(loginRequest.getEmail())
             .orElseThrow(() -> new RuntimeException("User not found"));
-
         String jwt = authService.createTokenWithSession(user);
 
         return ResponseEntity.ok(new AuthResponse(jwt, new UserResponse(user)));
@@ -77,6 +77,8 @@ public class AuthController {
             user.setName(registerRequest.getName());
             user.setEmail(registerRequest.getEmail());
             user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+            // 신규 가입 사용자는 기본 USER 역할 부여
+            user.setRole(UserRole.USER);
 
             user = userRepository.save(user);
             log.info("User registered successfully: {}", user.getEmail());
@@ -120,6 +122,8 @@ public class AuthController {
                         newUser.setEmail(email);
                         newUser.setName(name);
                         newUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+                        // 구글 로그인 신규 사용자는 기본 USER 역할 부여
+                        newUser.setRole(UserRole.USER);
                         User savedUser = userRepository.save(newUser);
                         
                         // 신규 가입 시 기본 워크스페이스 생성
