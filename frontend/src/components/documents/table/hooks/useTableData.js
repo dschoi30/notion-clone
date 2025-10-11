@@ -18,7 +18,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [editingHeader, setEditingHeader] = useState({ id: null, name: '' });
-  const { createDocument, updateDocument, fetchDocument } = useDocument();
+  const { createDocument, updateDocument, fetchDocument, currentDocument } = useDocument();
   const { handleError } = useErrorHandler();
 
   // 시스템 속성 맵은 참조 안정화를 위해 캡처
@@ -286,6 +286,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     handleAddRowBottom,
     handleCellValueChange,
     handleHeaderNameChange,
+    currentDocument,
   };
 }
 
