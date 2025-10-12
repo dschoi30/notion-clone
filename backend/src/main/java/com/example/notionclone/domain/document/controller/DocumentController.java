@@ -32,11 +32,16 @@ import com.example.notionclone.domain.document.dto.WidthUpdateRequest;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -63,17 +68,80 @@ public class DocumentController {
     }
 
     /**
-     * DocumentList 조회용 경량 API
+     * DocumentList 조회용 경량 API (페이지네이션 지원)
      * content, properties, permissions 등 불필요한 데이터를 제거하여 성능을 최적화합니다.
+     * 페이지네이션 파라미터가 없으면 전체 목록을 반환합니다.
      */
     @GetMapping("/list")
-    public ResponseEntity<List<DocumentListResponse>> getDocumentListByWorkspace(
+    public ResponseEntity<?> getDocumentListByWorkspace(
             @CurrentUser UserPrincipal userPrincipal,
-            @PathVariable Long workspaceId) {
-        log.debug("Get document list request for workspace: {} by user: {}", workspaceId, userPrincipal.getId());
+            @PathVariable Long workspaceId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(defaultValue = "sortOrder,asc") String sort) {
+        
+        log.debug("Get document list request for workspace: {} by user: {}, page: {}, size: {}", 
+                workspaceId, userPrincipal.getId(), page, size);
+        
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
-        return ResponseEntity.ok(documentService.getDocumentListByWorkspace(workspaceId, user));
+        
+        // 페이지네이션 파라미터가 있으면 페이지네이션 적용
+        if (page != null && size != null) {
+            Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "sortOrder"));
+            Page<DocumentListResponse> documents = documentService.getDocumentsByWorkspacePaginated(workspaceId, user, pageable);
+            return ResponseEntity.ok(documents);
+        }
+        
+        // 페이지네이션 파라미터가 없으면 전체 목록 반환
+        List<DocumentListResponse> documents = documentService.getDocumentListByWorkspace(workspaceId, user);
+        return ResponseEntity.ok(documents);
+    }
+
+    /**
+     * 필드 선택을 지원하는 DocumentList API
+     * 필요한 필드만 선택하여 네트워크 트래픽을 최적화합니다.
+     */
+    @GetMapping(params = "fields")
+    public ResponseEntity<List<DocumentListResponse>> getDocumentsByWorkspaceWithFields(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId,
+            @RequestParam String fields) {
+        
+        log.debug("Get documents with fields request for workspace: {} by user: {}, fields: {}", 
+                workspaceId, userPrincipal.getId(), fields);
+        
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
+        
+        Set<String> requestedFields = Set.of(fields.split(","));
+        List<DocumentListResponse> documents = documentService.getDocumentsByWorkspaceWithFields(workspaceId, user, requestedFields);
+        
+        return ResponseEntity.ok(documents);
+    }
+
+    /**
+     * 무한 스크롤을 지원하는 DocumentList API
+     * 커서 기반 페이지네이션으로 성능을 최적화합니다.
+     */
+    @GetMapping("/infinite")
+    public ResponseEntity<Page<DocumentListResponse>> getDocumentsInfinite(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String cursor) {
+        
+        log.debug("Get infinite documents request for workspace: {} by user: {}, page: {}, size: {}, cursor: {}", 
+                workspaceId, userPrincipal.getId(), page, size, cursor);
+        
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
+        
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "sortOrder"));
+        Page<DocumentListResponse> documents = documentService.getDocumentsInfinite(workspaceId, user, pageable, cursor);
+        
+        return ResponseEntity.ok(documents);
     }
 
     @GetMapping("/{id}")
@@ -219,6 +287,25 @@ public class DocumentController {
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
         return ResponseEntity.ok(documentService.getChildDocuments(parentId, user));
+    }
+
+    /**
+     * 자식 문서 페이지네이션 API (TABLE 뷰의 무한 스크롤용)
+     */
+    @GetMapping("/{parentId}/children")
+    public ResponseEntity<Page<DocumentListResponse>> getChildDocumentsPaged(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PathVariable Long workspaceId,
+            @PathVariable Long parentId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(required = false) String sortField,
+            @RequestParam(required = false, defaultValue = "asc") String sortDir,
+            @RequestParam(required = false, name = "propId") Long sortPropertyId) {
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(documentService.getChildDocumentsPaged(parentId, user, pageable, sortField, sortDir, sortPropertyId));
     }
 
     @PatchMapping("/{parentId}/children/order")

@@ -1,4 +1,5 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
+import { useThrottle } from '@/hooks/useThrottle';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -37,44 +38,44 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   const [tagPopoverRect, setTagPopoverRect] = useState(null);
   const [showSortClearModal, setShowSortClearModal] = useState(false);
   const [pendingDragEvent, setPendingDragEvent] = useState(null);
+  const [displayedRows, setDisplayedRows] = useState(50); // 무한 스크롤용 표시 행 수
   
   const systemPropTypeMap = useMemo(() => buildSystemPropTypeMapForTable(), []);
   
-  // 스크롤 이벤트 핸들러 - 팝오버 위치 업데이트
-  useEffect(() => {
-    function handleScroll() {
-      if (editingCell && tagPopoverRect) {
-        const { rowId, propertyId } = editingCell;
-        const cellElement = document.querySelector(`[data-cell-id="${rowId}_${propertyId}"]`);
-        if (cellElement) {
-          const rect = cellElement.getBoundingClientRect();
-          setTagPopoverRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
-        }
+  // 쓰로틀링된 스크롤 핸들러 (16ms = 60fps)
+  const throttledScrollHandler = useThrottle(useCallback(() => {
+    if (editingCell && tagPopoverRect) {
+      const { rowId, propertyId } = editingCell;
+      const cellElement = document.querySelector(`[data-cell-id="${rowId}_${propertyId}"]`);
+      if (cellElement) {
+        const rect = cellElement.getBoundingClientRect();
+        setTagPopoverRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
       }
     }
-    
+  }, [editingCell, tagPopoverRect]), 16);
+
+  // 스크롤 이벤트 핸들러 - 팝오버 위치 업데이트 (쓰로틀링 적용)
+  useEffect(() => {
     // 테이블 컨테이너와 윈도우 스크롤 이벤트 모두 처리
     const tableContainer = tableContainerRef.current;
     if (tableContainer) {
-      tableContainer.addEventListener('scroll', handleScroll);
+      tableContainer.addEventListener('scroll', throttledScrollHandler, { passive: true });
     }
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', throttledScrollHandler, { passive: true });
     
     return () => {
       if (tableContainer) {
-        tableContainer.removeEventListener('scroll', handleScroll);
+        tableContainer.removeEventListener('scroll', throttledScrollHandler);
       }
-      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('scroll', throttledScrollHandler);
     };
-  }, [editingCell, tagPopoverRect]);
+  }, [throttledScrollHandler]);
   
   // 에러 처리 훅
   const { handleError, clearError } = useErrorHandler();
   
   // 소유자 확인
   const { user } = useAuth();
-  const { currentDocument } = useDocument();
-  const isOwner = currentDocument && String(currentDocument.userId) === String(user?.id);
 
   // data hook
   const {
@@ -83,6 +84,9 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     rows,
     setRows,
     isLoading,
+    isFetchingMore,
+    hasMore,
+    fetchNextPage,
     error,
     editingHeader,
     setEditingHeader,
@@ -92,7 +96,11 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     handleAddRowBottom,
     handleCellValueChange,
     handleHeaderNameChange,
+    currentDocument,
   } = useTableData({ workspaceId, documentId, systemPropTypeMap });
+
+  // 소유자 확인
+  const isOwner = currentDocument && String(currentDocument.userId) === String(user?.id);
 
   // search hook
   const {
@@ -149,26 +157,69 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   });
   
   const [selectedRowIds, setSelectedRowIds] = useState(new Set());
-  const propertiesForRender = fetchedProperties;
+  
+  // propertiesForRender 메모이제이션
+  const propertiesForRender = useMemo(() => fetchedProperties, [fetchedProperties]);
   
   // 최종 필터링된 데이터 (검색 + 필터 + 정렬 적용)
-  const finalFilteredRows = sortedRows;
+  const finalFilteredRows = useMemo(() => sortedRows, [sortedRows]);
+  
+  // 무한 스크롤 로직 (Intersection Observer 사용)
+  const loadMoreRef = useRef(null);
+  
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const target = entries[0];
+        if (target.isIntersecting) {
+          // 다음 페이지 로드 트리거
+          fetchNextPage?.();
+          setDisplayedRows(prev => Math.min(prev + 50, finalFilteredRows.length + 50));
+        }
+      },
+      {
+        threshold: 0,
+        // 하단 고정 여백(푸터 등)을 고려해 충분히 큰 bottom margin을 준다
+        rootMargin: '0px 0px 320px 0px'
+      }
+    );
+    
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+    
+    return () => {
+      if (loadMoreRef.current) {
+        observer.unobserve(loadMoreRef.current);
+      }
+    };
+  }, [finalFilteredRows.length]);
+
+  // 검색/필터 변경 시 displayedRows 초기화
+  useEffect(() => {
+    setDisplayedRows(50);
+  }, [searchQuery, activeFilters, activeSorts]);
+
+  // 표시할 행 데이터 (무한 스크롤 적용)
+  const visibleRows = useMemo(() => {
+    return finalFilteredRows.slice(0, displayedRows);
+  }, [finalFilteredRows, displayedRows]);
 
   // 상단 툴바에서 새 문서 추가 (첫 번째 행에 추가)
-  const handleAddNewDocument = async () => {
+  const handleAddNewDocument = useCallback(async () => {
     await handleAddRowTop();
-  };
+  }, [handleAddRowTop]);
 
-  const toggleSelect = (rowId) => {
+  const toggleSelect = useCallback((rowId) => {
     setSelectedRowIds((prev) => {
       const next = new Set(prev);
       if (next.has(rowId)) next.delete(rowId);
       else next.add(rowId);
       return next;
     });
-  };
+  }, []);
 
-  const handleRowDragEnd = async (event) => {
+  const handleRowDragEnd = useCallback(async (event) => {
     if (isReadOnly) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -182,7 +233,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     
     // 정렬이 없으면 기존 로직 실행
     await executeRowDragEnd(event);
-  };
+  }, [isReadOnly, hasActiveSorts]);
 
   const executeRowDragEnd = async (event) => {
     const { active, over } = event;
@@ -268,20 +319,16 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
       if (direction === 'up') {
         // 위로 이동 시: 셀이 화면 상단에서 bufferRows만큼의 여백보다 위에 있으면 스크롤
         const threshold = containerScrollTop + bufferHeight;
-        console.log(`UP: cellTop=${cellTop}, threshold=${threshold}, bufferRows=${bufferRows}`);
         if (cellTop <= threshold) { // <= 로 변경하여 더 민감하게
           shouldScroll = true;
           targetScrollTop = cellTop - bufferHeight;
-          console.log(`UP 스크롤 실행: targetScrollTop=${targetScrollTop}`);
         }
       } else if (direction === 'down') {
         // 아래로 이동 시: 셀이 화면 하단에서 bufferRows만큼의 여백보다 아래에 있으면 스크롤
         const threshold = containerScrollTop + containerHeight - bufferHeight;
-        console.log(`DOWN: cellBottom=${cellBottom}, threshold=${threshold}, bufferRows=${bufferRows}`);
         if (cellBottom >= threshold) { // >= 로 변경하여 더 민감하게
           shouldScroll = true;
           targetScrollTop = cellBottom - containerHeight + bufferHeight;
-          console.log(`DOWN 스크롤 실행: targetScrollTop=${targetScrollTop}`);
         }
       }
       
@@ -419,13 +466,13 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     }
   };
 
-  const handleCellClick = (rowId, propertyId) => {
+  const handleCellClick = useCallback((rowId, propertyId) => {
     setSelectedCell({ rowId, propertyId });
     // 마우스 클릭 시 바로 편집 모드로 진입 (시스템 속성 제외)
     if (propertyId === null || !SYSTEM_PROP_TYPES.includes(fetchedProperties.find(p => p.id === propertyId)?.type)) {
       setEditingCell({ rowId, propertyId });
     }
-  };
+  }, [fetchedProperties]);
 
   return (
     <div className="px-20 min-w-0">
@@ -464,6 +511,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
           onSortRemove={removeSort}
           isReadOnly={isReadOnly}
           anchorRef={tableContainerRef}
+          documentCount={finalFilteredRows.length}
           isOwner={isOwner}
           workspaceId={workspaceId}
           documentId={documentId}
@@ -511,9 +559,10 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
               {hasActiveSearch || hasActiveFilters ? '검색 결과 없음' : '빈 행'}
             </div>
           ) : (
+            // 무한 스크롤 테이블 사용
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={isReadOnly ? undefined : handleRowDragEnd}>
-              <SortableContext items={finalFilteredRows.map((r) => r.id)} strategy={verticalListSortingStrategy}>
-                {finalFilteredRows.map((row, rowIdx) => (
+              <SortableContext items={visibleRows.map((r) => r.id)} strategy={verticalListSortingStrategy}>
+                {visibleRows.map((row, rowIdx) => (
                   <TableRow
                     key={row.id}
                     row={row}
@@ -563,7 +612,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
         <div className="py-2">
           {!isReadOnly && (
             <button 
-              className="text-sm text-gray-400 px-2 py-1 rounded hover:bg-gray-100 font-semibold"
+              className="px-2 py-1 text-sm font-semibold text-gray-400 rounded hover:bg-gray-100"
               onClick={handleAddRowBottom}
             >
               + 새 문서
@@ -572,17 +621,29 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
         </div>
         {/* 문서 개수 표시 */}
         <div 
-          className="text-sm text-gray-500 py-1 relative"
+          className="relative py-1 text-sm text-gray-500"
           style={{ 
             width: colWidths[0] || 0, // NameCell의 너비와 동일하게 설정
             boxSizing: 'border-box' // 패딩을 포함한 너비 계산
           }}
         >
-          <span className="absolute right-2 top-1/2 -translate-y-1/2">
-            개수 {finalFilteredRows.length}
-          </span>
+        <span className="absolute right-2 top-1/2 -translate-y-1/2">
+          개수 {finalFilteredRows.length}
+        </span>
         </div>
       </div>
+
+      {/* 무한 스크롤 센티넬 (푸터 여백 영향 방지용 항상 표시) */}
+      {hasMore && (
+        <div ref={loadMoreRef} className="flex justify-center items-center py-6 text-gray-500 min-h-[1px]">
+          {isFetchingMore && (
+            <>
+              <div className="mr-2 w-6 h-6 rounded-full border-b-2 border-blue-600 animate-spin"></div>
+              <span>더 많은 문서를 불러오는 중...</span>
+            </>
+          )}
+        </div>
+      )}
 
       {/* 정렬 제거 확인 모달 */}
       <Dialog open={showSortClearModal} onOpenChange={setShowSortClearModal}>

@@ -8,6 +8,7 @@ import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "workspaces")
@@ -39,6 +40,12 @@ public class Workspace extends BaseEntity {
 
     @OneToMany(mappedBy = "workspace", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Document> documents = new ArrayList<>();
+
+    @Column(name = "is_trashed", nullable = false, columnDefinition = "boolean not null default false")
+    private boolean isTrashed = false;
+
+    @Column(name = "trashed_at")
+    private LocalDateTime trashedAt;
 
     @Builder
     public Workspace(String name, String iconUrl, User user, Workspace parent) {
@@ -79,5 +86,28 @@ public class Workspace extends BaseEntity {
     public void removeDocument(Document document) {
         this.documents.remove(document);
         document.setWorkspace(null);
+    }
+
+    public boolean isTrashed() {
+        return isTrashed;
+    }
+
+    public LocalDateTime getTrashedAt() {
+        return trashedAt;
+    }
+
+    public void softDelete() {
+        this.isTrashed = true;
+        this.trashedAt = LocalDateTime.now();
+    }
+
+    public void restore() {
+        this.isTrashed = false;
+        this.trashedAt = null;
+    }
+
+    public void setTrashed(boolean trashed) {
+        this.isTrashed = trashed;
+        this.trashedAt = trashed ? LocalDateTime.now() : null;
     }
 } 
