@@ -1,17 +1,21 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+import { useDebouncedValue } from '@/hooks/useDebounce';
 
 export const useTableSearch = (rows) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
+  // 검색어 디바운싱 (300ms 지연)
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
+
   const filteredRows = useMemo(() => {
-    if (!searchQuery.trim()) return rows;
+    if (!debouncedSearchQuery.trim()) return rows;
     
     return rows.filter(row => {
       const title = row.title || '';
-      return title.toLowerCase().includes(searchQuery.toLowerCase());
+      return title.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
     });
-  }, [rows, searchQuery]);
+  }, [rows, debouncedSearchQuery]);
 
   const clearSearch = () => {
     setSearchQuery('');
