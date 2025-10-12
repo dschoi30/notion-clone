@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import WorkspaceIcon from '@/components/workspace/WorkspaceIcon';
 import { Camera, Lock } from 'lucide-react';
+import { useToast } from '@/hooks/useToast';
+import { Z_INDEX } from '@/constants/zIndex';
 
 // Cloudinary 업로드 함수 (Editor.jsx에서 가져옴)
 const CLOUDINARY_CLOUD_NAME = 'dsjybr8fb';
@@ -27,13 +30,16 @@ async function uploadImageToCloudinary(file) {
 }
 
 export default function WorkspaceGeneralForm() {
-  const { currentWorkspace, updateWorkspace } = useWorkspace();
+  const { currentWorkspace, updateWorkspace, deleteWorkspace } = useWorkspace();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [name, setName] = useState('');
   const [iconUrl, setIconUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const fileInputRef = useRef(null);
 
   // 현재 사용자가 워크스페이스 소유자인지 확인
@@ -98,6 +104,21 @@ export default function WorkspaceGeneralForm() {
       setName(currentWorkspace.name || '');
       setIconUrl(currentWorkspace.iconUrl || '');
       setError('');
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!isOwner || !currentWorkspace) return;
+    try {
+      setDeleting(true);
+      await deleteWorkspace(currentWorkspace.id);
+      setConfirmOpen(false);
+      toast({ title: '워크스페이스가 삭제되었습니다.', duration: 3000 });
+    } catch (err) {
+      console.error('워크스페이스 삭제 실패:', err);
+      setError('삭제에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -189,7 +210,7 @@ export default function WorkspaceGeneralForm() {
         />
       </div>
 
-      {/* 저장/취소 버튼 */}
+      {/* 저장/취소/삭제 버튼 */}
       <div className={`flex items-center gap-3 pt-4 border-t ${!isOwner ? 'opacity-60' : ''}`}>
         <Button
           onClick={handleSave}
@@ -205,10 +226,52 @@ export default function WorkspaceGeneralForm() {
         >
           취소
         </Button>
+        <Button
+          variant="destructive"
+          onClick={() => setConfirmOpen(true)}
+          disabled={!isOwner || loading || uploading}
+        >
+          워크스페이스 삭제
+        </Button>
         {hasChanges && isOwner && (
           <span className="text-xs text-gray-500">변경사항이 있습니다</span>
         )}
       </div>
+
+      {/* 삭제 확인 모달 */}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        {confirmOpen && (
+          <div
+            className="fixed inset-0 bg-black/30"
+            style={{ zIndex: Z_INDEX.VERSION_HISTORY }}
+            onClick={() => !deleting && setConfirmOpen(false)}
+          />
+        )}
+        <DialogContent overlay={false} contentStyle={{ zIndex: Z_INDEX.VERSION_HISTORY + 1 }}>
+          <DialogHeader>
+            <DialogTitle>워크스페이스 삭제</DialogTitle>
+            <DialogDescription>
+              정말로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmOpen(false)}
+              disabled={deleting}
+            >
+              취소
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+            >
+              {deleting ? '삭제 중...' : '삭제'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
