@@ -44,9 +44,7 @@ public class WorkspaceMembership extends BaseEntity {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
-    @PrePersist
     protected void onCreate() {
-        super.onCreate();
         if (joinedAt == null) {
             joinedAt = LocalDateTime.now();
         }
