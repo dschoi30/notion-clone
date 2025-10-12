@@ -110,7 +110,8 @@ export function AuthProvider({ children }) {
         id: data.user.id,
         email: data.user.email,
         name: data.user.name,
-        profileImageUrl: data.user.profileImageUrl
+        profileImageUrl: data.user.profileImageUrl,
+        role: data.user.role
       };
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
@@ -146,7 +147,8 @@ export function AuthProvider({ children }) {
         id: data.user.id,
         email: data.user.email,
         name: data.user.name,
-        profileImageUrl: data.user.profileImageUrl
+        profileImageUrl: data.user.profileImageUrl,
+        role: data.user.role
       };
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
@@ -182,7 +184,8 @@ export function AuthProvider({ children }) {
         id: data.user.id,
         email: data.user.email,
         name: data.user.name,
-        profileImageUrl: data.user.profileImageUrl
+        profileImageUrl: data.user.profileImageUrl,
+        role: data.user.role
       };
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
@@ -218,7 +221,8 @@ export function AuthProvider({ children }) {
       id: updatedUserData.id || user?.id,
       email: updatedUserData.email,
       name: updatedUserData.name,
-      profileImageUrl: updatedUserData.profileImageUrl
+      profileImageUrl: updatedUserData.profileImageUrl,
+      role: updatedUserData.role
     };
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));

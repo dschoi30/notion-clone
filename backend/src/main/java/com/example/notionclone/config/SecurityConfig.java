@@ -4,6 +4,7 @@ import com.example.notionclone.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -44,10 +45,50 @@ public class SecurityConfig {
     return http.build();
   }
 
-  // 기존 API용 SecurityFilterChain
+  // 개발 환경용 SecurityFilterChain (관리자/더미 데이터 엔드포인트 허용)
   @Bean
-  @Order(1)
-  public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+  @Profile("dev")
+  public SecurityFilterChain devFilterChain(HttpSecurity http) throws Exception {
+    http
+        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+        .csrf(AbstractHttpConfigurer::disable)
+        .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+            .requestMatchers(
+                "/api/auth/login",
+                "/api/auth/register", 
+                "/api/auth/google",
+                "/api/image-proxy",
+                "/api/admin/permission-migration/**", // 개발 환경에서만 마이그레이션 API 허용
+                "/api/dummy/**", // 개발 환경에서만 더미 데이터 API 허용
+                "/ws/**",
+                "/ws/document/**",
+                "/ws/document/info/**",
+                "/topic/**",
+                "/app/**",
+                "/index.html",
+                "/",
+                "/assets/**",
+                "/static/**",
+                "/error",
+                "/favicon.ico",
+                "/manifest.json",
+                "/logo192.png",
+                "/logo512.png",
+                "/actuator/health"
+            )
+            .permitAll()
+            .anyRequest().authenticated())
+        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+    return http.build();
+  }
+
+  // 프로덕션용 SecurityFilterChain (관리자/더미 데이터 엔드포인트 제외)
+  @Bean
+  @Profile("prod")
+  public SecurityFilterChain prodFilterChain(HttpSecurity http) throws Exception {
     http
         .cors(cors -> cors.configurationSource(corsConfigurationSource()))
         .csrf(AbstractHttpConfigurer::disable)

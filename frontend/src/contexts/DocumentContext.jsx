@@ -1,5 +1,5 @@
 // src/contexts/DocumentContext.jsx
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import * as documentApi from '@/services/documentApi';
 import { createLogger } from '@/lib/logger';
 import { useWorkspace } from './WorkspaceContext';
@@ -21,6 +21,15 @@ export function DocumentProvider({ children }) {
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [documentLoading, setDocumentLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // 페이지네이션 상태
+  const [pagination, setPagination] = useState({
+    page: 0,
+    size: 20,
+    totalPages: 0,
+    totalElements: 0,
+    hasNext: false
+  });
   const { currentWorkspace } = useWorkspace();
   const lastSelectRef = React.useRef({ id: null, at: 0 });
 
@@ -34,31 +43,56 @@ export function DocumentProvider({ children }) {
     if (currentWorkspace) fetchDocuments();
   }, [currentWorkspace]);
 
-  const fetchDocuments = useCallback(async () => {
+  const fetchDocuments = useCallback(async (page = null, size = null) => {
     if (!currentWorkspace) return;
     
     try {
       setDocumentsLoading(true);
       setError(null);
-      // 경량 API 사용으로 성능 최적화
-      const data = await documentApi.getDocumentList(currentWorkspace.id);
       
-      // 백엔드에서 다른 워크스페이스 문서가 섞여서 올 경우를 대비한 필터링
-      const filteredData = data.filter(doc => {
-        // workspaceId 또는 workspace.id로 확인
-        const docWorkspaceId = doc.workspaceId || doc.workspace?.id;
+      // 페이지네이션 파라미터가 있으면 페이지네이션 API 사용
+      if (page !== null && size !== null) {
+        const response = await documentApi.getDocumentList(currentWorkspace.id, page, size);
         
-        // fetchDocuments 호출 시점과 완료 시점에 currentWorkspace가 동일한지 확인
-        // (비동기 처리 중에 워크스페이스가 바뀔 수 있음)
-        // 단순히 ID만 비교
-        if (docWorkspaceId && String(docWorkspaceId) !== String(currentWorkspace.id)) {
-          console.warn(`잘못된 워크스페이스 문서 필터링: 문서 ${doc.id}는 워크스페이스 ${docWorkspaceId}에 속함 (현재: ${currentWorkspace.id})`);
-          return false;
-        }
-        return true;
-      });
-      
-      setDocuments(filteredData);
+        // 페이지네이션 정보 업데이트
+        setPagination({
+          page: response.number,
+          size: response.size,
+          totalPages: response.totalPages,
+          totalElements: response.totalElements,
+          hasNext: !response.last
+        });
+        
+        // 백엔드에서 다른 워크스페이스 문서가 섞여서 올 경우를 대비한 필터링
+        const currentWorkspaceId = String(currentWorkspace.id);
+        const filteredData = response.content.filter(doc => {
+          const docWorkspaceId = doc.workspaceId || doc.workspace?.id;
+          return !docWorkspaceId || String(docWorkspaceId) === currentWorkspaceId;
+        });
+        
+        setDocuments(filteredData);
+      } else {
+        // 페이지네이션 파라미터가 없으면 전체 목록 조회
+        const data = await documentApi.getDocumentList(currentWorkspace.id);
+        
+        // 백엔드에서 다른 워크스페이스 문서가 섞여서 올 경우를 대비한 필터링
+        const currentWorkspaceId = String(currentWorkspace.id);
+        const filteredData = data.filter(doc => {
+          const docWorkspaceId = doc.workspaceId || doc.workspace?.id;
+          return !docWorkspaceId || String(docWorkspaceId) === currentWorkspaceId;
+        });
+        
+        setDocuments(filteredData);
+        
+        // 전체 목록의 경우 페이지네이션 정보 초기화
+        setPagination({
+          page: 0,
+          size: filteredData.length,
+          totalPages: 1,
+          totalElements: filteredData.length,
+          hasNext: false
+        });
+      }
     } catch (err) {
       console.error(`❌ fetchDocuments 에러:`, err);
       
@@ -269,10 +303,12 @@ export function DocumentProvider({ children }) {
     }
   }, [currentWorkspace]);
 
-  const value = {
+  // Context value 메모이제이션으로 불필요한 리렌더링 방지
+  const value = useMemo(() => ({
     documents,
     currentDocument,
     error,
+    pagination,
     fetchDocuments,
     fetchChildDocuments,
     createDocument,
@@ -284,7 +320,23 @@ export function DocumentProvider({ children }) {
     refreshAllChildDocuments,
     documentsLoading,
     documentLoading,
-  };
+  }), [
+    documents,
+    currentDocument,
+    error,
+    pagination,
+    fetchDocuments,
+    fetchChildDocuments,
+    createDocument,
+    updateDocument,
+    deleteDocument,
+    selectDocument,
+    updateDocumentOrder,
+    fetchDocument,
+    refreshAllChildDocuments,
+    documentsLoading,
+    documentLoading,
+  ]);
 
   return (
     <DocumentContext.Provider value={value}>

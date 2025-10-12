@@ -830,7 +830,7 @@
   - 동적 z-index 처리로 사용자 경험 개선
   - 타입 안전성 확보 (상수 사용으로 오타 방지)
 
-## 2025-01-15
+## 2025-10-12
 - AuthContext.jsx에서 `clearExistingTokens()` 함수 호출 오류 수정
   - `register`와 `loginWithGoogle` 함수에서 정의되지 않은 `clearExistingTokens()` 함수를 호출하던 문제를 `clearTokens()`로 수정
   - 런타임 ReferenceError 방지 및 일관된 토큰 정리 로직 적용
@@ -896,3 +896,35 @@
   - application-prod.yml 생성으로 프로덕션 환경에서 WARN 레벨 이상만 로그 출력하도록 설정
   - 환경변수를 통한 로그 레벨 동적 설정으로 개발/운영 환경별 로깅 전략 분리
   - 프로덕션 환경에서 I/O 부하 감소 및 로그 파일 크기 최적화로 성능 향상
+
+## 2025-10-12 (보안 취약점 수정)
+- **심각한 보안 취약점 수정**: SecurityConfig.java에서 평문 패스워드 인코더를 BCryptPasswordEncoder로 즉시 복원
+  - 문제: 89-100번 라인에서 평문으로 패스워드를 저장하고 비교하는 PasswordEncoder 사용
+  - 위험성: 모든 사용자 패스워드가 암호화 없이 저장되어 데이터베이스 유출 시 심각한 보안 위험
+  - 수정: BCryptPasswordEncoder로 복원하여 안전한 패스워드 해싱 적용
+  - 영향: 기존 평문 패스워드는 재설정 필요, 향후 모든 패스워드는 안전하게 해싱되어 저장
+- **인증 없는 관리자/더미 데이터 엔드포인트 제거**: SecurityConfig.java에서 보안 위험 엔드포인트 제거
+  - 문제: `/api/admin/permission-migration/**`, `/api/dummy/**` 엔드포인트가 인증 없이 접근 가능
+  - 위험성: 누구나 데이터베이스 마이그레이션 실행 및 더미 데이터 생성 가능, 프로덕션 데이터 조작 위험
+  - 수정: 해당 엔드포인트를 permitAll 목록에서 제거하여 인증 필요하도록 변경
+  - 영향: 관리자 기능은 적절한 인증 후에만 접근 가능, 보안 강화
+- **Spring Profile 기반 환경별 보안 설정 구현**: 개발/프로덕션 환경에 따른 차별화된 보안 정책 적용
+  - 개발 환경(`@Profile("dev")`): 관리자/더미 데이터 엔드포인트 허용으로 개발 편의성 확보
+  - 프로덕션 환경(`@Profile("!dev")`): 보안 강화된 설정으로 관리자 엔드포인트 완전 차단
+  - 환경별 SecurityFilterChain 분리로 명확한 보안 정책 구분
+  - 영향: 개발 환경에서는 편리한 테스트 가능, 프로덕션에서는 보안 강화
+
+## 2025-10-12 (JPA 모범 사례 및 코드 품질 개선)
+- **JPA 모범 사례 위반 수정**: WorkspaceRoleService에서 ID만으로 User 엔티티 생성하는 문제 해결
+  - 문제: `new User() {{ setId(userId); }}`로 불완전한 엔티티 생성
+  - 수정: Repository에 `findByUserIdAndWorkspaceId(Long userId, Long workspaceId)` 메서드 추가
+  - 영향: Lazy loading 이슈 및 예상치 못한 동작 방지, 안전한 JPA 사용
+- **Spring Data JPA 자동 쿼리 생성 최적화**: 불필요한 @Query 어노테이션 제거
+  - `findByWorkspaceIdAndIsActiveTrue`, `findByWorkspaceIdAndRoleAndIsActiveTrue`, `existsByUserAndWorkspaceIdAndIsActiveTrue` 메서드를 자동 쿼리 생성으로 변경
+  - JOIN FETCH가 필요한 경우에만 @Query 유지
+  - 영향: 코드 간소화, Spring Data JPA 표준 방식 적용
+- **역할 할당 로직 일관성 개선**: 중복된 setRole 호출 제거 및 전략 문서화
+  - 문제: 회원가입/Google 로그인에서 중복으로 `user.setRole(UserRole.USER)` 호출
+  - 수정: User 엔티티의 기본값(`role = UserRole.USER`) 활용, 중복 호출 제거
+  - User 엔티티에 역할 할당 전략 문서화 추가
+  - 영향: 일관성 확보, 중복 코드 제거, 유지보수성 향상
