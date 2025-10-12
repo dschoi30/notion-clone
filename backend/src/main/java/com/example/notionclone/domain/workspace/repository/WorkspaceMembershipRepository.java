@@ -23,12 +23,14 @@ public interface WorkspaceMembershipRepository extends JpaRepository<WorkspaceMe
     Optional<WorkspaceMembership> findByUserAndWorkspaceId(@Param("user") User user, @Param("workspaceId") Long workspaceId);
     
     /**
-     * 워크스페이스의 모든 활성 멤버십 조회
+     * 사용자 ID와 워크스페이스 ID로 멤버십 조회 (Spring Data JPA 자동 쿼리 생성)
      */
-    @Query("SELECT wm FROM WorkspaceMembership wm " +
-           "JOIN FETCH wm.user u " +
-           "WHERE wm.workspace.id = :workspaceId AND wm.isActive = true")
-    List<WorkspaceMembership> findByWorkspaceIdAndActive(@Param("workspaceId") Long workspaceId);
+    Optional<WorkspaceMembership> findByUserIdAndWorkspaceId(Long userId, Long workspaceId);
+    
+    /**
+     * 워크스페이스의 모든 활성 멤버십 조회 (Spring Data JPA 자동 쿼리 생성)
+     */
+    List<WorkspaceMembership> findByWorkspaceIdAndIsActiveTrue(Long workspaceId);
     
     /**
      * 사용자의 모든 워크스페이스 멤버십 조회
@@ -51,20 +53,13 @@ public interface WorkspaceMembershipRepository extends JpaRepository<WorkspaceMe
             @Param("roles") List<WorkspaceRole> roles);
     
     /**
-     * 워크스페이스 소유자 조회
+     * 워크스페이스 소유자 조회 (Spring Data JPA 자동 쿼리 생성)
      */
-    @Query("SELECT wm FROM WorkspaceMembership wm " +
-           "JOIN FETCH wm.user u " +
-           "WHERE wm.workspace.id = :workspaceId " +
-           "AND wm.role = 'OWNER' " +
-           "AND wm.isActive = true")
-    Optional<WorkspaceMembership> findOwnerByWorkspaceId(@Param("workspaceId") Long workspaceId);
+    Optional<WorkspaceMembership> findByWorkspaceIdAndRoleAndIsActiveTrue(Long workspaceId, WorkspaceRole role);
     
     /**
-     * 사용자가 워크스페이스에 속해있는지 확인
+     * 사용자가 워크스페이스에 속해있는지 확인 (Spring Data JPA 자동 쿼리 생성)
      */
-    @Query("SELECT COUNT(wm) > 0 FROM WorkspaceMembership wm " +
-           "WHERE wm.user = :user AND wm.workspace.id = :workspaceId AND wm.isActive = true")
-    boolean existsByUserAndWorkspaceIdAndActive(@Param("user") User user, @Param("workspaceId") Long workspaceId);
+    boolean existsByUserAndWorkspaceIdAndIsActiveTrue(User user, Long workspaceId);
 }
 

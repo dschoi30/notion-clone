@@ -36,4 +36,14 @@ public class User extends BaseEntity {
 
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
+
+    /**
+     * 역할 할당 전략:
+     * - 신규 가입: UserRole.USER (기본값)
+     * - 관리자 승격: 별도 관리 기능을 통해 변경
+     * - 엔티티 기본값을 사용하여 중복 설정 방지
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false)
+    private UserRole role = UserRole.USER;
 } 

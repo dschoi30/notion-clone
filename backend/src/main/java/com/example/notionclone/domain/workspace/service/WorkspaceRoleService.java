@@ -40,7 +40,7 @@ public class WorkspaceRoleService {
                 throw new IllegalStateException("이미 워크스페이스 멤버입니다.");
             } else {
                 // 비활성 멤버십 재활성화
-                membership.setActive(true);
+                membership.setIsActive(true);
                 membership.setRole(role);
                 membership.setInvitedBy(invitedBy.getId());
                 return workspaceMembershipRepository.save(membership);
@@ -53,7 +53,7 @@ public class WorkspaceRoleService {
         membership.setWorkspace(workspace);
         membership.setRole(role);
         membership.setInvitedBy(invitedBy.getId());
-        membership.setActive(true);
+        membership.setIsActive(true);
 
         return workspaceMembershipRepository.save(membership);
     }
@@ -67,7 +67,7 @@ public class WorkspaceRoleService {
         validateRoleChangePermission(workspaceId, changer, newRole);
 
         WorkspaceMembership membership = workspaceMembershipRepository
-                .findByUserAndWorkspaceId(new User() {{ setId(userId); }}, workspaceId)
+                .findByUserIdAndWorkspaceId(userId, workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("워크스페이스 멤버를 찾을 수 없습니다."));
 
         membership.setRole(newRole);
@@ -83,10 +83,10 @@ public class WorkspaceRoleService {
         validateRemovePermission(workspaceId, remover, userId);
 
         WorkspaceMembership membership = workspaceMembershipRepository
-                .findByUserAndWorkspaceId(new User() {{ setId(userId); }}, workspaceId)
+                .findByUserIdAndWorkspaceId(userId, workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("워크스페이스 멤버를 찾을 수 없습니다."));
 
-        membership.setActive(false);
+        membership.setIsActive(false);
         workspaceMembershipRepository.save(membership);
     }
 
@@ -106,7 +106,7 @@ public class WorkspaceRoleService {
      * 워크스페이스 멤버 목록 조회
      */
     public List<WorkspaceMembership> getWorkspaceMembers(Long workspaceId) {
-        return workspaceMembershipRepository.findByWorkspaceIdAndActive(workspaceId);
+        return workspaceMembershipRepository.findByWorkspaceIdAndIsActiveTrue(workspaceId);
     }
 
     /**
