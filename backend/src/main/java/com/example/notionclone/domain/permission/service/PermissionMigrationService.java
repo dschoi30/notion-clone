@@ -68,7 +68,7 @@ public class PermissionMigrationService {
         
         // 이미 워크스페이스 멤버인지 확인
         boolean isAlreadyMember = workspaceMembershipRepository
-                .existsByUserAndWorkspaceIdAndActive(user, workspaceId);
+                .existsByUserAndWorkspaceIdAndIsActiveTrue(user, workspaceId);
         
         if (isAlreadyMember) {
             log.debug("이미 워크스페이스 멤버: User ID {}, Workspace ID {}", user.getId(), workspaceId);
@@ -124,7 +124,7 @@ public class PermissionMigrationService {
                 .stream()
                 .filter(p -> p.getStatus() == PermissionStatus.ACCEPTED)
                 .filter(p -> p.getDocument().getWorkspace() != null)
-                .filter(p -> workspaceMembershipRepository.existsByUserAndWorkspaceIdAndActive(
+                .filter(p -> workspaceMembershipRepository.existsByUserAndWorkspaceIdAndIsActiveTrue(
                         p.getUser(), p.getDocument().getWorkspace().getId()))
                 .toList();
 
