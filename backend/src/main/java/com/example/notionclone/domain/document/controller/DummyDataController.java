@@ -29,20 +29,19 @@ public class DummyDataController {
      * 대량 더미 데이터 생성 (관리자만)
      */
     @PostMapping("/generate-bulk")
-    // @PreAuthorize("hasRole('ADMIN')") // 테스트용으로 임시 비활성화
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> generateBulkData(
             @RequestParam(defaultValue = "10000") int count,
             @RequestParam(defaultValue = "5") int propertyCount,
             @RequestParam(defaultValue = "realistic") String dataType,
-            @RequestParam(required = false) String workspaceId,
-            @RequestParam(required = false) Long parentId
+            @RequestParam(required = false) String workspaceId
     ) {
         try {
             long startTime = System.currentTimeMillis();
             
             // 배치 인서트로 대량 데이터 생성
             Map<String, Object> result = dummyDataService.generateBulkData(
-                count, propertyCount, dataType, workspaceId, parentId
+                count, propertyCount, dataType, workspaceId
             );
             
             long endTime = System.currentTimeMillis();
@@ -53,7 +52,7 @@ public class DummyDataController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
                 "success", false,
-                "error", e.getMessage() != null ? e.getMessage() : ("Unknown error: " + e.getClass().getSimpleName())
+                "error", e.getMessage()
             ));
         }
     }
@@ -62,19 +61,18 @@ public class DummyDataController {
      * 성능 테스트 실행 (관리자만)
      */
     @PostMapping("/performance-test")
-    // @PreAuthorize("hasRole('ADMIN')") // 테스트용으로 임시 비활성화
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> runPerformanceTest(
             @RequestParam(defaultValue = "1000") int testSize,
-            @RequestParam(defaultValue = "scroll") String testType,
-            @RequestParam(required = false) Long parentId
+            @RequestParam(defaultValue = "scroll") String testType
     ) {
         try {
-            Map<String, Object> result = dummyDataService.runPerformanceTest(testSize, testType, parentId);
+            Map<String, Object> result = dummyDataService.runPerformanceTest(testSize, testType);
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
                 "success", false,
-                "error", e.getMessage() != null ? e.getMessage() : ("Unknown error: " + e.getClass().getSimpleName())
+                "error", e.getMessage()
             ));
         }
     }
@@ -96,7 +94,7 @@ public class DummyDataController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
                 "success", false,
-                "error", e.getMessage() != null ? e.getMessage() : ("Unknown error: " + e.getClass().getSimpleName())
+                "error", e.getMessage()
             ));
         }
     }
@@ -105,7 +103,7 @@ public class DummyDataController {
      * 더미 데이터 삭제 (관리자만)
      */
     @DeleteMapping("/clear")
-    // @PreAuthorize("hasRole('ADMIN')") // 테스트용으로 임시 비활성화
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> clearDummyData() {
         try {
             long startTime = System.currentTimeMillis();
@@ -123,7 +121,7 @@ public class DummyDataController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
                 "success", false,
-                "error", e.getMessage() != null ? e.getMessage() : ("Unknown error: " + e.getClass().getSimpleName())
+                "error", e.getMessage()
             ));
         }
     }
@@ -132,7 +130,7 @@ public class DummyDataController {
      * 데이터베이스 최적화 (관리자만)
      */
     @PostMapping("/optimize")
-    // @PreAuthorize("hasRole('ADMIN')") // 테스트용으로 임시 비활성화
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> optimizeDatabase() {
         try {
             dummyDataService.optimizeDatabase();
@@ -143,7 +141,7 @@ public class DummyDataController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
                 "success", false,
-                "error", e.getMessage() != null ? e.getMessage() : ("Unknown error: " + e.getClass().getSimpleName())
+                "error", e.getMessage()
             ));
         }
     }

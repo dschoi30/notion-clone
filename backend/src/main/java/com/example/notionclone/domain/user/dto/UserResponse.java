@@ -1,7 +1,6 @@
 package com.example.notionclone.domain.user.dto;
 
 import com.example.notionclone.domain.user.entity.User;
-
 import lombok.Getter;
 import lombok.Setter;
 
@@ -11,11 +10,13 @@ public class UserResponse {
     private String email;
     private String name;
     private String profileImageUrl;
+    private String role;
 
     public UserResponse(User user) {
         this.id = user.getId();
         this.email = user.getEmail();
         this.name = user.getName();
         this.profileImageUrl = user.getProfileImageUrl();
+        this.role = user.getRole() != null ? user.getRole().name() : null;
     }
 } 

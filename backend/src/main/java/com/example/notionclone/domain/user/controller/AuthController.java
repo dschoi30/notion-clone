@@ -57,7 +57,6 @@ public class AuthController {
         
         User user = userRepository.findByEmail(loginRequest.getEmail())
             .orElseThrow(() -> new RuntimeException("User not found"));
-
         String jwt = authService.createTokenWithSession(user);
 
         return ResponseEntity.ok(new AuthResponse(jwt, new UserResponse(user)));
@@ -77,6 +76,7 @@ public class AuthController {
             user.setName(registerRequest.getName());
             user.setEmail(registerRequest.getEmail());
             user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+            // 역할은 User 엔티티의 기본값(UserRole.USER) 사용
 
             user = userRepository.save(user);
             log.info("User registered successfully: {}", user.getEmail());
@@ -120,6 +120,7 @@ public class AuthController {
                         newUser.setEmail(email);
                         newUser.setName(name);
                         newUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+                        // 역할은 User 엔티티의 기본값(UserRole.USER) 사용
                         User savedUser = userRepository.save(newUser);
                         
                         // 신규 가입 시 기본 워크스페이스 생성

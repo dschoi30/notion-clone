@@ -8,5 +8,6 @@ import java.util.List;
 
 public interface WorkspaceRepository extends JpaRepository<Workspace, Long> {
     List<Workspace> findByUser(User user);
+    List<Workspace> findByUserAndIsTrashedFalse(User user);
     boolean existsByNameAndUser(String name, User user);
 } 
