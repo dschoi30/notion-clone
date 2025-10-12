@@ -67,7 +67,7 @@ public class WorkspaceRoleService {
         validateRoleChangePermission(workspaceId, changer, newRole);
 
         WorkspaceMembership membership = workspaceMembershipRepository
-                .findByUserAndWorkspaceId(new User() {{ setId(userId); }}, workspaceId)
+                .findByUserIdAndWorkspaceId(userId, workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("워크스페이스 멤버를 찾을 수 없습니다."));
 
         membership.setRole(newRole);
@@ -83,7 +83,7 @@ public class WorkspaceRoleService {
         validateRemovePermission(workspaceId, remover, userId);
 
         WorkspaceMembership membership = workspaceMembershipRepository
-                .findByUserAndWorkspaceId(new User() {{ setId(userId); }}, workspaceId)
+                .findByUserIdAndWorkspaceId(userId, workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("워크스페이스 멤버를 찾을 수 없습니다."));
 
         membership.setIsActive(false);
@@ -106,7 +106,7 @@ public class WorkspaceRoleService {
      * 워크스페이스 멤버 목록 조회
      */
     public List<WorkspaceMembership> getWorkspaceMembers(Long workspaceId) {
-        return workspaceMembershipRepository.findByWorkspaceIdAndActive(workspaceId);
+        return workspaceMembershipRepository.findByWorkspaceIdAndIsActiveTrue(workspaceId);
     }
 
     /**
