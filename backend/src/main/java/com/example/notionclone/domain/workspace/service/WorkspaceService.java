@@ -8,6 +8,7 @@ import com.example.notionclone.domain.notification.repository.NotificationReposi
 import com.example.notionclone.domain.notification.entity.NotificationType;
 import com.example.notionclone.domain.notification.entity.NotificationStatus;
 import com.example.notionclone.domain.document.repository.DocumentRepository;
+import com.example.notionclone.domain.document.service.DocumentService;
 import com.example.notionclone.domain.document.entity.Document;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,10 +29,11 @@ public class WorkspaceService {
     private final WorkspaceRepository workspaceRepository;
     private final NotificationRepository notificationRepository;
     private final DocumentRepository documentRepository;
+    private final DocumentService documentService;
 
     public List<WorkspaceDto> getWorkspaces(User user) {
         log.debug("Fetching workspaces for user: {}", user.getId());
-        List<Workspace> workspaces = workspaceRepository.findByUser(user);
+        List<Workspace> workspaces = workspaceRepository.findByUserAndIsTrashedFalse(user);
         return workspaces.stream()
                 .map(WorkspaceDto::from)
                 .collect(Collectors.toList());
@@ -83,18 +85,34 @@ public class WorkspaceService {
             throw new RuntimeException("Not authorized to delete this workspace");
         }
 
-        if (workspace.getParent() != null) {
-            workspace.getParent().removeSubWorkspace(workspace);
-            log.debug("Removed from parent workspace");
-        }
+        softDeleteWorkspaceInternal(workspace);
+        log.debug("Workspace soft-deleted");
+    }
 
-        workspaceRepository.delete(workspace);
-        log.debug("Workspace deleted");
+    @Transactional
+    public void softDeleteWorkspace(User user, Long workspaceId) {
+        log.debug("Soft delete workspace. User: {}, WorkspaceId: {}", user.getId(), workspaceId);
+        Workspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new RuntimeException("Workspace not found"));
+        if (!workspace.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Not authorized to delete this workspace");
+        }
+        softDeleteWorkspaceInternal(workspace);
+    }
+
+    private void softDeleteWorkspaceInternal(Workspace workspace) {
+        // 1) 워크스페이스 플래그
+        workspace.softDelete();
+        // 2) 하위 문서 소프트 삭제
+        List<Document> docs = documentRepository.findByWorkspaceIdAndIsTrashedFalse(workspace.getId());
+        for (Document d : docs) {
+            d.setTrashed(true);
+        }
     }
 
     public List<WorkspaceDto> getAccessibleWorkspaces(User user) {
         // 내가 owner인 워크스페이스
-        List<Workspace> myWorkspaces = workspaceRepository.findByUser(user);
+        List<Workspace> myWorkspaces = workspaceRepository.findByUserAndIsTrashedFalse(user);
         // 초대 수락한 공유 문서가 속한 워크스페이스
         List<Long> sharedDocIds = notificationRepository
             .findByReceiverAndTypeAndStatus(user, NotificationType.INVITE, NotificationStatus.ACCEPTED)
@@ -116,10 +134,14 @@ public class WorkspaceService {
                 .stream()
                 .map(Document::getWorkspace)
                 .filter(Objects::nonNull)
+                .filter(ws -> !ws.isTrashed())
                 .distinct()
                 .collect(Collectors.toList());
         Set<Workspace> all = new HashSet<>(myWorkspaces);
         all.addAll(sharedWorkspaces);
-        return all.stream().map(WorkspaceDto::from).collect(Collectors.toList());
+        return all.stream()
+            .filter(ws -> !ws.isTrashed())
+            .map(WorkspaceDto::from)
+            .collect(Collectors.toList());
     }
 } 
