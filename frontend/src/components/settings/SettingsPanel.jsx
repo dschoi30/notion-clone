@@ -20,7 +20,7 @@ const BASE_NAV_ITEMS = [
 
 export default function SettingsPanel({ onClose }) {
   const { currentWorkspace } = useWorkspace();
-  const { user } = useAuth();console.log('user',user);
+  const { user } = useAuth();
   const NAV_ITEMS = useMemo(() => {
     const items = [...BASE_NAV_ITEMS];
     if (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') {

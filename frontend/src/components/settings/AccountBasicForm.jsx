@@ -44,8 +44,6 @@ export default function AccountBasicForm() {
 
   useEffect(() => {
     if (user) {
-      console.log('AccountBasicForm - user 데이터:', user);
-      console.log('AccountBasicForm - profileImageUrl:', user.profileImageUrl);
       setName(user.name || '');
       setEmail(user.email || '');
       setProfileImageUrl(user.profileImageUrl || '');
@@ -200,7 +198,6 @@ export default function AccountBasicForm() {
                   src={profileImageUrl} 
                   alt="프로필" 
                   className="object-cover w-full h-full"
-                  onLoad={() => console.log('이미지 로드 성공:', profileImageUrl)}
                   onError={(e) => {
                     console.error('이미지 로드 실패:', profileImageUrl, e);
                     setProfileImageUrl(''); // 로드 실패 시 기본 아이콘으로 변경
