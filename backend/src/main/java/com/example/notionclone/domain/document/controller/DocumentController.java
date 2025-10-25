@@ -4,6 +4,7 @@ import com.example.notionclone.domain.document.dto.CreateDocumentRequest;
 import com.example.notionclone.domain.document.dto.DocumentOrderRequest;
 import com.example.notionclone.domain.document.dto.DocumentResponse;
 import com.example.notionclone.domain.document.dto.DocumentListResponse;
+import com.example.notionclone.domain.document.dto.DocumentTableListResponse;
 import com.example.notionclone.domain.document.dto.UpdateDocumentRequest;
 import com.example.notionclone.domain.document.entity.Document;
 import com.example.notionclone.domain.document.entity.DocumentProperty;
@@ -140,6 +141,21 @@ public class DocumentController {
         
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "sortOrder"));
         Page<DocumentListResponse> documents = documentService.getDocumentsInfinite(workspaceId, user, pageable, cursor);
+        
+        return ResponseEntity.ok(documents);
+    }
+
+    /**
+     * 테이블 문서 목록 조회 (경량)
+     * DummyDataTestPanel에서 테이블 문서 선택을 위한 최소 필드만 조회
+     */
+    @GetMapping("/table-list")
+    public ResponseEntity<List<DocumentTableListResponse>> getTableDocuments(
+            @PathVariable Long workspaceId) {
+        
+        log.debug("Get table documents request for workspace: {}", workspaceId);
+        
+        List<DocumentTableListResponse> documents = documentService.getTableDocumentsByWorkspace(workspaceId);
         
         return ResponseEntity.ok(documents);
     }

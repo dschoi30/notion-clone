@@ -229,6 +229,12 @@ export async function getTagOptionsByProperty(workspaceId, propertyId) {
   return res.data;
 }
 
+// 테이블 문서 목록 조회 (경량)
+export async function getTableDocuments(workspaceId) {
+  const response = await api.get(`/api/workspaces/${workspaceId}/documents/table-list`);
+  return response.data;
+}
+
 // --- Versioning ---
 export async function createDocumentVersion(workspaceId, documentId, payload) {
   const res = await api.post(`/api/workspaces/${workspaceId}/documents/${documentId}/versions`, payload);

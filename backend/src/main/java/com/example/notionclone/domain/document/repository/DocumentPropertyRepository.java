@@ -9,4 +9,5 @@ public interface DocumentPropertyRepository extends JpaRepository<DocumentProper
     List<DocumentProperty> findByDocument(Document document);
     List<DocumentProperty> findByDocumentId(Long documentId);
     List<DocumentProperty> findByDocumentIdOrderBySortOrderAsc(Long documentId);
+    List<DocumentProperty> findByDocumentOrderBySortOrder(Document document);
 } 
