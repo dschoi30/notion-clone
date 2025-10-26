@@ -54,6 +54,23 @@ class Permission {
     PermissionType  permissionType
     PermissionStatus  status
 }
+
+class WorkspacePermission {
+    Long  id
+    WorkspaceRole  role
+    Long  invitedBy
+    LocalDateTime  joinedAt
+    Boolean  isActive
+}
+
+class WorkspaceRole {
+    <<enumeration>>
+    OWNER
+    ADMIN
+    EDITOR
+    VIEWER
+    GUEST
+}
 class User {
     Long  id
     String  email
@@ -116,6 +133,7 @@ BaseEntity  --|>  DocumentPropertyValue
 BaseEntity  --|>  DocumentVersion 
 BaseEntity  --|>  Notification 
 BaseEntity  --|>  Permission 
+BaseEntity  --|>  WorkspacePermission 
 BaseEntity  --|>  User 
 BaseEntity  --|>  Workspace 
 
@@ -138,5 +156,8 @@ Permission "0..*" --> "0..1" Document
 Permission "0..*" --> "0..1" User 
 Permission "0..*" --> "0..1" PermissionType 
 Permission "0..*" --> "0..1" PermissionStatus 
+WorkspacePermission "0..*" --> "0..1" User 
+WorkspacePermission "0..*" --> "0..1" Workspace 
+WorkspacePermission "0..*" --> "0..1" WorkspaceRole 
 Workspace "0..*" --> "0..1" User 
 Workspace "0..1" <--> "0..*" Workspace 

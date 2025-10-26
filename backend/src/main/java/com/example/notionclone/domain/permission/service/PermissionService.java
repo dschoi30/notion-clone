@@ -5,6 +5,7 @@ import com.example.notionclone.domain.permission.repository.PermissionRepository
 import com.example.notionclone.domain.user.entity.User;
 import com.example.notionclone.domain.document.repository.DocumentRepository;
 import com.example.notionclone.domain.document.entity.Document;
+import com.example.notionclone.domain.workspace.repository.WorkspacePermissionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,7 @@ public class PermissionService {
     private final WorkspaceRepository workspaceRepository;
     private final UserRepository userRepository;
     private final DocumentRepository documentRepository;
+    private final WorkspacePermissionRepository workspacePermissionRepository;
 
     @Transactional
     public Permission invite(User user, Document document, PermissionType type) {
@@ -72,7 +74,40 @@ public class PermissionService {
     public void removePermission(Long userId, Long documentId) {
         Permission permission = permissionRepository.findByUserIdAndDocumentId(userId, documentId)
             .orElseThrow(() -> new RuntimeException("Permission not found"));
+        
+        // 문서 정보 조회
+        Document document = documentRepository.findById(documentId)
+            .orElseThrow(() -> new RuntimeException("Document not found"));
+        
+        // 사용자 정보 조회
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        // 문서 권한 제거
         permissionRepository.delete(permission);
+        
+        // 워크스페이스 권한 조건부 제거 로직
+        if (document.getWorkspace() != null) {
+            Long workspaceId = document.getWorkspace().getId();
+            
+            // 같은 워크스페이스의 다른 문서에 대한 권한이 있는지 확인
+            boolean hasOtherDocumentPermissions = permissionRepository
+                .findByUserAndDocumentWorkspaceIdAndStatus(user, workspaceId, PermissionStatus.ACCEPTED)
+                .stream()
+                .anyMatch(p -> !p.getDocument().getId().equals(documentId));
+            
+            // 다른 문서 권한이 없으면 워크스페이스 권한도 제거
+            if (!hasOtherDocumentPermissions) {
+                workspacePermissionRepository
+                    .findByUserAndWorkspaceId(user, workspaceId)
+                    .ifPresent(workspacePermission -> {
+                        // 워크스페이스 소유자가 아닌 경우에만 제거
+                        if (!workspacePermission.getWorkspace().getUser().getId().equals(userId)) {
+                            workspacePermissionRepository.delete(workspacePermission);
+                        }
+                    });
+            }
+        }
     }
 
     public boolean hasAcceptedPermission(User user, Document document) {
@@ -88,8 +123,6 @@ public class PermissionService {
     }
 
     public void checkPermission(Long workspaceId, @Nullable Long documentId, Long userId, PermissionType requiredPermission) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
         Workspace workspace = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Workspace not found with id: " + workspaceId));
 

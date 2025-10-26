@@ -19,6 +19,9 @@ import com.example.notionclone.domain.notification.service.NotificationService;
 import com.example.notionclone.domain.notification.entity.NotificationType;
 import com.example.notionclone.domain.permission.service.PermissionService;
 import com.example.notionclone.domain.permission.entity.PermissionType;
+import com.example.notionclone.domain.workspace.entity.WorkspacePermission;
+import com.example.notionclone.domain.workspace.entity.WorkspaceRole;
+import com.example.notionclone.domain.workspace.repository.WorkspacePermissionRepository;
 import com.example.notionclone.domain.document.dto.DocumentPropertyDto;
 import com.example.notionclone.domain.document.dto.DocumentPropertyValueDto;
 import com.example.notionclone.domain.document.service.DocumentPropertyService;
@@ -56,6 +59,7 @@ public class DocumentController {
     private final DocumentRepository documentRepository;
     private final DocumentPropertyService documentPropertyService;
     private final DocumentPropertyValueService documentPropertyValueService;
+    private final WorkspacePermissionRepository workspacePermissionRepository;
 
     @GetMapping
     public ResponseEntity<List<DocumentResponse>> getDocumentsByWorkspace(
@@ -251,10 +255,32 @@ public class DocumentController {
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId));
 
-        // 1. Permission 생성
+        // 1. 워크스페이스 권한 확인 및 부여
+        if (document.getWorkspace() != null) {
+            // 워크스페이스에 대한 권한이 없는 경우 VIEWER 권한 부여
+            boolean hasWorkspacePermission = workspacePermissionRepository
+                    .findByUserAndWorkspaceId(invitee, document.getWorkspace().getId())
+                    .isPresent();
+            
+            if (!hasWorkspacePermission) {
+                WorkspacePermission workspacePermission = WorkspacePermission.builder()
+                        .user(invitee)
+                        .workspace(document.getWorkspace())
+                        .role(WorkspaceRole.VIEWER) // 문서 초대 시 기본적으로 VIEWER 권한
+                        .isActive(true)
+                        .joinedAt(java.time.LocalDateTime.now())
+                        .build();
+                
+                workspacePermissionRepository.save(workspacePermission);
+                log.debug("Created VIEWER workspace permission for user {} in workspace {}", 
+                         invitee.getId(), document.getWorkspace().getId());
+            }
+        }
+
+        // 2. 문서별 Permission 생성
         permissionService.invite(invitee, document, PermissionType.READ);
 
-        // 2. Notification 생성
+        // 3. Notification 생성
         String message = String.format("%s님이 '%s' 문서에 초대했습니다.", inviter.getName(), document.getTitle());
         String payload = String.format("{\"documentId\":%d}", documentId);    
         notificationService.sendInviteNotification(invitee, NotificationType.INVITE, message, payload);

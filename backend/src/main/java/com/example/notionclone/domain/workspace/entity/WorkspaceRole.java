@@ -47,16 +47,17 @@ public enum WorkspaceRole {
     /**
      * 특정 권한을 가지고 있는지 확인
      */
-    public boolean hasPermission(WorkspacePermission permission) {
+    public boolean hasPermission(WorkspacePermissionType permission) {
         return switch (this) {
             case OWNER -> true; // 소유자는 모든 권한
-            case ADMIN -> permission != WorkspacePermission.DELETE_WORKSPACE;
-            case EDITOR -> permission == WorkspacePermission.CREATE_DOCUMENT ||
-                           permission == WorkspacePermission.EDIT_DOCUMENT ||
-                           permission == WorkspacePermission.DELETE_DOCUMENT ||
-                           permission == WorkspacePermission.VIEW_DOCUMENT;
-            case VIEWER -> permission == WorkspacePermission.VIEW_DOCUMENT;
-            case GUEST -> permission == WorkspacePermission.VIEW_SHARED_DOCUMENT;
+            case ADMIN -> permission != WorkspacePermissionType.DELETE_WORKSPACE;
+            case EDITOR -> permission == WorkspacePermissionType.CREATE_DOCUMENT ||
+                           permission == WorkspacePermissionType.EDIT_DOCUMENT ||
+                           permission == WorkspacePermissionType.DELETE_DOCUMENT ||
+                           permission == WorkspacePermissionType.VIEW_DOCUMENT ||
+                           permission == WorkspacePermissionType.SHARE_DOCUMENT;
+            case VIEWER -> permission == WorkspacePermissionType.VIEW_DOCUMENT;
+            case GUEST -> permission == WorkspacePermissionType.VIEW_SHARED_DOCUMENT;
         };
     }
 }

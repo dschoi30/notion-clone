@@ -104,6 +104,42 @@ classDiagram
         +checkPermission()
     }
 
+    class WorkspacePermission {
+        -Long id
+        -User user
+        -Workspace workspace
+        -WorkspaceRole role
+        -Long invitedBy
+        -LocalDateTime joinedAt
+        -Boolean isActive
+        +isActive()
+        +hasPermission(WorkspacePermissionType)
+        +hasHigherPermissionThan()
+    }
+
+    class WorkspaceRole {
+        <<enumeration>>
+        OWNER
+        ADMIN
+        EDITOR
+        VIEWER
+        GUEST
+    }
+
+    class WorkspacePermissionType {
+        <<enumeration>>
+        DELETE_WORKSPACE
+        MANAGE_WORKSPACE_SETTINGS
+        MANAGE_MEMBERS
+        INVITE_MEMBERS
+        CREATE_DOCUMENT
+        EDIT_DOCUMENT
+        DELETE_DOCUMENT
+        VIEW_DOCUMENT
+        SHARE_DOCUMENT
+        VIEW_SHARED_DOCUMENT
+    }
+
     class Notification {
         -Long id
         -User receiver
@@ -172,6 +208,7 @@ classDiagram
     BaseEntity <|-- DocumentVersion
     BaseEntity <|-- DocumentPropertyTagOption
     BaseEntity <|-- Permission
+    BaseEntity <|-- WorkspacePermission
     BaseEntity <|-- Notification
 
     User "1" -- "*" Workspace : owns
@@ -183,6 +220,8 @@ classDiagram
     DocumentProperty "1" -- "*" DocumentPropertyTagOption : has
     Document "1" -- "*" Permission : controls
     User "1" -- "*" Permission : has
+    User "1" -- "*" WorkspacePermission : has
+    Workspace "1" -- "*" WorkspacePermission : controls
     User "1" -- "*" Notification : receives
     Document "1" -- "1" ViewType : has
     DocumentProperty "1" -- "1" PropertyType : has
@@ -191,5 +230,7 @@ classDiagram
     DocumentVersion "*" -- "1" ViewType : has
     Permission "1" -- "1" PermissionType : has
     Permission "1" -- "1" PermissionStatus : has
+    WorkspacePermission "1" -- "1" WorkspaceRole : has
+    WorkspaceRole "1" -- "*" WorkspacePermissionType : can
     Notification "1" -- "1" NotificationType : has
     Notification "1" -- "1" NotificationStatus : has
