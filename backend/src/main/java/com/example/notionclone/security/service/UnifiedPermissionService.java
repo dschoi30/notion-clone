@@ -6,10 +6,10 @@ import com.example.notionclone.domain.permission.entity.PermissionStatus;
 import com.example.notionclone.domain.permission.entity.PermissionType;
 import com.example.notionclone.domain.permission.repository.PermissionRepository;
 import com.example.notionclone.domain.user.entity.User;
-import com.example.notionclone.domain.workspace.entity.WorkspaceMembership;
 import com.example.notionclone.domain.workspace.entity.WorkspacePermission;
+import com.example.notionclone.domain.workspace.entity.WorkspacePermissionType;
 import com.example.notionclone.domain.workspace.entity.WorkspaceRole;
-import com.example.notionclone.domain.workspace.repository.WorkspaceMembershipRepository;
+import com.example.notionclone.domain.workspace.repository.WorkspacePermissionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,7 +27,7 @@ import java.util.Optional;
 @Transactional(readOnly = true)
 public class UnifiedPermissionService {
 
-    private final WorkspaceMembershipRepository workspaceMembershipRepository;
+    private final WorkspacePermissionRepository workspacePermissionRepository;
     private final PermissionRepository permissionRepository;
 
     /**
@@ -49,11 +49,11 @@ public class UnifiedPermissionService {
 
         // 3. 워크스페이스 역할 기반 권한 확인
         if (document.getWorkspace() != null) {
-            Optional<WorkspaceMembership> membership = workspaceMembershipRepository
+            Optional<WorkspacePermission> permission = workspacePermissionRepository
                     .findByUserAndWorkspaceId(user, document.getWorkspace().getId());
             
-            if (membership.isPresent() && membership.get().isActive()) {
-                WorkspaceRole role = membership.get().getRole();
+            if (permission.isPresent() && permission.get().isActive()) {
+                WorkspaceRole role = permission.get().getRole();
                 if (hasWorkspaceRolePermission(role, requiredLevel)) {
                     return true;
                 }
@@ -71,20 +71,20 @@ public class UnifiedPermissionService {
     /**
      * 워크스페이스 권한 검증
      */
-    public boolean hasWorkspacePermission(User user, Long workspaceId, WorkspacePermission permission) {
-        Optional<WorkspaceMembership> membership = workspaceMembershipRepository
+    public boolean hasWorkspacePermission(User user, Long workspaceId, WorkspacePermissionType permission) {
+        Optional<WorkspacePermission> workspacePermission = workspacePermissionRepository
                 .findByUserAndWorkspaceId(user, workspaceId);
         
-        return membership.isPresent() && 
-               membership.get().isActive() && 
-               membership.get().hasPermission(permission);
+        return workspacePermission.isPresent() && 
+               workspacePermission.get().isActive() && 
+               workspacePermission.get().hasPermission(permission);
     }
 
     /**
      * 문서 생성 권한 검증
      */
     public boolean canCreateDocument(User user, Long workspaceId) {
-        return hasWorkspacePermission(user, workspaceId, WorkspacePermission.CREATE_DOCUMENT);
+        return hasWorkspacePermission(user, workspaceId, WorkspacePermissionType.CREATE_DOCUMENT);
     }
 
     /**
@@ -104,7 +104,7 @@ public class UnifiedPermissionService {
         }
         
         if (document.getWorkspace() != null) {
-            return hasWorkspacePermission(user, document.getWorkspace().getId(), WorkspacePermission.DELETE_DOCUMENT);
+            return hasWorkspacePermission(user, document.getWorkspace().getId(), WorkspacePermissionType.DELETE_DOCUMENT);
         }
         
         return false;
@@ -115,7 +115,7 @@ public class UnifiedPermissionService {
      */
     public boolean canShareDocument(User user, Document document) {
         return hasDocumentAccess(user, document, DocumentAccessLevel.WRITE) ||
-               hasWorkspacePermission(user, document.getWorkspace().getId(), WorkspacePermission.SHARE_DOCUMENT);
+               hasWorkspacePermission(user, document.getWorkspace().getId(), WorkspacePermissionType.SHARE_DOCUMENT);
     }
 
     /**
@@ -130,7 +130,7 @@ public class UnifiedPermissionService {
     /**
      * 워크스페이스 권한 검증 및 예외 발생
      */
-    public void checkWorkspacePermission(User user, Long workspaceId, WorkspacePermission permission) {
+    public void checkWorkspacePermission(User user, Long workspaceId, WorkspacePermissionType permission) {
         if (!hasWorkspacePermission(user, workspaceId, permission)) {
             throw new SecurityException("워크스페이스 권한이 없습니다.");
         }

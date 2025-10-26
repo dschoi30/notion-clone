@@ -928,3 +928,22 @@
   - 수정: User 엔티티의 기본값(`role = UserRole.USER`) 활용, 중복 호출 제거
   - User 엔티티에 역할 할당 전략 문서화 추가
   - 영향: 일관성 확보, 중복 코드 제거, 유지보수성 향상
+
+## 2025-10-26 (권한 관리 시스템 엔티티명 통일)
+- **WorkspaceMembership을 WorkspacePermission으로 통일**
+  - 목적: 문서별 권한(Permission)과 워크스페이스 권한을 일관된 명명 규칙으로 통일
+  - 변경사항:
+    - 엔티티명: `WorkspaceMembership` → `WorkspacePermission`
+    - 테이블명: `workspace_memberships` → `workspace_permissions`
+    - Repository명: `WorkspaceMembershipRepository` → `WorkspacePermissionRepository`
+    - 모든 관련 서비스, 컨트롤러, Aspect에서 참조 업데이트
+  - 영향: 권한 관리 시스템의 일관성 확보, 개발자 경험 향상
+- **클래스 다이어그램 및 ERD 업데이트**
+  - `notion_clone_class_diagram.mermaid`: WorkspacePermission 엔티티 및 관계 추가
+  - `notion_clone_erd.mermaid`: WorkspacePermission 테이블 및 관계 매핑 추가
+  - WorkspaceRole enum과의 관계 명확화
+  - 영향: 시스템 아키텍처 문서의 정확성 및 최신성 확보
+- WorkspacePermission enum을 WorkspacePermissionType으로 변경하여 엔티티와의 이름 충돌 해결
+  - 모든 관련 파일에서 참조 업데이트 완료 (WorkspaceRole, WorkspaceMembership, WorkspaceRoleService, UnifiedPermissionService, RoleBasedAccessControlAspect)
+  - 클래스 다이어그램에 WorkspacePermissionType enum 추가 및 관계 정의
+  - 권한 시스템 구조 개선으로 더 명확한 코드 구조 확보
