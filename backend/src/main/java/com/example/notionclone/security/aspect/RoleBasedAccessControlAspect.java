@@ -2,10 +2,10 @@ package com.example.notionclone.security.aspect;
 
 import com.example.notionclone.domain.user.entity.User;
 import com.example.notionclone.domain.user.entity.UserRole;
-import com.example.notionclone.domain.workspace.entity.WorkspaceMembership;
-import com.example.notionclone.domain.workspace.entity.WorkspaceRole;
 import com.example.notionclone.domain.workspace.entity.WorkspacePermission;
-import com.example.notionclone.domain.workspace.repository.WorkspaceMembershipRepository;
+import com.example.notionclone.domain.workspace.entity.WorkspacePermissionType;
+import com.example.notionclone.domain.workspace.entity.WorkspaceRole;
+import com.example.notionclone.domain.workspace.repository.WorkspacePermissionRepository;
 import com.example.notionclone.security.annotation.RequireRole;
 import com.example.notionclone.security.annotation.RequireWorkspaceRole;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +34,7 @@ import java.util.Optional;
 @Slf4j
 public class RoleBasedAccessControlAspect {
 
-    private final WorkspaceMembershipRepository workspaceMembershipRepository;
+    private final WorkspacePermissionRepository workspacePermissionRepository;
 
     /**
      * 시스템 전역 역할 기반 접근 제어
@@ -82,16 +82,16 @@ public class RoleBasedAccessControlAspect {
             throw new SecurityException("워크스페이스 ID를 찾을 수 없습니다.");
         }
 
-        // 워크스페이스 멤버십 조회
-        Optional<WorkspaceMembership> membershipOpt = workspaceMembershipRepository
+        // 워크스페이스 권한 조회
+        Optional<WorkspacePermission> permissionOpt = workspacePermissionRepository
                 .findByUserAndWorkspaceId(user, workspaceId);
         
-        if (membershipOpt.isEmpty() || !membershipOpt.get().isActive()) {
+        if (permissionOpt.isEmpty() || !permissionOpt.get().isActive()) {
             throw new SecurityException("워크스페이스 멤버가 아닙니다.");
         }
 
-        WorkspaceMembership membership = membershipOpt.get();
-        WorkspaceRole userRole = membership.getRole();
+        WorkspacePermission permission = permissionOpt.get();
+        WorkspaceRole userRole = permission.getRole();
 
         // 역할 검증
         if (requireWorkspaceRole.roles().length > 0) {
@@ -106,7 +106,7 @@ public class RoleBasedAccessControlAspect {
         // 권한 검증
         if (requireWorkspaceRole.permissions().length > 0) {
             boolean hasRequiredPermission = Arrays.stream(requireWorkspaceRole.permissions())
-                    .anyMatch(permission -> membership.hasPermission(WorkspacePermission.valueOf(permission)));
+                    .anyMatch(perm -> permission.hasPermission(WorkspacePermissionType.valueOf(perm)));
             
             if (!hasRequiredPermission) {
                 throw new SecurityException("워크스페이스 권한이 없습니다. 필요한 권한: " + Arrays.toString(requireWorkspaceRole.permissions()));
