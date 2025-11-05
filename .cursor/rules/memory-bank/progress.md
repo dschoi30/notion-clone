@@ -216,7 +216,7 @@
   - 라우팅 로그: `DocumentEditor.jsx`, `App.jsx`, `DocumentContext.jsx`에 `router` 네임스페이스 로깅 추가(slug sync/네비게이션/selectDocument).
   - 버전 UI 로깅: `VersionHistoryPanel.jsx`에 목록/단건 조회 로깅 추가 및 소소한 스타일 정리.
   - BE 보완: `DocumentVersionController` 인증 누락 시 401 명시. gradle assemble 확인.
-  - 테이블 뷰에서 “열기” 동작 시 URL 동기화 경합 완화(`DocumentEditor` slug 동기화 로직 보수).
+  - 테이블 뷰에서 "열기" 동작 시 URL 동기화 경합 완화(`DocumentEditor` slug 동기화 로직 보수).
 - 2025-08-15: versioning Phase A 진행 시작
   - 브랜치: `feature/versioning-be-restore`, `feature/versioning-fe-restore`
   - BE: `POST /api/workspaces/{wid}/documents/{docId}/versions/{versionId}/restore` 추가
@@ -929,6 +929,45 @@
   - User 엔티티에 역할 할당 전략 문서화 추가
   - 영향: 일관성 확보, 중복 코드 제거, 유지보수성 향상
 
+## 2025-10-12 (DummyDataTestPanel z-index 정리)
+- **DummyDataTestPanel.jsx의 Select 박스 z-index 정리 완료**
+  - zIndex.js 상수 파일 import 추가
+  - 모든 SelectContent에 Z_INDEX.POPOVER(1060) 적용
+  - 하드코딩된 z-[2000] 값 제거하고 중앙화된 상수 사용
+  - 팝오버 레이어에 맞는 적절한 z-index 값 적용으로 일관성 확보
+
+## 2025-10-18 (더미 데이터 생성 시 부모 문서 속성 상속 기능 구현)
+- **백엔드 DummyDataService 개선**
+  - 부모 문서의 속성을 자식 문서들이 상속받도록 로직 구현
+  - `getParentDocumentProperties()` 메서드 추가로 부모 문서 속성 조회
+  - `createPropertiesForDocument()` 메서드 수정으로 부모 속성 상속 + 추가 속성 생성
+  - DocumentPropertyRepository에 `findByDocumentOrderBySortOrder()` 메서드 추가
+  - 상속된 속성 개수를 응답에 포함하여 프론트엔드에서 확인 가능
+- **프론트엔드 DummyDataTestPanel 개선**
+  - 선택된 경로 정보를 실시간으로 표시하는 UI 추가
+  - 루트 경로와 특정 폴더 선택 시 다른 설명 메시지 제공
+  - 부모 폴더 선택 시 "자식 문서들이 부모 폴더의 속성을 자동으로 상속받습니다" 안내
+  - 테스트 결과에 상속된 속성 개수 표시
+
+## 2025-10-25
+- 성능 테스트 기능 전면 제거 (프론트/백엔드)
+  - FE: `frontend/src/components/settings/DummyDataTestPanel.jsx`에서 성능 테스트 UI/상태/로직 삭제
+  - BE: `DummyDataController`의 `/performance-test` 엔드포인트 제거, `DummyDataService` 테스트 메서드 일체 제거
+- 더미 데이터 생성 고도화
+  - 속성 생성 시 타입(TEXT/NUMBER/DATE/TAG)별 더미 값 자동 생성
+  - 루트 경로(parentId 없음)에서도 문서 속성 템플릿 생성 후 각 문서에 상속/저장되도록 처리
+- 관리 도구 개선
+  - DB 최적화(PostgreSQL): 인덱스 생성 + `ANALYZE` 수행, 단계별 로깅 추가
+  - 더미 데이터 삭제: FK 제약 고려한 안전 삭제 순서 적용
+    1) `document_property_values`(document_id/property_id 참조)
+    2) `document_versions`
+    3) `document_properties`(document_id/name 조건)
+    4) `documents`(title LIKE 'Dummy%')
+- UI/UX 보완
+  - 관리 도구 버튼 툴팁/설명 추가, 기능별 로딩 상태 분리(`isOptimizing`, `isClearing`)
+  - 숫자 천 단위 콤마 포맷팅 도입 (`formatNumber`), 상단 카운터 라벨 개선(전체 문서/전체 속성)
+- 로깅 일원화: `DummyDataService`에 `@Slf4j` 적용 및 단계별 info/warn/error 로그 추가
+
 ## 2025-10-26 (권한 관리 시스템 엔티티명 통일)
 - **WorkspaceMembership을 WorkspacePermission으로 통일**
   - 목적: 문서별 권한(Permission)과 워크스페이스 권한을 일관된 명명 규칙으로 통일
@@ -947,3 +986,14 @@
   - 모든 관련 파일에서 참조 업데이트 완료 (WorkspaceRole, WorkspaceMembership, WorkspaceRoleService, UnifiedPermissionService, RoleBasedAccessControlAspect)
   - 클래스 다이어그램에 WorkspacePermissionType enum 추가 및 관계 정의
   - 권한 시스템 구조 개선으로 더 명확한 코드 구조 확보
+
+## 2025-10-30 (PR #60 보안/성능 리뷰 반영)
+- 관리자 보호 복구: `DummyDataController` `@PreAuthorize('ADMIN')` 재활성화 (generate-bulk/clear/optimize)
+- 접근 권한 검증: `DocumentController.getTableDocuments`에 `@CurrentUser` 추가 및 `UnifiedPermissionService.hasWorkspacePermission(VIEW_DOCUMENT)` 검사
+- 보안 강화: 더미 사용자 비밀번호를 `passwordEncoder.encode("dummy")`로 해시 저장
+- N+1 제거/배치 저장: 자식 문서 속성 값 생성 시 `findByDocumentIdIn(...)`로 일괄 조회 후 `DocumentPropertyValueRepository.saveAll(...)` 사용
+- JPQL 정리: `CAST(d.viewType AS string)` 제거, DTO 변환부에서 `String.valueOf(result[2])`로 안전 변환
+- 리포지토리 보강: `DocumentPropertyRepository.findByDocumentIdIn(...)` 추가
+- 의존성 주입 개선: `@Autowired` 필드 주입을 생성자 주입으로 변경
+  - `DummyDataController`: `@RequiredArgsConstructor` 추가, 필드를 `final`로 변경하여 불변성 확보
+  - `DummyDataService`: `@RequiredArgsConstructor` 추가, 필드를 `final`로 변경하여 테스트 가능성 및 불변성 향상
