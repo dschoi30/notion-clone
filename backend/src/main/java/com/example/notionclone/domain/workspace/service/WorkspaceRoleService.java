@@ -2,10 +2,10 @@ package com.example.notionclone.domain.workspace.service;
 
 import com.example.notionclone.domain.user.entity.User;
 import com.example.notionclone.domain.workspace.entity.Workspace;
-import com.example.notionclone.domain.workspace.entity.WorkspaceMembership;
-import com.example.notionclone.domain.workspace.entity.WorkspaceRole;
 import com.example.notionclone.domain.workspace.entity.WorkspacePermission;
-import com.example.notionclone.domain.workspace.repository.WorkspaceMembershipRepository;
+import com.example.notionclone.domain.workspace.entity.WorkspacePermissionType;
+import com.example.notionclone.domain.workspace.entity.WorkspaceRole;
+import com.example.notionclone.domain.workspace.repository.WorkspacePermissionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,55 +23,55 @@ import java.util.Optional;
 @Transactional(readOnly = true)
 public class WorkspaceRoleService {
 
-    private final WorkspaceMembershipRepository workspaceMembershipRepository;
+    private final WorkspacePermissionRepository workspacePermissionRepository;
 
     /**
      * 사용자를 워크스페이스에 초대
      */
     @Transactional
-    public WorkspaceMembership inviteUser(Workspace workspace, User user, WorkspaceRole role, User invitedBy) {
+    public WorkspacePermission inviteUser(Workspace workspace, User user, WorkspaceRole role, User invitedBy) {
         // 이미 멤버인지 확인
-        Optional<WorkspaceMembership> existingMembership = workspaceMembershipRepository
+        Optional<WorkspacePermission> existingPermission = workspacePermissionRepository
                 .findByUserAndWorkspaceId(user, workspace.getId());
         
-        if (existingMembership.isPresent()) {
-            WorkspaceMembership membership = existingMembership.get();
-            if (membership.isActive()) {
+        if (existingPermission.isPresent()) {
+            WorkspacePermission permission = existingPermission.get();
+            if (permission.isActive()) {
                 throw new IllegalStateException("이미 워크스페이스 멤버입니다.");
             } else {
-                // 비활성 멤버십 재활성화
-                membership.setIsActive(true);
-                membership.setRole(role);
-                membership.setInvitedBy(invitedBy.getId());
-                return workspaceMembershipRepository.save(membership);
+                // 비활성 권한 재활성화
+                permission.setIsActive(true);
+                permission.setRole(role);
+                permission.setInvitedBy(invitedBy.getId());
+                return workspacePermissionRepository.save(permission);
             }
         }
 
-        // 새 멤버십 생성
-        WorkspaceMembership membership = new WorkspaceMembership();
-        membership.setUser(user);
-        membership.setWorkspace(workspace);
-        membership.setRole(role);
-        membership.setInvitedBy(invitedBy.getId());
-        membership.setIsActive(true);
+        // 새 권한 생성
+        WorkspacePermission permission = new WorkspacePermission();
+        permission.setUser(user);
+        permission.setWorkspace(workspace);
+        permission.setRole(role);
+        permission.setInvitedBy(invitedBy.getId());
+        permission.setIsActive(true);
 
-        return workspaceMembershipRepository.save(membership);
+        return workspacePermissionRepository.save(permission);
     }
 
     /**
      * 사용자의 워크스페이스 역할 변경
      */
     @Transactional
-    public WorkspaceMembership changeUserRole(Long workspaceId, Long userId, WorkspaceRole newRole, User changer) {
+    public WorkspacePermission changeUserRole(Long workspaceId, Long userId, WorkspaceRole newRole, User changer) {
         // 변경 권한 확인
         validateRoleChangePermission(workspaceId, changer, newRole);
 
-        WorkspaceMembership membership = workspaceMembershipRepository
+        WorkspacePermission permission = workspacePermissionRepository
                 .findByUserIdAndWorkspaceId(userId, workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("워크스페이스 멤버를 찾을 수 없습니다."));
 
-        membership.setRole(newRole);
-        return workspaceMembershipRepository.save(membership);
+        permission.setRole(newRole);
+        return workspacePermissionRepository.save(permission);
     }
 
     /**
@@ -82,52 +82,52 @@ public class WorkspaceRoleService {
         // 제거 권한 확인
         validateRemovePermission(workspaceId, remover, userId);
 
-        WorkspaceMembership membership = workspaceMembershipRepository
+        WorkspacePermission permission = workspacePermissionRepository
                 .findByUserIdAndWorkspaceId(userId, workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("워크스페이스 멤버를 찾을 수 없습니다."));
 
-        membership.setIsActive(false);
-        workspaceMembershipRepository.save(membership);
+        permission.setIsActive(false);
+        workspacePermissionRepository.save(permission);
     }
 
     /**
      * 사용자의 워크스페이스 권한 확인
      */
-    public boolean hasPermission(User user, Long workspaceId, WorkspacePermission permission) {
-        Optional<WorkspaceMembership> membership = workspaceMembershipRepository
+    public boolean hasPermission(User user, Long workspaceId, WorkspacePermissionType permission) {
+        Optional<WorkspacePermission> workspacePermission = workspacePermissionRepository
                 .findByUserAndWorkspaceId(user, workspaceId);
         
-        return membership.isPresent() && 
-               membership.get().isActive() && 
-               membership.get().hasPermission(permission);
+        return workspacePermission.isPresent() && 
+               workspacePermission.get().isActive() && 
+               workspacePermission.get().hasPermission(permission);
     }
 
     /**
      * 워크스페이스 멤버 목록 조회
      */
-    public List<WorkspaceMembership> getWorkspaceMembers(Long workspaceId) {
-        return workspaceMembershipRepository.findByWorkspaceIdAndIsActiveTrue(workspaceId);
+    public List<WorkspacePermission> getWorkspaceMembers(Long workspaceId) {
+        return workspacePermissionRepository.findByWorkspaceIdAndIsActiveTrue(workspaceId);
     }
 
     /**
      * 사용자의 워크스페이스 목록 조회
      */
-    public List<WorkspaceMembership> getUserWorkspaces(User user) {
-        return workspaceMembershipRepository.findByUserAndActive(user);
+    public List<WorkspacePermission> getUserWorkspaces(User user) {
+        return workspacePermissionRepository.findByUserAndActive(user);
     }
 
     /**
      * 역할 변경 권한 검증
      */
     private void validateRoleChangePermission(Long workspaceId, User changer, WorkspaceRole newRole) {
-        Optional<WorkspaceMembership> changerMembership = workspaceMembershipRepository
+        Optional<WorkspacePermission> changerPermission = workspacePermissionRepository
                 .findByUserAndWorkspaceId(changer, workspaceId);
         
-        if (changerMembership.isEmpty() || !changerMembership.get().isActive()) {
+        if (changerPermission.isEmpty() || !changerPermission.get().isActive()) {
             throw new SecurityException("워크스페이스 멤버가 아닙니다.");
         }
 
-        WorkspaceRole changerRole = changerMembership.get().getRole();
+        WorkspaceRole changerRole = changerPermission.get().getRole();
         
         // OWNER만 다른 사용자의 역할을 변경할 수 있음
         if (changerRole != WorkspaceRole.OWNER) {
@@ -144,14 +144,14 @@ public class WorkspaceRoleService {
      * 사용자 제거 권한 검증
      */
     private void validateRemovePermission(Long workspaceId, User remover, Long targetUserId) {
-        Optional<WorkspaceMembership> removerMembership = workspaceMembershipRepository
+        Optional<WorkspacePermission> removerPermission = workspacePermissionRepository
                 .findByUserAndWorkspaceId(remover, workspaceId);
         
-        if (removerMembership.isEmpty() || !removerMembership.get().isActive()) {
+        if (removerPermission.isEmpty() || !removerPermission.get().isActive()) {
             throw new SecurityException("워크스페이스 멤버가 아닙니다.");
         }
 
-        WorkspaceRole removerRole = removerMembership.get().getRole();
+        WorkspaceRole removerRole = removerPermission.get().getRole();
         
         // OWNER만 다른 사용자를 제거할 수 있음
         if (removerRole != WorkspaceRole.OWNER) {

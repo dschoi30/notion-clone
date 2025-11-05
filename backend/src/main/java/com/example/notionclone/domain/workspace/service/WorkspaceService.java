@@ -3,7 +3,10 @@ package com.example.notionclone.domain.workspace.service;
 import com.example.notionclone.domain.user.entity.User;
 import com.example.notionclone.domain.workspace.dto.WorkspaceDto;
 import com.example.notionclone.domain.workspace.entity.Workspace;
+import com.example.notionclone.domain.workspace.entity.WorkspacePermission;
+import com.example.notionclone.domain.workspace.entity.WorkspaceRole;
 import com.example.notionclone.domain.workspace.repository.WorkspaceRepository;
+import com.example.notionclone.domain.workspace.repository.WorkspacePermissionRepository;
 import com.example.notionclone.domain.notification.repository.NotificationRepository;
 import com.example.notionclone.domain.notification.entity.NotificationType;
 import com.example.notionclone.domain.notification.entity.NotificationStatus;
@@ -27,6 +30,7 @@ import java.util.Objects;
 @Transactional(readOnly = true)
 public class WorkspaceService {
     private final WorkspaceRepository workspaceRepository;
+    private final WorkspacePermissionRepository workspacePermissionRepository;
     private final NotificationRepository notificationRepository;
     private final DocumentRepository documentRepository;
 
@@ -52,6 +56,18 @@ public class WorkspaceService {
 
         workspace = workspaceRepository.save(workspace);
         log.debug("Saved workspace with ID: {}", workspace.getId());
+        
+        // 워크스페이스 생성자에게 ADMIN 권한 부여
+        WorkspacePermission adminPermission = WorkspacePermission.builder()
+                .user(user)
+                .workspace(workspace)
+                .role(WorkspaceRole.ADMIN)
+                .isActive(true)
+                .joinedAt(java.time.LocalDateTime.now())
+                .build();
+        
+        workspacePermissionRepository.save(adminPermission);
+        log.debug("Created ADMIN permission for user {} in workspace {}", user.getId(), workspace.getId());
         
         return WorkspaceDto.from(workspace);
     }

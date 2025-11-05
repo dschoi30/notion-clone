@@ -40,4 +40,15 @@ public interface PermissionRepository extends JpaRepository<Permission, Long> {
         and p.user.id != :ownerId
     """)
     List<Long> findDocumentIdsWithOtherUserPermissions(@Param("documentIds") List<Long> documentIds, @Param("ownerId") Long ownerId);
+
+    /**
+     * 특정 사용자가 특정 워크스페이스의 문서들에 대한 권한을 조회합니다.
+     */
+    @Query("""
+        select p from Permission p
+        where p.user = :user
+        and p.document.workspace.id = :workspaceId
+        and p.status = :status
+    """)
+    List<Permission> findByUserAndDocumentWorkspaceIdAndStatus(@Param("user") User user, @Param("workspaceId") Long workspaceId, @Param("status") PermissionStatus status);
 } 

@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import WorkspaceGeneralForm from './WorkspaceGeneralForm';
 import DummyDataTestPanel from './DummyDataTestPanel';
 import AccountBasicForm from './AccountBasicForm';
+import PermissionExample from '../examples/PermissionExample';
 import { Z_INDEX } from '@/constants/zIndex';
 
 // 단순 레이아웃 셸: VersionHistoryPanel과 동일한 패널/오버레이 구조
@@ -16,6 +17,8 @@ const BASE_NAV_ITEMS = [
   { id: 'account-basic', label: '기본 설정' },
   { id: 'workspace', label: '워크스페이스', isSection: true },
   { id: 'workspace-general', label: '일반' },
+  { id: 'permissions', label: '권한 시스템', isSection: true },
+  { id: 'permission-example', label: '권한 예시' },
 ];
 
 export default function SettingsPanel({ onClose }) {
@@ -41,6 +44,8 @@ export default function SettingsPanel({ onClose }) {
         return '기본 설정';
       case 'admin-dummy':
         return '더미 데이터 테스트';
+      case 'permission-example':
+        return '권한 시스템 예시';
       default:
         return '설정';
     }
@@ -99,6 +104,8 @@ export default function SettingsPanel({ onClose }) {
 
           {selected === 'admin-dummy' && (
             <DummyDataTestPanel workspaceId={currentWorkspace?.id} />
+          {selected === 'permission-example' && (
+            <PermissionExample workspaceId={currentWorkspace?.id} />
           )}
         </div>
 
