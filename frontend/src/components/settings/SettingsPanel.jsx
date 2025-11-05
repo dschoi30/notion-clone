@@ -104,6 +104,8 @@ export default function SettingsPanel({ onClose }) {
 
           {selected === 'admin-dummy' && (
             <DummyDataTestPanel workspaceId={currentWorkspace?.id} />
+          )}
+          
           {selected === 'permission-example' && (
             <PermissionExample workspaceId={currentWorkspace?.id} />
           )}
