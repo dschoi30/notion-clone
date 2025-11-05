@@ -16,6 +16,8 @@ import com.example.notionclone.domain.user.repository.UserRepository;
 import com.example.notionclone.exception.ResourceNotFoundException;
 import com.example.notionclone.security.CurrentUser;
 import com.example.notionclone.security.UserPrincipal;
+import com.example.notionclone.security.service.UnifiedPermissionService;
+import com.example.notionclone.domain.workspace.entity.WorkspacePermission;
 import com.example.notionclone.domain.notification.service.NotificationService;
 import com.example.notionclone.domain.notification.entity.NotificationType;
 import com.example.notionclone.domain.permission.service.PermissionService;
@@ -57,6 +59,7 @@ public class DocumentController {
     private final DocumentRepository documentRepository;
     private final DocumentPropertyService documentPropertyService;
     private final DocumentPropertyValueService documentPropertyValueService;
+    private final UnifiedPermissionService unifiedPermissionService;
 
     @GetMapping
     public ResponseEntity<List<DocumentResponse>> getDocumentsByWorkspace(
@@ -151,12 +154,21 @@ public class DocumentController {
      */
     @GetMapping("/table-list")
     public ResponseEntity<List<DocumentTableListResponse>> getTableDocuments(
+            @CurrentUser UserPrincipal userPrincipal,
             @PathVariable Long workspaceId) {
-        
-        log.debug("Get table documents request for workspace: {}", workspaceId);
-        
+
+        log.debug("Get table documents request for workspace: {} by user: {}", workspaceId, userPrincipal.getId());
+
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
+
+        boolean allowed = unifiedPermissionService.hasWorkspacePermission(user, workspaceId, WorkspacePermission.VIEW_DOCUMENT);
+        if (!allowed) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+
         List<DocumentTableListResponse> documents = documentService.getTableDocumentsByWorkspace(workspaceId);
-        
+
         return ResponseEntity.ok(documents);
     }
 

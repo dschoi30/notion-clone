@@ -8,16 +8,17 @@ import com.example.notionclone.domain.document.entity.ViewType;
 import com.example.notionclone.domain.workspace.entity.Workspace;
 import com.example.notionclone.domain.document.repository.DocumentRepository;
 import com.example.notionclone.domain.document.repository.DocumentPropertyRepository;
+import com.example.notionclone.domain.document.repository.DocumentPropertyValueRepository;
 import com.example.notionclone.domain.workspace.repository.WorkspaceRepository;
 import com.example.notionclone.domain.user.entity.User;
 import com.example.notionclone.domain.user.entity.UserRole;
 import com.example.notionclone.domain.user.repository.UserRepository;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,27 +26,19 @@ import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 import lombok.extern.slf4j.Slf4j;
+
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class DummyDataService {
 
-    @Autowired
-    private DocumentRepository documentRepository;
-
-    @Autowired
-    private DocumentPropertyRepository documentPropertyRepository;
-
-    @Autowired
-    private WorkspaceRepository workspaceRepository;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
+    private final DocumentRepository documentRepository;
+    private final DocumentPropertyRepository documentPropertyRepository;
+    private final WorkspaceRepository workspaceRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JdbcTemplate jdbcTemplate;
+    private final DocumentPropertyValueRepository documentPropertyValueRepository;
 
     private static final String[] SAMPLE_TITLES = {
             "프로젝트 계획서", "회의록", "기술 문서", "사용자 가이드", "API 문서",
@@ -116,8 +109,8 @@ public class DummyDataService {
             }
             documentPropertyRepository.saveAll(allProperties);
             
-            // 자식 문서의 속성에 더미 값 생성
-            createDummyValuesForChildDocuments(documents, parentProperties);
+            // 자식 문서의 속성에 더미 값 생성 (배치)
+            createDummyValuesForChildDocuments(documents);
 
             Map<String, Object> result = new HashMap<>();
             result.put("documentCount", documents.size());
@@ -413,7 +406,7 @@ public class DummyDataService {
                         User dummyUser = new User();
                         dummyUser.setEmail(dummyEmail);
                         dummyUser.setName("Dummy User");
-                        dummyUser.setPassword("dummy"); // 테스트용 평문 저장
+                        dummyUser.setPassword(passwordEncoder.encode("dummy"));
                         dummyUser.setRole(UserRole.USER);
                         return userRepository.save(dummyUser);
                     } catch (Exception e) {
@@ -517,22 +510,29 @@ public class DummyDataService {
     }
 
     /**
-     * 자식 문서들의 속성에 더미 값 생성
+     * 자식 문서들의 속성에 더미 값 생성 (배치 저장 + N+1 방지)
      */
-    private void createDummyValuesForChildDocuments(List<Document> documents, List<DocumentProperty> parentProperties) {
-        for (Document document : documents) {
-            // 각 문서의 속성 조회
-            List<DocumentProperty> documentProperties = documentPropertyRepository.findByDocumentId(document.getId());
-            
-            for (DocumentProperty property : documentProperties) {
-                String dummyValue = generateDummyValue(property.getType());
-                DocumentPropertyValue propertyValue = DocumentPropertyValue.builder()
-                        .document(document)
-                        .property(property)
-                        .value(dummyValue)
-                        .build();
-                property.getValues().add(propertyValue);
-            }
+    private void createDummyValuesForChildDocuments(List<Document> documents) {
+        if (documents == null || documents.isEmpty()) {
+            return;
+        }
+
+        List<Long> documentIds = documents.stream().map(Document::getId).toList();
+        List<DocumentProperty> allProps = documentPropertyRepository.findByDocumentIdIn(documentIds);
+
+        List<DocumentPropertyValue> allValues = new ArrayList<>();
+        for (DocumentProperty prop : allProps) {
+            String dummyValue = generateDummyValue(prop.getType());
+            DocumentPropertyValue value = DocumentPropertyValue.builder()
+                    .document(prop.getDocument())
+                    .property(prop)
+                    .value(dummyValue)
+                    .build();
+            allValues.add(value);
+        }
+
+        if (!allValues.isEmpty()) {
+            documentPropertyValueRepository.saveAll(allValues);
         }
     }
 

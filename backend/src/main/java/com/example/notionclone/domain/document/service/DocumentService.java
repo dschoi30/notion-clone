@@ -64,8 +64,7 @@ public class DocumentService {
   private final DocumentPropertyTagOptionRepository documentPropertyTagOptionRepository;
   private final DocumentVersionRepository documentVersionRepository;
   private final DocumentPropertyValueRepository documentPropertyValueRepository;
-  @Autowired
-  private DocumentPropertyRepository documentPropertyRepository;
+  private final DocumentPropertyRepository documentPropertyRepository;
 
   public List<DocumentResponse> getDocumentsByWorkspace(Long workspaceId, User user) {
     // 1. 사용자가 소유한 문서 조회

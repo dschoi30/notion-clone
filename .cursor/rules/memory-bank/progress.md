@@ -948,22 +948,33 @@
   - 루트 경로와 특정 폴더 선택 시 다른 설명 메시지 제공
   - 부모 폴더 선택 시 "자식 문서들이 부모 폴더의 속성을 자동으로 상속받습니다" 안내
   - 테스트 결과에 상속된 속성 개수 표시
-+
-+## 2025-10-25
-+- 성능 테스트 기능 전면 제거 (프론트/백엔드)
-+  - FE: `frontend/src/components/settings/DummyDataTestPanel.jsx`에서 성능 테스트 UI/상태/로직 삭제
-+  - BE: `DummyDataController`의 `/performance-test` 엔드포인트 제거, `DummyDataService` 테스트 메서드 일체 제거
-+- 더미 데이터 생성 고도화
-+  - 속성 생성 시 타입(TEXT/NUMBER/DATE/TAG)별 더미 값 자동 생성
-+  - 루트 경로(parentId 없음)에서도 문서 속성 템플릿 생성 후 각 문서에 상속/저장되도록 처리
-+- 관리 도구 개선
-+  - DB 최적화(PostgreSQL): 인덱스 생성 + `ANALYZE` 수행, 단계별 로깅 추가
-+  - 더미 데이터 삭제: FK 제약 고려한 안전 삭제 순서 적용
-+    1) `document_property_values`(document_id/property_id 참조)
-+    2) `document_versions`
-+    3) `document_properties`(document_id/name 조건)
-+    4) `documents`(title LIKE 'Dummy%')
-+- UI/UX 보완
-+  - 관리 도구 버튼 툴팁/설명 추가, 기능별 로딩 상태 분리(`isOptimizing`, `isClearing`)
-+  - 숫자 천 단위 콤마 포맷팅 도입 (`formatNumber`), 상단 카운터 라벨 개선(전체 문서/전체 속성)
-+- 로깅 일원화: `DummyDataService`에 `@Slf4j` 적용 및 단계별 info/warn/error 로그 추가
+
+## 2025-10-25
+- 성능 테스트 기능 전면 제거 (프론트/백엔드)
+  - FE: `frontend/src/components/settings/DummyDataTestPanel.jsx`에서 성능 테스트 UI/상태/로직 삭제
+  - BE: `DummyDataController`의 `/performance-test` 엔드포인트 제거, `DummyDataService` 테스트 메서드 일체 제거
+- 더미 데이터 생성 고도화
+  - 속성 생성 시 타입(TEXT/NUMBER/DATE/TAG)별 더미 값 자동 생성
+  - 루트 경로(parentId 없음)에서도 문서 속성 템플릿 생성 후 각 문서에 상속/저장되도록 처리
+- 관리 도구 개선
+  - DB 최적화(PostgreSQL): 인덱스 생성 + `ANALYZE` 수행, 단계별 로깅 추가
+  - 더미 데이터 삭제: FK 제약 고려한 안전 삭제 순서 적용
+    1) `document_property_values`(document_id/property_id 참조)
+    2) `document_versions`
+    3) `document_properties`(document_id/name 조건)
+    4) `documents`(title LIKE 'Dummy%')
+- UI/UX 보완
+  - 관리 도구 버튼 툴팁/설명 추가, 기능별 로딩 상태 분리(`isOptimizing`, `isClearing`)
+  - 숫자 천 단위 콤마 포맷팅 도입 (`formatNumber`), 상단 카운터 라벨 개선(전체 문서/전체 속성)
+- 로깅 일원화: `DummyDataService`에 `@Slf4j` 적용 및 단계별 info/warn/error 로그 추가
+
+## 2025-10-30 (PR #60 보안/성능 리뷰 반영)
+- 관리자 보호 복구: `DummyDataController` `@PreAuthorize('ADMIN')` 재활성화 (generate-bulk/clear/optimize)
+- 접근 권한 검증: `DocumentController.getTableDocuments`에 `@CurrentUser` 추가 및 `UnifiedPermissionService.hasWorkspacePermission(VIEW_DOCUMENT)` 검사
+- 보안 강화: 더미 사용자 비밀번호를 `passwordEncoder.encode("dummy")`로 해시 저장
+- N+1 제거/배치 저장: 자식 문서 속성 값 생성 시 `findByDocumentIdIn(...)`로 일괄 조회 후 `DocumentPropertyValueRepository.saveAll(...)` 사용
+- JPQL 정리: `CAST(d.viewType AS string)` 제거, DTO 변환부에서 `String.valueOf(result[2])`로 안전 변환
+- 리포지토리 보강: `DocumentPropertyRepository.findByDocumentIdIn(...)` 추가
+- 의존성 주입 개선: `@Autowired` 필드 주입을 생성자 주입으로 변경
+  - `DummyDataController`: `@RequiredArgsConstructor` 추가, 필드를 `final`로 변경하여 불변성 확보
+  - `DummyDataService`: `@RequiredArgsConstructor` 추가, 필드를 `final`로 변경하여 테스트 가능성 및 불변성 향상
