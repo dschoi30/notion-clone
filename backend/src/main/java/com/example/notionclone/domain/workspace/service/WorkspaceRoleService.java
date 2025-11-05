@@ -40,20 +40,21 @@ public class WorkspaceRoleService {
                 throw new IllegalStateException("이미 워크스페이스 멤버입니다.");
             } else {
                 // 비활성 권한 재활성화
-                permission.setIsActive(true);
-                permission.setRole(role);
-                permission.setInvitedBy(invitedBy.getId());
+                permission.activate();
+                permission.changeRole(role);
+                permission.updateInvitedBy(invitedBy.getId());
                 return workspacePermissionRepository.save(permission);
             }
         }
 
         // 새 권한 생성
-        WorkspacePermission permission = new WorkspacePermission();
-        permission.setUser(user);
-        permission.setWorkspace(workspace);
-        permission.setRole(role);
-        permission.setInvitedBy(invitedBy.getId());
-        permission.setIsActive(true);
+        WorkspacePermission permission = WorkspacePermission.builder()
+                .workspace(workspace)
+                .user(user)
+                .role(role)
+                .invitedBy(invitedBy.getId())
+                .isActive(true)
+                .build();
 
         return workspacePermissionRepository.save(permission);
     }
@@ -70,7 +71,7 @@ public class WorkspaceRoleService {
                 .findByUserIdAndWorkspaceId(userId, workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("워크스페이스 멤버를 찾을 수 없습니다."));
 
-        permission.setRole(newRole);
+        permission.changeRole(newRole);
         return workspacePermissionRepository.save(permission);
     }
 
@@ -86,7 +87,7 @@ public class WorkspaceRoleService {
                 .findByUserIdAndWorkspaceId(userId, workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("워크스페이스 멤버를 찾을 수 없습니다."));
 
-        permission.setIsActive(false);
+        permission.deactivate();
         workspacePermissionRepository.save(permission);
     }
 

@@ -18,11 +18,11 @@ import com.example.notionclone.security.CurrentUser;
 import com.example.notionclone.security.UserPrincipal;
 import com.example.notionclone.security.service.UnifiedPermissionService;
 import com.example.notionclone.domain.workspace.entity.WorkspacePermission;
+import com.example.notionclone.domain.workspace.entity.WorkspacePermissionType;
 import com.example.notionclone.domain.notification.service.NotificationService;
 import com.example.notionclone.domain.notification.entity.NotificationType;
 import com.example.notionclone.domain.permission.service.PermissionService;
 import com.example.notionclone.domain.permission.entity.PermissionType;
-import com.example.notionclone.domain.workspace.entity.WorkspacePermission;
 import com.example.notionclone.domain.workspace.entity.WorkspaceRole;
 import com.example.notionclone.domain.workspace.repository.WorkspacePermissionRepository;
 import com.example.notionclone.domain.document.dto.DocumentPropertyDto;
@@ -166,7 +166,7 @@ public class DocumentController {
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
 
-        boolean allowed = unifiedPermissionService.hasWorkspacePermission(user, workspaceId, WorkspacePermission.VIEW_DOCUMENT);
+        boolean allowed = unifiedPermissionService.hasWorkspacePermission(user, workspaceId, WorkspacePermissionType.VIEW_DOCUMENT);
         if (!allowed) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
         }
@@ -292,11 +292,11 @@ public class DocumentController {
             
             if (!hasWorkspacePermission) {
                 WorkspacePermission workspacePermission = WorkspacePermission.builder()
-                        .user(invitee)
                         .workspace(document.getWorkspace())
+                        .user(invitee)
                         .role(WorkspaceRole.VIEWER) // 문서 초대 시 기본적으로 VIEWER 권한
+                        .invitedBy(inviter.getId())
                         .isActive(true)
-                        .joinedAt(java.time.LocalDateTime.now())
                         .build();
                 
                 workspacePermissionRepository.save(workspacePermission);

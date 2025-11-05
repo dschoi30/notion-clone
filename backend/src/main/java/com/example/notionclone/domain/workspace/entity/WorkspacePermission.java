@@ -3,10 +3,10 @@ package com.example.notionclone.domain.workspace.entity;
 import com.example.notionclone.domain.BaseEntity;
 import com.example.notionclone.domain.user.entity.User;
 import jakarta.persistence.*;
-import lombok.Getter;
+import lombok.AccessLevel;
 import lombok.Builder;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 
 import java.time.LocalDateTime;
 
@@ -18,9 +18,7 @@ import java.time.LocalDateTime;
 @Table(name = "workspace_permissions", 
        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "workspace_id"}))
 @Getter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class WorkspacePermission extends BaseEntity {
     
     @Id
@@ -46,8 +44,17 @@ public class WorkspacePermission extends BaseEntity {
     private LocalDateTime joinedAt;
 
     @Column(name = "is_active")
-    @Builder.Default
-    private Boolean isActive = true;
+    private Boolean isActive;
+
+    @Builder
+    public WorkspacePermission(User user, Workspace workspace, WorkspaceRole role, Long invitedBy, Boolean isActive, LocalDateTime joinedAt) {
+        this.user = user;
+        this.workspace = workspace;
+        this.role = role;
+        this.invitedBy = invitedBy;
+        this.isActive = isActive != null ? isActive : true;
+        this.joinedAt = joinedAt != null ? joinedAt : LocalDateTime.now();
+    }
 
     @PrePersist
     protected void onCreate() {
@@ -75,6 +82,37 @@ public class WorkspacePermission extends BaseEntity {
      */
     public boolean hasHigherPermissionThan(WorkspacePermission other) {
         return this.role.hasHigherPermissionThan(other.getRole());
+    }
+
+    /**
+     * 권한을 활성화
+     */
+    public void activate() {
+        this.isActive = true;
+    }
+
+    /**
+     * 권한을 비활성화
+     */
+    public void deactivate() {
+        this.isActive = false;
+    }
+
+    /**
+     * 역할 변경
+     */
+    public void changeRole(WorkspaceRole newRole) {
+        if (newRole == null) {
+            throw new IllegalArgumentException("역할은 null일 수 없습니다.");
+        }
+        this.role = newRole;
+    }
+
+    /**
+     * 초대자 업데이트
+     */
+    public void updateInvitedBy(Long invitedBy) {
+        this.invitedBy = invitedBy;
     }
 }
 
