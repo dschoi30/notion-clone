@@ -74,7 +74,7 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
      * @param workspaceId 워크스페이스 ID
      * @return [id, title, viewType] 형태의 Object 배열 리스트
      */
-    @Query("SELECT d.id, d.title, CAST(d.viewType AS string) FROM Document d " +
+    @Query("SELECT d.id, d.title, d.viewType FROM Document d " +
            "WHERE d.workspace.id = :workspaceId " +
            "AND d.viewType = 'TABLE' " +
            "AND d.isTrashed = false " +

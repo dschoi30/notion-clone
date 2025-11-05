@@ -24,7 +24,7 @@ public class DocumentTableListResponse {
         return DocumentTableListResponse.builder()
                 .id((Long) result[0])
                 .title((String) result[1])
-                .viewType((String) result[2])
+                .viewType(String.valueOf(result[2]))
                 .build();
     }
 }
