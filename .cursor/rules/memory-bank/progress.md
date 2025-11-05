@@ -997,3 +997,34 @@
 - 의존성 주입 개선: `@Autowired` 필드 주입을 생성자 주입으로 변경
   - `DummyDataController`: `@RequiredArgsConstructor` 추가, 필드를 `final`로 변경하여 불변성 확보
   - `DummyDataService`: `@RequiredArgsConstructor` 추가, 필드를 `final`로 변경하여 테스트 가능성 및 불변성 향상
+
+## 2025-11-06 (WorkspacePermission 엔티티 캡슐화 강화)
+- **WorkspacePermission 엔티티 Builder 패턴 적용 및 명시적 상태 변경 메서드 추가**
+  - 목적: 다른 엔티티들과 일관된 Builder 패턴 사용, 무분별한 setter 사용 방지
+  - 적용 사항:
+    - 롬복 `@Builder` 추가 (커스텀 생성자에 적용)
+    - `@NoArgsConstructor(access = AccessLevel.PROTECTED)`로 기본 생성자 보호
+    - 생성자에서 `isActive`와 `joinedAt` 기본값 처리
+  - 추가된 상태 변경 메서드:
+    - `activate()`: 권한 활성화
+    - `deactivate()`: 권한 비활성화
+    - `changeRole(WorkspaceRole)`: 역할 변경 (null 검증 포함)
+    - `updateInvitedBy(Long)`: 초대자 업데이트
+  - 영향: 엔티티 생성은 Builder 패턴으로 일관성 유지, 상태 변경은 명시적 메서드로 제어
+- **WorkspaceRoleService 및 관련 서비스 리팩토링**
+  - `WorkspacePermission.builder()` 사용으로 객체 생성 방식 통일
+  - 모든 setter 호출을 명시적 업데이트 메서드로 교체
+  - `inviteUser()`: Builder 사용 및 activate/changeRole/updateInvitedBy 적용
+  - `changeUserRole()`: `changeRole()` 메서드 사용
+  - `removeUser()`: `deactivate()` 메서드 사용
+  - 영향: 엔티티 생성과 상태 변경의 명확한 분리, 코드 일관성 및 유지보수성 향상
+
+## 2025-11-06 (RoleBasedAccessControlAspect ClassCastException 수정)
+- **RoleBasedAccessControlAspect에서 UserPrincipal 캐스팅 오류 해결**
+  - 문제: `authentication.getPrincipal()`을 `User` 엔티티로 직접 캐스팅하여 `ClassCastException` 발생
+  - 원인: Spring Security의 `Authentication` 객체에는 `UserPrincipal`이 저장되어 있음
+  - 해결:
+    - `UserRepository` 의존성 추가하여 `User` 엔티티 조회 가능하도록 변경
+    - `UserPrincipal`에서 `id`를 추출하여 `UserRepository.findById()`로 실제 엔티티 조회
+    - `checkSystemRole()` 및 `checkWorkspaceRole()` 메서드 모두 수정
+  - 영향: `PermissionExample.jsx` 접근 시 발생하던 `ClassCastException` 해결, 권한 체크 정상 동작

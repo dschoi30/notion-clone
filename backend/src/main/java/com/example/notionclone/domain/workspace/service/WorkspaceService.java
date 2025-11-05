@@ -11,7 +11,6 @@ import com.example.notionclone.domain.notification.repository.NotificationReposi
 import com.example.notionclone.domain.notification.entity.NotificationType;
 import com.example.notionclone.domain.notification.entity.NotificationStatus;
 import com.example.notionclone.domain.document.repository.DocumentRepository;
-import com.example.notionclone.domain.document.service.DocumentService;
 import com.example.notionclone.domain.document.entity.Document;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,11 +58,11 @@ public class WorkspaceService {
         
         // 워크스페이스 생성자에게 ADMIN 권한 부여
         WorkspacePermission adminPermission = WorkspacePermission.builder()
-                .user(user)
                 .workspace(workspace)
+                .user(user)
                 .role(WorkspaceRole.ADMIN)
+                .invitedBy(user.getId()) // 자기 자신이 생성자이므로
                 .isActive(true)
-                .joinedAt(java.time.LocalDateTime.now())
                 .build();
         
         workspacePermissionRepository.save(adminPermission);

@@ -2,10 +2,12 @@ package com.example.notionclone.security.aspect;
 
 import com.example.notionclone.domain.user.entity.User;
 import com.example.notionclone.domain.user.entity.UserRole;
+import com.example.notionclone.domain.user.repository.UserRepository;
 import com.example.notionclone.domain.workspace.entity.WorkspacePermission;
 import com.example.notionclone.domain.workspace.entity.WorkspacePermissionType;
 import com.example.notionclone.domain.workspace.entity.WorkspaceRole;
 import com.example.notionclone.domain.workspace.repository.WorkspacePermissionRepository;
+import com.example.notionclone.security.UserPrincipal;
 import com.example.notionclone.security.annotation.RequireRole;
 import com.example.notionclone.security.annotation.RequireWorkspaceRole;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +37,7 @@ import java.util.Optional;
 public class RoleBasedAccessControlAspect {
 
     private final WorkspacePermissionRepository workspacePermissionRepository;
+    private final UserRepository userRepository;
 
     /**
      * 시스템 전역 역할 기반 접근 제어
@@ -47,7 +50,14 @@ public class RoleBasedAccessControlAspect {
             throw new SecurityException("인증이 필요합니다.");
         }
 
-        User user = (User) authentication.getPrincipal();
+        // UserPrincipal에서 User 엔티티 조회
+        if (!(authentication.getPrincipal() instanceof UserPrincipal)) {
+            throw new SecurityException("인증 정보가 올바르지 않습니다.");
+        }
+
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new SecurityException("사용자를 찾을 수 없습니다."));
         UserRole userRole = user.getRole();
 
         // 역할 검증
@@ -74,7 +84,14 @@ public class RoleBasedAccessControlAspect {
             throw new SecurityException("인증이 필요합니다.");
         }
 
-        User user = (User) authentication.getPrincipal();
+        // UserPrincipal에서 User 엔티티 조회
+        if (!(authentication.getPrincipal() instanceof UserPrincipal)) {
+            throw new SecurityException("인증 정보가 올바르지 않습니다.");
+        }
+
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new SecurityException("사용자를 찾을 수 없습니다."));
         
         // 워크스페이스 ID 추출
         Long workspaceId = extractWorkspaceId(requireWorkspaceRole.workspaceIdParam());
