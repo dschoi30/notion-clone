@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import WorkspaceGeneralForm from './WorkspaceGeneralForm';
+import DummyDataTestPanel from './DummyDataTestPanel';
 import AccountBasicForm from './AccountBasicForm';
 import PermissionExample from '../examples/PermissionExample';
 import { Z_INDEX } from '@/constants/zIndex';
@@ -11,7 +12,7 @@ import { Z_INDEX } from '@/constants/zIndex';
 // 단순 레이아웃 셸: VersionHistoryPanel과 동일한 패널/오버레이 구조
 // 좌측 네비 + 우측 컨텐츠 영역만 제공. 세부 폼은 후속 태스크에서 구현.
 
-const NAV_ITEMS = [
+const BASE_NAV_ITEMS = [
   { id: 'account', label: '계정', isSection: true },
   { id: 'account-basic', label: '기본 설정' },
   { id: 'workspace', label: '워크스페이스', isSection: true },
@@ -23,7 +24,16 @@ const NAV_ITEMS = [
 export default function SettingsPanel({ onClose }) {
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
-  const firstSelectableId = useMemo(() => (NAV_ITEMS.find(i => !i.isSection)?.id || 'account-basic'), []);
+  const NAV_ITEMS = useMemo(() => {
+    const items = [...BASE_NAV_ITEMS];
+    if (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') {
+      items.push({ id: 'admin', label: '관리자', isSection: true });
+      items.push({ id: 'admin-dummy', label: '더미 데이터 테스트' });
+    }
+    return items;
+  }, [user?.role]);
+
+  const firstSelectableId = useMemo(() => (NAV_ITEMS.find(i => !i.isSection)?.id || 'account-basic'), [NAV_ITEMS]);
   const [selected, setSelected] = useState(firstSelectableId);
 
   const title = useMemo(() => {
@@ -32,6 +42,8 @@ export default function SettingsPanel({ onClose }) {
         return '워크스페이스 설정';
       case 'account-basic':
         return '기본 설정';
+      case 'admin-dummy':
+        return '더미 데이터 테스트';
       case 'permission-example':
         return '권한 시스템 예시';
       default:
@@ -41,7 +53,7 @@ export default function SettingsPanel({ onClose }) {
 
   return (
     <div 
-      className="fixed inset-0 flex justify-center items-center bg-black/30" 
+      className="flex fixed inset-0 justify-center items-center bg-black/30" 
       style={{ zIndex: Z_INDEX.SETTINGS_PANEL }}
       onClick={onClose}
     >
@@ -90,6 +102,10 @@ export default function SettingsPanel({ onClose }) {
             <AccountBasicForm />
           )}
 
+          {selected === 'admin-dummy' && (
+            <DummyDataTestPanel workspaceId={currentWorkspace?.id} />
+          )}
+          
           {selected === 'permission-example' && (
             <PermissionExample workspaceId={currentWorkspace?.id} />
           )}

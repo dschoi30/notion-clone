@@ -66,4 +66,18 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
     List<Object[]> findHasChildrenByDocumentIds(@Param("documentIds") List<Long> documentIds);
 
     List<Document> findByTitleContainingIgnoreCase(String searchTerm);
+
+    /**
+     * 테이블 문서 목록 조회용 경량 쿼리
+     * DummyDataTestPanel에서 테이블 문서 선택을 위한 최소 필드만 조회
+     * 
+     * @param workspaceId 워크스페이스 ID
+     * @return [id, title, viewType] 형태의 Object 배열 리스트
+     */
+    @Query("SELECT d.id, d.title, d.viewType FROM Document d " +
+           "WHERE d.workspace.id = :workspaceId " +
+           "AND d.viewType = 'TABLE' " +
+           "AND d.isTrashed = false " +
+           "ORDER BY d.sortOrder ASC, d.id ASC")
+    List<Object[]> findTableDocumentsByWorkspaceId(@Param("workspaceId") Long workspaceId);
 } 

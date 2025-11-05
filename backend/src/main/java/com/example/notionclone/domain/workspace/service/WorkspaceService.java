@@ -33,7 +33,6 @@ public class WorkspaceService {
     private final WorkspacePermissionRepository workspacePermissionRepository;
     private final NotificationRepository notificationRepository;
     private final DocumentRepository documentRepository;
-    private final DocumentService documentService;
 
     public List<WorkspaceDto> getWorkspaces(User user) {
         log.debug("Fetching workspaces for user: {}", user.getId());

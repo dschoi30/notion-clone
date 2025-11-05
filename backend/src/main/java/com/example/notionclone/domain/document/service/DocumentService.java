@@ -2,6 +2,7 @@ package com.example.notionclone.domain.document.service;
 
 import com.example.notionclone.domain.document.dto.DocumentResponse;
 import com.example.notionclone.domain.document.dto.DocumentListResponse;
+import com.example.notionclone.domain.document.dto.DocumentTableListResponse;
 import com.example.notionclone.domain.document.entity.Document;
 import com.example.notionclone.domain.document.repository.DocumentRepository;
 import com.example.notionclone.domain.user.entity.User;
@@ -63,8 +64,7 @@ public class DocumentService {
   private final DocumentPropertyTagOptionRepository documentPropertyTagOptionRepository;
   private final DocumentVersionRepository documentVersionRepository;
   private final DocumentPropertyValueRepository documentPropertyValueRepository;
-  @Autowired
-  private DocumentPropertyRepository documentPropertyRepository;
+  private final DocumentPropertyRepository documentPropertyRepository;
 
   public List<DocumentResponse> getDocumentsByWorkspace(Long workspaceId, User user) {
     // 1. 사용자가 소유한 문서 조회
@@ -121,9 +121,6 @@ public class DocumentService {
         .filter(docId -> !ownedDocumentIds.contains(docId))
         .collect(Collectors.toList());
     
-    log.debug("모든 권한 문서 ID 목록: {}", allPermissionDocumentIds);
-    log.debug("소유한 문서 ID 목록: {}", ownedDocumentIds);
-    log.debug("공유받은 문서 ID 목록: {}", sharedDocumentIds);
     // 3. 공유받은 문서 정보 조회 및 휴지통 상태 필터링
     List<Document> sharedDocuments = documentRepository.findAllById(sharedDocumentIds).stream()
         .filter(doc -> !doc.isTrashed())
@@ -147,15 +144,11 @@ public class DocumentService {
       List<Long> sharedOwnedDocumentIds = findSharedOwnedDocuments(ownedDocumentIds, user.getId());
       sharedDocumentIdSet.addAll(sharedOwnedDocumentIds);
     }
-    
-    log.debug("공유 문서 ID 목록: {}", sharedDocumentIdSet);
-    log.debug("전체 문서 ID 목록: {}", allDocuments.stream().map(Document::getId).collect(Collectors.toList()));
-    
+
     return allDocuments.stream()
         .map(doc -> {
           boolean hasChildren = hasChildrenMap.getOrDefault(doc.getId(), false);
           boolean isShared = sharedDocumentIdSet.contains(doc.getId());
-          log.debug("문서 {} (제목: {}) - isShared: {}, 소유자: {}", doc.getId(), doc.getTitle(), isShared, doc.getUser().getId());
           return DocumentListResponse.fromDocument(doc, hasChildren, isShared);
         })
         .collect(Collectors.toList());
@@ -772,6 +765,21 @@ public class DocumentService {
     // 현재는 모든 필드를 반환하지만, 향후 특정 필드만 선택하여 반환할 수 있습니다.
     
     return documents;
+  }
+
+  /**
+   * 테이블 문서 목록 조회 (경량)
+   * DummyDataTestPanel에서 테이블 문서 선택을 위한 최소 필드만 조회
+   */
+  @Transactional(readOnly = true)
+  public List<DocumentTableListResponse> getTableDocumentsByWorkspace(Long workspaceId) {
+    log.debug("Get table documents for workspace: {}", workspaceId);
+    
+    List<Object[]> results = documentRepository.findTableDocumentsByWorkspaceId(workspaceId);
+    
+    return results.stream()
+        .map(DocumentTableListResponse::fromObjectArray)
+        .collect(Collectors.toList());
   }
 
   /**
