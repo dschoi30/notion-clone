@@ -1028,3 +1028,15 @@
     - `UserPrincipal`에서 `id`를 추출하여 `UserRepository.findById()`로 실제 엔티티 조회
     - `checkSystemRole()` 및 `checkWorkspaceRole()` 메서드 모두 수정
   - 영향: `PermissionExample.jsx` 접근 시 발생하던 `ClassCastException` 해결, 권한 체크 정상 동작
+
+## 2025-11-06 (알림 기능 UI 개선)
+- **Notifications.jsx 미확인 알림 개수 표시 기능 구현**
+  - 미확인 알림 개수 계산: `notifications.filter(n => n.status === 'UNREAD').length`
+  - 알림 버튼에 빨간색 배지로 미확인 알림 개수 표시 (99개 초과 시 '99+' 표시)
+  - 미확인 알림이 있을 때만 배지 표시
+  - NotificationContext에서 notifications 상태를 가져와 실시간으로 개수 업데이트
+- **NotificationModal.jsx 확인/미확인 구분 표시 기능 구현**
+  - 미확인 알림(UNREAD): 파란색 배경(`bg-blue-50`), 진한 테두리(`border-blue-200`), 굵은 폰트(`font-semibold`), "미확인" 배지 표시
+  - 확인된 알림(READ 등): 회색 배경(`bg-gray-50`), 연한 테두리(`border-gray-200`), 일반 폰트(`font-normal`), 투명도 75% 적용
+  - 각 알림 항목에 상태별 시각적 구분으로 사용자가 한눈에 확인/미확인 알림을 구분 가능
+  - 영향: 사용자가 미확인 알림을 쉽게 식별하고 우선적으로 확인할 수 있는 UX 제공
