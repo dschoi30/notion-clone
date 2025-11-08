@@ -31,6 +31,10 @@ public class WorkspaceController {
 
     @GetMapping
     public ResponseEntity<List<WorkspaceDto>> getWorkspaces(@CurrentUser UserPrincipal userPrincipal) {
+        if (userPrincipal == null) {
+            log.error("UserPrincipal is null - authentication required");
+            return ResponseEntity.status(401).build();
+        }
         log.debug("Get workspaces request for user principal: {}", userPrincipal.getId());
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -42,6 +46,10 @@ public class WorkspaceController {
     public ResponseEntity<WorkspaceDto> createWorkspace(
             @CurrentUser UserPrincipal userPrincipal,
             @RequestBody CreateWorkspaceRequest request) {
+        if (userPrincipal == null) {
+            log.error("UserPrincipal is null - authentication required");
+            return ResponseEntity.status(401).build();
+        }
         log.debug("Create workspace request for user principal: {}", userPrincipal.getId());
         log.debug("Request data: {}", request);
         User user = userRepository.findById(userPrincipal.getId())
@@ -55,6 +63,10 @@ public class WorkspaceController {
             @CurrentUser UserPrincipal userPrincipal,
             @PathVariable Long workspaceId,
             @RequestBody UpdateWorkspaceRequest request) {
+        if (userPrincipal == null) {
+            log.error("UserPrincipal is null - authentication required");
+            return ResponseEntity.status(401).build();
+        }
         log.debug("Update workspace request for user principal: {} and workspace: {}", userPrincipal.getId(), workspaceId);
         log.debug("Request data: {}", request);
         User user = userRepository.findById(userPrincipal.getId())
@@ -67,6 +79,10 @@ public class WorkspaceController {
     public ResponseEntity<Void> deleteWorkspace(
             @CurrentUser UserPrincipal userPrincipal,
             @PathVariable Long workspaceId) {
+        if (userPrincipal == null) {
+            log.error("UserPrincipal is null - authentication required");
+            return ResponseEntity.status(401).build();
+        }
         log.debug("Delete workspace request for user principal: {} and workspace: {}", userPrincipal.getId(), workspaceId);
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -76,6 +92,10 @@ public class WorkspaceController {
 
     @GetMapping("/accessible")
     public ResponseEntity<List<WorkspaceDto>> getAccessibleWorkspaces(@CurrentUser UserPrincipal userPrincipal) {
+        if (userPrincipal == null) {
+            log.error("UserPrincipal is null - authentication required");
+            return ResponseEntity.status(401).build();
+        }
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
         List<WorkspaceDto> workspaces = workspaceService.getAccessibleWorkspaces(user);
@@ -90,6 +110,11 @@ public class WorkspaceController {
     public ResponseEntity<WorkspacePermissionResponse> getUserPermissions(
             @PathVariable Long workspaceId,
             @CurrentUser UserPrincipal userPrincipal) {
+        
+        if (userPrincipal == null) {
+            log.error("UserPrincipal is null - authentication required");
+            return ResponseEntity.status(401).build();
+        }
         
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
