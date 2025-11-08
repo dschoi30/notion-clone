@@ -143,12 +143,34 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
     };
   }, [open, updateDialogPosition]);
 
+  // 이미 초대된 이메일인지 확인
+  const isEmailAlreadyInvited = useCallback((email) => {
+    if (!email) return false;
+    const normalizedEmail = email.trim().toLowerCase();
+    return localPermissions.some(p => 
+      p.email && p.email.toLowerCase() === normalizedEmail
+    );
+  }, [localPermissions]);
+
   const handleInvite = async () => {
     if (!inviteEmail || !workspaceId || !documentId || !isDocOwner) return;
+    
+    // 이미 초대된 이메일인지 확인
+    if (isEmailAlreadyInvited(inviteEmail)) {
+      setInviteStatus('already_invited');
+      return;
+    }
+
     try {
       await inviteToDocument(workspaceId, documentId, inviteEmail);
+      // 초대 성공 후 문서를 다시 가져와서 권한 목록 업데이트
+      const updatedDoc = await fetchDocument(documentId, { silent: true, apply: false });
+      if (updatedDoc?.permissions) {
+        setLocalPermissions(updatedDoc.permissions);
+      }
       setInviteStatus('success');
       setInviteEmail('');
+      setIsDirty(true);
     } catch (e) {
       setInviteStatus('error');
     }
@@ -226,8 +248,12 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
               ref={inviteInputRef}
               autoFocus
               onChange={e => {
-                setInviteEmail(e.target.value);
-                setInviteStatus(null);
+                const newEmail = e.target.value;
+                setInviteEmail(newEmail);
+                // 이메일이 변경되면 상태 초기화
+                if (inviteStatus !== null) {
+                  setInviteStatus(null);
+                }
               }}
             />
             <Button
@@ -269,6 +295,9 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
           )}
           {inviteStatus === 'error' && (
             <div className="mt-2 text-sm text-red-600">초대 실패. 이메일을 확인하세요.</div>
+          )}
+          {inviteStatus === 'already_invited' && (
+            <div className="mt-2 text-sm text-amber-600">이미 초대된 사용자입니다.</div>
           )}
         </DialogContent>
       </DialogPortal>
