@@ -11,4 +11,8 @@ export const acceptNotification = async (id) => {
 
 export const rejectNotification = async (id) => {
   await api.post(`/api/notifications/${id}/reject`);
+};
+
+export const markAsRead = async (id) => {
+  await api.post(`/api/notifications/${id}/read`);
 }; 

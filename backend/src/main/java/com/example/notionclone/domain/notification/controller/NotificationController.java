@@ -40,4 +40,11 @@ public class NotificationController {
       .orElseThrow(() -> new RuntimeException("User not found"));
         return notificationService.rejectNotification(id, user);
     }
+
+    @PostMapping("/{id}/read")
+    public Notification markAsRead(@PathVariable Long id, @CurrentUser UserPrincipal userPrincipal) {
+      User user = userRepository.findById(userPrincipal.getId())
+      .orElseThrow(() -> new RuntimeException("User not found"));
+        return notificationService.markAsRead(id, user);
+    }
 } 

@@ -57,6 +57,14 @@ public class NotificationService {
         return notificationRepository.save(notification);
     }
 
+    public Notification markAsRead(Long id, User user) {
+        Notification notification = notificationRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("알림 없음"));
+        if (!notification.getReceiver().equals(user)) throw new RuntimeException("권한 없음");
+        notification.setStatus(NotificationStatus.READ);
+        return notificationRepository.save(notification);
+    }
+
     public Notification sendInviteNotification(User invitee, NotificationType type, String message, String payload) {
         Notification notification = Notification.builder()
             .receiver(invitee)

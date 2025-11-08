@@ -4,7 +4,10 @@ import { Bell } from 'lucide-react';
 import { useNotification } from '@/contexts/NotificationContext';
 
 export default function Notifications() {
-  const { isNotificationModalOpen, setIsNotificationModalOpen } = useNotification();
+  const { notifications, isNotificationModalOpen, setIsNotificationModalOpen, isLoading } = useNotification();
+  
+  // 미확인 알림 개수 계산 (로딩 완료 후에만 계산)
+  const unreadCount = !isLoading ? notifications.filter(n => n.status === 'UNREAD').length : 0;
 
   return (
     <>
@@ -14,8 +17,16 @@ export default function Notifications() {
       >
         <Bell className="w-5 h-5 mr-2" />
         <span>알림</span>
+        {unreadCount > 0 && (
+          <span className="ml-auto flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-semibold text-white bg-red-500 rounded-full">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
       </button>
-      {isNotificationModalOpen && <NotificationModal onClose={() => setIsNotificationModalOpen(false)} />}
+      <NotificationModal 
+        open={isNotificationModalOpen}
+        onClose={() => setIsNotificationModalOpen(false)}
+      />
     </>
   );
 } 
