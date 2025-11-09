@@ -8,6 +8,8 @@ import com.example.notionclone.domain.user.entity.User;
 import com.example.notionclone.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -90,5 +92,15 @@ public class UserService {
         userRepository.save(user);
         
         log.debug("Password changed successfully for user: {}", userId);
+    }
+
+    /**
+     * 전체 사용자 목록 조회 (페이지네이션 지원)
+     * SUPER_ADMIN 전용
+     */
+    public Page<UserResponse> getAllUsers(Pageable pageable) {
+        log.debug("Getting all users with pagination: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
+        Page<User> userPage = userRepository.findAll(pageable);
+        return userPage.map(UserResponse::new);
     }
 }

@@ -16,7 +16,8 @@ const SortManager = ({
   isOwner = false,
   workspaceId,
   documentId,
-  getSortedDocumentIds
+  getSortedDocumentIds,
+  autoAddNameProperty = true // 문서 테이블용: 기본값 true, 사용자 관리 등에서는 false
 }) => {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [showAddSortDropdown, setShowAddSortDropdown] = useState(false);
@@ -24,13 +25,14 @@ const SortManager = ({
   const popoverRef = useRef(null);
 
   // 사용 가능한 속성 목록 (이미 정렬에 사용된 속성 제외)
-  const allProperties = [
-    { id: 0, name: '이름', type: 'TEXT' },
-    ...properties
-  ];
+  // autoAddNameProperty가 true이고 properties에 id: 0인 속성이 없으면 "이름" 속성 추가 (문서 테이블용)
+  const hasNameProperty = properties.some(p => p.id === 0 || p.id === '0');
+  const allProperties = (autoAddNameProperty && !hasNameProperty)
+    ? [{ id: 0, name: '이름', type: 'TEXT' }, ...properties]
+    : properties;
 
   const availableProperties = allProperties.filter(
-    property => !activeSorts.some(sort => sort.propertyId === property.id)
+    property => !activeSorts.some(sort => String(sort.propertyId) === String(property.id))
   );
 
   // ESC 키로 팝오버 닫기
@@ -136,9 +138,10 @@ const SortManager = ({
 
       {isPopoverOpen && (
         <div 
-          className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-xl z-50 min-w-[300px]"
+          className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-xl !z-[1120] min-w-[300px]"
           onClick={handlePopoverClick}
           onMouseDown={handlePopoverClick}
+          style={{ zIndex: 1120 }}
         >
           <div className="px-3 py-2">
             {/* 기존 정렬 목록 */}
@@ -147,24 +150,20 @@ const SortManager = ({
                 <div className="flex-1">
                   <Select 
                     value={String(sort.propertyId)} 
-                      onValueChange={(value) => {
-                        const property = allProperties.find(p => String(p.id) === String(value));
-                        if (property) {
-                          handlePropertyChange(sort.id, property);
-                        }
-                      }}
+                    onValueChange={(value) => {
+                      const property = allProperties.find(p => String(p.id) === String(value));
+                      if (property) {
+                        handlePropertyChange(sort.id, property);
+                      } else {
+                        console.error('Property not found:', value, 'Available properties:', allProperties);
+                      }
+                    }}
                   >
                     <SelectTrigger className="h-8">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">
-                        <span className="flex gap-2 items-center">
-                          {getPropertyIcon('TEXT')}
-                          <span>이름</span>
-                        </span>
-                      </SelectItem>
-                      {properties.map((property) => (
+                    <SelectContent className="!z-[1120]" style={{ zIndex: 1120 }}>
+                      {allProperties.map((property) => (
                         <SelectItem key={property.id} value={String(property.id)}>
                           <span className="flex gap-2 items-center">
                             {getPropertyIcon(property.type)}
@@ -188,7 +187,7 @@ const SortManager = ({
                     <SelectTrigger className="h-8">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="!z-[1120]" style={{ zIndex: 1120 }}>
                       <SelectItem value="asc">오름차순</SelectItem>
                       <SelectItem value="desc">내림차순</SelectItem>
                     </SelectContent>
@@ -223,9 +222,10 @@ const SortManager = ({
                 
                 {showAddSortDropdown && (
                   <div 
-                    className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-xl z-50 min-w-[200px]"
+                    className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-xl !z-[1120] min-w-[200px]"
                     onClick={handlePopoverClick}
                     onMouseDown={handlePopoverClick}
+                    style={{ zIndex: 1120 }}
                   >
                     <div className="p-1">
                       {availableProperties.length > 0 ? (

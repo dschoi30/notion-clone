@@ -1144,3 +1144,32 @@
     - 기본 상태: 잠금 해제
     - 잠금 버튼 클릭 시: 모든 내용이 readOnly로 변경, 버튼 텍스트는 "잠금 해제"로 변경
     - 잠금 해제 버튼 클릭 시: 원상 복구
+
+## 2025-11-09 (사용자 관리 기능 추가)
+- **사용자 관리 패널 구현**
+  - 목적: SUPER_ADMIN 권한 사용자가 시스템의 모든 사용자를 조회하고 관리할 수 있는 기능 제공
+  - 백엔드 구현:
+    - `UserController`에 사용자 목록 조회 API 추가 (`GET /api/users`)
+      - 페이지네이션 지원 (page, size, sort 파라미터)
+      - 정렬 기능 지원 (기본값: id 오름차순)
+    - `UserService`에 `getAllUsers` 메서드 추가
+    - `UserResponse` DTO에 `lastLoginAt` 필드 추가
+  - 프론트엔드 구현:
+    - `UserManagementPanel.jsx` 컴포넌트 생성
+      - 사용자 목록 테이블 뷰 (ID, 이메일, 이름, 역할, 생성일시, 마지막 로그인)
+      - 검색 기능 (이메일, 이름 검색)
+      - 정렬 기능 (드롭다운 및 SortManager 지원)
+      - 무한 스크롤 지원
+    - `SettingsPanel.jsx`에 사용자 관리 메뉴 추가 (SUPER_ADMIN만 표시)
+    - `useUserTableData.js`, `useUserTableSearch.js`, `useUserTableFilters.js`, `useUserTableSort.js` 훅 생성
+    - `userApi.js`에 사용자 목록 조회 API 함수 추가
+  - UI 개선:
+    - `AccountBasicForm.jsx`에서 중복 id 경고 해결 (SettingsPanel 중복 렌더링 제거)
+    - `SortManager.jsx`, `SortDropdown.jsx`에 `autoAddNameProperty` prop 추가
+      - 문서 테이블용 "이름" 속성 자동 추가 기능을 사용자 관리 화면에서는 비활성화
+    - `utils.jsx`에 SELECT 타입 아이콘 추가 (Shield 아이콘)
+    - 정렬 드롭다운 메뉴를 좌측에 표시하도록 개선
+  - 알려진 이슈:
+    - [ ] `SortManager` 위치 계산 문제: 초기에는 올바른 위치에 표시되다가 브라우저 좌상단으로 이동하는 현상
+      - 원인: `useLayoutEffect`에서 위치 계산이 여러 번 실행되면서 잘못된 값으로 덮어씌워지는 것으로 추정
+      - 추후 처리 과제로 기록

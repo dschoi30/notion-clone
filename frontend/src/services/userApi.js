@@ -50,3 +50,17 @@ export const uploadProfileImage = async (file) => {
     throw error;
   }
 };
+
+// 사용자 목록 조회 (페이지네이션 지원)
+export const getUsersPaged = async (page = 0, size = 50, sortField = 'id', sortDir = 'asc') => {
+  try {
+    const sort = `${sortField},${sortDir}`;
+    const response = await api.get('/api/users', {
+      params: { page, size, sort }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('사용자 목록 조회 실패:', error);
+    throw error;
+  }
+};

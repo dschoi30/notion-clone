@@ -4,6 +4,8 @@ import com.example.notionclone.domain.user.entity.User;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Getter @Setter
 public class UserResponse {
     private Long id;
@@ -11,6 +13,8 @@ public class UserResponse {
     private String name;
     private String profileImageUrl;
     private String role;
+    private LocalDateTime createdAt;
+    private LocalDateTime lastLoginAt;
 
     public UserResponse(User user) {
         this.id = user.getId();
@@ -18,5 +22,7 @@ public class UserResponse {
         this.name = user.getName();
         this.profileImageUrl = user.getProfileImageUrl();
         this.role = user.getRole() != null ? user.getRole().name() : null;
+        this.createdAt = user.getCreatedAt();
+        this.lastLoginAt = user.getLastLoginAt();
     }
 } 
