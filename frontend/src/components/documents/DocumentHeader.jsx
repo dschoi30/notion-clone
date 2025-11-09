@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import VersionHistoryPanel from './VersionHistoryPanel';
 import DocumentSharePopover from './DocumentSharePopover';
 import { Z_INDEX } from '@/constants/zIndex';
+import { Lock, Unlock } from 'lucide-react';
 
 export default function DocumentHeader({
   title,
@@ -18,7 +19,8 @@ export default function DocumentHeader({
   viewers,
   currentWorkspace,
   path,
-  onPathClick
+  onPathClick,
+  onLockToggle
 }) {
   const [showVersions, setShowVersions] = useState(false);
   const handleCloseVersions = useCallback(() => setShowVersions(false), []);
@@ -44,27 +46,52 @@ export default function DocumentHeader({
           className="flex fixed top-0 left-64 right-0 items-center justify-between px-4 py-2 bg-white backdrop-blur-sm"
           style={{ zIndex: Z_INDEX.FIXED }}
         >
-          {/* 경로 표시 - 왼쪽 끝 */}
-          {path && path.length >= 1 && (
-            <div className="text-sm text-gray-700">
-              {path.map((doc, idx) => (
-                <Fragment key={doc.id}>
-                  <span onClick={() => onPathClick(doc.id)} className="p-1 rounded-md cursor-pointer hover:bg-gray-100">
-                    {doc.title}
-                  </span>
-                  {idx < path.length - 1 && <span className="mx-1 select-none">/</span>}
-                </Fragment>
-              ))}
-            </div>
-          )}
+          {/* 경로 표시 및 잠금 버튼 - 왼쪽 끝 */}
+          <div className="flex items-center gap-3">
+            {path && path.length >= 1 && (
+              <div className="text-sm text-gray-700">
+                {path.map((doc, idx) => (
+                  <Fragment key={doc.id}>
+                    <span onClick={() => onPathClick(doc.id)} className="p-1 rounded-md cursor-pointer hover:bg-gray-100">
+                      {doc.title}
+                    </span>
+                    {idx < path.length - 1 && <span className="mx-1 select-none">/</span>}
+                  </Fragment>
+                ))}
+              </div>
+            )}
+            {/* 잠금 버튼 */}
+            {currentDocument && onLockToggle && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-sm text-gray-700 flex items-center gap-1"
+                onClick={onLockToggle}
+              >
+                {currentDocument.isLocked ? (
+                  <>
+                    <Unlock className="w-4 h-4" />
+                    <span>잠금 해제</span>
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    <span>잠금</span>
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
           {/* 오른쪽 끝 요소들 */}
           <div className="flex items-center space-x-2">
             {/* 권한자 이니셜 아이콘 목록 */}
             <div className="flex items-center mr-4">
-              {currentDocument?.permissions?.map((p) => {
+              {currentDocument?.permissions?.map((p, idx) => {
                 const isPresent = viewers?.some(v => String(v.userId) === String(p.userId));
+                // userId와 email을 조합하여 고유한 key 생성 (같은 userId가 중복될 수 있으므로)
+                const uniqueKey = `${p.userId}-${p.email || ''}-${idx}`;
                 return (
-                  <div key={p.userId} className={isPresent ? 'opacity-100' : 'opacity-40'}>
+                  <div key={uniqueKey} className={isPresent ? 'opacity-100' : 'opacity-40'}>
                     <UserBadge name={p.name} email={p.email} profileImageUrl={p.profileImageUrl} size={32} showLabel={false} xOffset={-256} />
                   </div>
                 );

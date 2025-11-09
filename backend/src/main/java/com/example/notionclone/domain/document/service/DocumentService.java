@@ -285,12 +285,19 @@ public class DocumentService {
     Document document = documentRepository.findById(documentId)
         .orElseThrow(() -> new ResourceNotFoundException("문서를 찾을 수 없습니다."));
 
-    document.update(
-        Optional.ofNullable(request.getTitle()).orElse(""),
-        Optional.ofNullable(request.getContent()).orElse(""));
+    // title과 content가 제공된 경우에만 업데이트 (null이면 기존 값 유지)
+    if (request.getTitle() != null || request.getContent() != null) {
+      String newTitle = request.getTitle() != null ? request.getTitle() : document.getTitle();
+      String newContent = request.getContent() != null ? request.getContent() : document.getContent();
+      document.update(newTitle, newContent);
+    }
 
     if (request.getViewType() != null) {
       document.setViewType(ViewType.valueOf(request.getViewType()));
+    }
+
+    if (request.getIsLocked() != null) {
+      document.setLocked(request.getIsLocked());
     }
 
     return buildResponseWithMergedPermissions(document);

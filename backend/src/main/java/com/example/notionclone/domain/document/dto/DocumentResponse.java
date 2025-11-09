@@ -3,6 +3,7 @@ package com.example.notionclone.domain.document.dto;
 import com.example.notionclone.domain.document.entity.Document;
 import com.example.notionclone.domain.permission.dto.PermissionInfo;
 import com.example.notionclone.domain.permission.entity.Permission;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -29,6 +30,8 @@ public class DocumentResponse {
     private boolean hasChildren;
     private Integer titleColumnWidth;
     private Integer sortOrder;
+    @JsonProperty("isLocked")
+    private boolean isLocked;
 
     public static DocumentResponse fromDocumentWithPermissionsAndChildren(Document document, List<Permission> permissions, boolean hasChildren) {
         return DocumentResponse.builder()
@@ -48,6 +51,7 @@ public class DocumentResponse {
                 .hasChildren(hasChildren)
                 .titleColumnWidth(document.getTitleColumnWidth())
                 .sortOrder(document.getSortOrder())
+                .isLocked(document.isLocked())
                 .build();
     }
 

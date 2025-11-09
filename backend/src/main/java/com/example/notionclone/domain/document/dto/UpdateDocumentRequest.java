@@ -2,7 +2,6 @@ package com.example.notionclone.domain.document.dto;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.NonNull;
 import lombok.Setter;
 
 @Getter
@@ -12,4 +11,5 @@ public class UpdateDocumentRequest {
     private String title;
     private String content;
     private String viewType;
+    private Boolean isLocked;
 } 
