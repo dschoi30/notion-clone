@@ -244,30 +244,42 @@ public class DocumentController {
     // --- Trash (휴지통) API ---
     @GetMapping("/trash")
     public ResponseEntity<List<DocumentResponse>> getTrashedDocuments(
+            @CurrentUser UserPrincipal userPrincipal,
             @PathVariable Long workspaceId) {
-        return ResponseEntity.ok(documentService.getTrashedDocuments(workspaceId));
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
+        return ResponseEntity.ok(documentService.getTrashedDocuments(workspaceId, user));
     }
 
     @PatchMapping("/trash/{docId}/restore")
     public ResponseEntity<Void> restoreDocument(
+            @CurrentUser UserPrincipal userPrincipal,
             @PathVariable Long workspaceId,
             @PathVariable Long docId) {
-        documentService.restoreDocument(workspaceId, docId);
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
+        documentService.restoreDocument(workspaceId, docId, user);
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/trash/{docId}/permanent")
     public ResponseEntity<Void> deleteDocumentPermanently(
+            @CurrentUser UserPrincipal userPrincipal,
             @PathVariable Long workspaceId,
             @PathVariable Long docId) {
-        documentService.deleteDocumentPermanently(workspaceId, docId);
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
+        documentService.deleteDocumentPermanently(workspaceId, docId, user);
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/trash")
     public ResponseEntity<Void> emptyTrash(
+            @CurrentUser UserPrincipal userPrincipal,
             @PathVariable Long workspaceId) {
-        documentService.emptyTrash(workspaceId);
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userPrincipal.getId()));
+        documentService.emptyTrash(workspaceId, user);
         return ResponseEntity.ok().build();
     }
 

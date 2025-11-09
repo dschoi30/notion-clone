@@ -15,6 +15,7 @@ import { createLogger } from '@/lib/logger';
 import { createDocumentVersion } from '@/services/documentApi';
 import DocumentHeader from './DocumentHeader';
 import DocumentPageView from './DocumentPageView';
+import { hasWritePermission } from '@/utils/permissionUtils';
 
 const DocumentEditor = () => {
   const vlog = createLogger('version');
@@ -38,10 +39,8 @@ const DocumentEditor = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const shareButtonRef = useRef(null);
 
-  const isOwner = String(currentDocument?.userId) === String(user?.id);
-  const myPermission = currentDocument?.permissions?.find(p => String(p.userId) === String(user?.id));
-  const hasWritePermission = isOwner || myPermission?.permissionType === 'WRITE' || myPermission?.permissionType === 'OWNER';
-  const isReadOnly = !hasWritePermission;
+  const canWrite = hasWritePermission(currentDocument, user);
+  const isReadOnly = !canWrite;
 
   const viewers = useDocumentPresence(currentDocument?.id, user);
   const { properties, titleWidth } = useDocumentPropertiesStore(state => ({ properties: state.properties, titleWidth: state.titleWidth }));

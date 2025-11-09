@@ -1094,3 +1094,37 @@
     - 기존 Tooltip 컴포넌트를 활용하여 읽기 권한만 있는 경우 툴팁으로 안내 메시지 표시: "문서의 쓰기 권한을 가진 사용자만 복원이 가능합니다"
     - 툴팁 지연 시간 300ms로 설정하여 빠른 피드백 제공
   - 영향: 읽기 권한만 가진 사용자는 버전 기록을 조회할 수 있지만 복원은 불가능하며, 명확한 안내 메시지 제공
+
+## 2025-11-09 (휴지통 권한 관리 기능 추가)
+- **휴지통 목록 조회 및 삭제 권한 체크 기능 구현**
+  - 목적: 읽기 권한 사용자는 휴지통 목록을 조회할 수 있지만, 복원/삭제는 쓰기 권한이 필요하도록 제한
+  - 백엔드 구현:
+    - 기존 권한 체크 로직 재사용 (신규 메서드 추가 없이)
+      - `getTrashedDocuments`: `getDocument`와 동일한 읽기 권한 체크 로직 재사용
+      - `restoreDocument`: `deleteDocument`와 동일한 쓰기 권한 체크 로직 재사용
+      - `deleteDocumentPermanently`: `deleteDocument`와 동일한 쓰기 권한 체크 로직 재사용
+      - `emptyTrash`: `deleteDocument`와 동일한 쓰기 권한 체크 로직 재사용하여 필터링
+    - `DocumentController`의 모든 휴지통 API에 `@CurrentUser` 추가
+  - 프론트엔드 구현:
+    - `TrashModal`에 권한 체크 로직 추가
+    - 각 문서별로 쓰기 권한 확인하여 복원/삭제 버튼 표시/비활성화
+    - 읽기 권한만 있는 경우 버튼 비활성화 및 툴팁 표시 (VersionHistoryPanel과 동일한 스타일)
+    - "모두 비우기" 버튼: 쓰기 권한이 있는 문서가 하나라도 있을 때만 활성화
+  - 영향: 읽기 권한 사용자는 휴지통 목록을 조회할 수 있지만 복원/삭제는 불가능하며, 쓰기 권한 사용자만 복원/삭제 가능
+
+## 2025-11-09 (권한 체크 로직 공통 유틸 분리)
+- **문서 권한 체크 로직 공통 유틸리티 함수로 분리**
+  - 목적: 여러 컴포넌트에서 중복 사용되는 권한 체크 로직을 공통 유틸로 분리하여 코드 중복 제거 및 유지보수성 향상
+  - 구현 사항:
+    - `frontend/src/utils/permissionUtils.js` 생성
+      - `isDocumentOwner(document, user)`: 문서 소유자인지 확인
+      - `getUserPermission(document, user)`: 사용자의 문서 권한 가져오기
+      - `hasWritePermission(document, user)`: 쓰기 권한 확인 (소유자 또는 WRITE/OWNER 권한)
+      - `hasReadPermission(document, user)`: 읽기 권한 확인 (소유자 또는 READ/WRITE/OWNER 권한)
+    - 다음 컴포넌트에서 유틸 함수 사용으로 변경:
+      - `DocumentEditor.jsx`: `hasWritePermission` 유틸 사용
+      - `VersionHistoryPanel.jsx`: `hasWritePermission` 유틸 사용
+      - `TrashModal.jsx`: `hasWritePermission` 유틸 사용
+      - `DocumentSharePopover.jsx`: `isDocumentOwner` 유틸 사용
+      - `DocumentTableView.jsx`: `isDocumentOwner` 유틸 사용
+  - 영향: 권한 체크 로직의 일관성 확보, 코드 중복 제거, 향후 권한 체크 로직 변경 시 한 곳만 수정하면 됨

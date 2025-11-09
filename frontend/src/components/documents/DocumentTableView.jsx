@@ -25,6 +25,7 @@ import { DEFAULT_PROPERTY_WIDTH, SYSTEM_PROP_TYPES } from '@/components/document
 import { buildSystemPropTypeMapForTable } from '@/components/documents/shared/systemPropTypeMap';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDocument } from '@/contexts/DocumentContext';
+import { isDocumentOwner } from '@/utils/permissionUtils';
 
 const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   const navigate = useNavigate(); // useNavigate 훅 추가
@@ -100,7 +101,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   } = useTableData({ workspaceId, documentId, systemPropTypeMap });
 
   // 소유자 확인
-  const isOwner = currentDocument && String(currentDocument.userId) === String(user?.id);
+  const isOwner = isDocumentOwner(currentDocument, user);
 
   // search hook
   const {

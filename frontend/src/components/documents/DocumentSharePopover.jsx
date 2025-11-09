@@ -13,6 +13,7 @@ import {
 import { ChevronDown } from 'lucide-react';
 import UserBadge from '@/components/documents/shared/UserBadge';
 import { Z_INDEX } from '@/constants/zIndex';
+import { isDocumentOwner } from '@/utils/permissionUtils';
 
 function PermissionDropdown({ value, onChange, disabled, loading, menuEnabled = true }) {
   const options = [
@@ -74,7 +75,7 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
   const { user } = useAuth();
   const [loadingUserId, setLoadingUserId] = useState(null);
   const { fetchDocument } = useDocument();
-  const isDocOwner = currentDocument && String(currentDocument.userId) === String(user.id);
+  const isDocOwner = isDocumentOwner(currentDocument, user);
 
   useEffect(() => {
     if (open) {
