@@ -17,7 +17,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
 
@@ -384,9 +383,26 @@ public class DocumentService {
   }
 
   @Transactional(readOnly = true)
-  public List<DocumentResponse> getTrashedDocuments(Long workspaceId) {
-    return documentRepository.findByWorkspaceIdAndIsTrashedTrue(workspaceId)
-        .stream()
+  public List<DocumentResponse> getTrashedDocuments(Long workspaceId, User user) {
+    // 워크스페이스의 모든 휴지통 문서 조회
+    List<Document> allTrashedDocs = documentRepository.findByWorkspaceIdAndIsTrashedTrue(workspaceId);
+    
+    // 사용자가 접근 가능한 문서만 필터링 (getDocument와 동일한 읽기 권한 체크 로직)
+    return allTrashedDocs.stream()
+        .filter(doc -> {
+          // getDocument의 권한 체크 로직 재사용
+          boolean hasPermission = permissionRepository.existsByUserAndDocumentAndStatus(user, doc, PermissionStatus.ACCEPTED);
+          boolean hasParentPermission = false;
+          Document parent = doc.getParent();
+          if (!hasPermission && parent != null) {
+            if (parent.getUser().getId().equals(user.getId())) {
+              hasParentPermission = true;
+            } else {
+              hasParentPermission = permissionRepository.existsByUserAndDocumentAndStatus(user, parent, PermissionStatus.ACCEPTED);
+            }
+          }
+          return doc.getUser().getId().equals(user.getId()) || hasPermission || hasParentPermission;
+        })
         .map(doc -> {
           List<Permission> permissions = permissionRepository.findByDocument(doc);
           boolean hasChildren = documentRepository.existsByParentIdAndIsTrashedFalse(doc.getId());
@@ -397,23 +413,65 @@ public class DocumentService {
   }
 
   @Transactional
-  public void restoreDocument(Long workspaceId, Long docId) {
+  public void restoreDocument(Long workspaceId, Long docId, User user) {
     Document doc = documentRepository.findById(docId)
         .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + docId));
     if (doc.getWorkspace() == null || !doc.getWorkspace().getId().equals(workspaceId)) {
       throw new ResourceNotFoundException("Document not found in workspace: " + workspaceId);
     }
+    if (!doc.isTrashed()) {
+      throw new IllegalArgumentException("Document is not in trash.");
+    }
+    
+    // deleteDocument와 동일한 쓰기 권한 체크 로직 재사용
+    boolean isOwner = doc.getUser().getId().equals(user.getId());
+    boolean hasWritePermissionOnDoc = permissionRepository.findByDocument(doc).stream()
+        .anyMatch(p -> p.getUser().getId().equals(user.getId())
+            && p.getStatus() == PermissionStatus.ACCEPTED
+            && (p.getPermissionType() == PermissionType.WRITE || p.getPermissionType() == PermissionType.OWNER));
+    Document parent = doc.getParent();
+    boolean isParentOwner = parent != null && parent.getUser().getId().equals(user.getId());
+    boolean hasWritePermissionOnParent = parent != null && permissionRepository.findByDocument(parent).stream()
+        .anyMatch(p -> p.getUser().getId().equals(user.getId())
+            && p.getStatus() == PermissionStatus.ACCEPTED
+            && (p.getPermissionType() == PermissionType.WRITE || p.getPermissionType() == PermissionType.OWNER));
+
+    if (!isOwner && !hasWritePermissionOnDoc && !isParentOwner && !hasWritePermissionOnParent) {
+      throw new org.springframework.security.access.AccessDeniedException("No permission to restore this document.");
+    }
+    
     doc.setTrashed(false);
     documentRepository.save(doc);
   }
 
   @Transactional
-  public void deleteDocumentPermanently(Long workspaceId, Long docId) {
+  public void deleteDocumentPermanently(Long workspaceId, Long docId, User user) {
     Document doc = documentRepository.findById(docId)
         .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + docId));
     if (doc.getWorkspace() == null || !doc.getWorkspace().getId().equals(workspaceId)) {
       throw new ResourceNotFoundException("Document not found in workspace: " + workspaceId);
     }
+    if (!doc.isTrashed()) {
+      throw new IllegalArgumentException("Document is not in trash.");
+    }
+    
+    // deleteDocument와 동일한 쓰기 권한 체크 로직 재사용
+    boolean isOwner = doc.getUser().getId().equals(user.getId());
+    boolean hasWritePermissionOnDoc = permissionRepository.findByDocument(doc).stream()
+        .anyMatch(p -> p.getUser().getId().equals(user.getId())
+            && p.getStatus() == PermissionStatus.ACCEPTED
+            && (p.getPermissionType() == PermissionType.WRITE || p.getPermissionType() == PermissionType.OWNER));
+    Document parent = doc.getParent();
+    boolean isParentOwner = parent != null && parent.getUser().getId().equals(user.getId());
+    boolean hasWritePermissionOnParent = parent != null && permissionRepository.findByDocument(parent).stream()
+        .anyMatch(p -> p.getUser().getId().equals(user.getId())
+            && p.getStatus() == PermissionStatus.ACCEPTED
+            && (p.getPermissionType() == PermissionType.WRITE || p.getPermissionType() == PermissionType.OWNER));
+
+    if (!isOwner && !hasWritePermissionOnDoc && !isParentOwner && !hasWritePermissionOnParent) {
+      throw new org.springframework.security.access.AccessDeniedException("No permission to permanently delete this document.");
+    }
+    
     // TABLE 문서는 자식부터 하드 삭제
     if (doc.getViewType() == ViewType.TABLE) {
       List<Document> descendants = collectDescendants(doc);
@@ -425,9 +483,29 @@ public class DocumentService {
   }
 
   @Transactional
-  public void emptyTrash(Long workspaceId) {
-    // 휴지통 문서 전체를 안전 순서(자식 -> 부모)로 삭제
-    List<Document> trashedDocs = documentRepository.findByWorkspaceIdAndIsTrashedTrue(workspaceId);
+  public void emptyTrash(Long workspaceId, User user) {
+    // 휴지통 문서 전체 조회
+    List<Document> allTrashedDocs = documentRepository.findByWorkspaceIdAndIsTrashedTrue(workspaceId);
+    if (allTrashedDocs.isEmpty()) return;
+
+    // 사용자가 쓰기 권한이 있는 문서만 필터링 (deleteDocument와 동일한 권한 체크 로직)
+    List<Document> trashedDocs = allTrashedDocs.stream()
+        .filter(doc -> {
+          boolean isOwner = doc.getUser().getId().equals(user.getId());
+          boolean hasWritePermissionOnDoc = permissionRepository.findByDocument(doc).stream()
+              .anyMatch(p -> p.getUser().getId().equals(user.getId())
+                  && p.getStatus() == PermissionStatus.ACCEPTED
+                  && (p.getPermissionType() == PermissionType.WRITE || p.getPermissionType() == PermissionType.OWNER));
+          Document parent = doc.getParent();
+          boolean isParentOwner = parent != null && parent.getUser().getId().equals(user.getId());
+          boolean hasWritePermissionOnParent = parent != null && permissionRepository.findByDocument(parent).stream()
+              .anyMatch(p -> p.getUser().getId().equals(user.getId())
+                  && p.getStatus() == PermissionStatus.ACCEPTED
+                  && (p.getPermissionType() == PermissionType.WRITE || p.getPermissionType() == PermissionType.OWNER));
+          return isOwner || hasWritePermissionOnDoc || isParentOwner || hasWritePermissionOnParent;
+        })
+        .collect(Collectors.toList());
+    
     if (trashedDocs.isEmpty()) return;
 
     // 우선 모든 값은 일괄 삭제 (FK 제약 방지)

@@ -6,6 +6,7 @@ import { createLogger } from '@/lib/logger';
 import { useDocument } from '@/contexts/DocumentContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatKoreanDateSmart } from '@/lib/utils';
+import { hasWritePermission } from '@/utils/permissionUtils';
 import { getColorObj } from '@/lib/colors';
 import UserBadge from '@/components/documents/shared/UserBadge';
 import { resolveUserDisplay } from '@/components/documents/shared/resolveUserDisplay';
@@ -82,10 +83,7 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
   const { user } = useAuth();
 
   // 권한 체크: 읽기 권한만 있는 경우 복원 버튼 비활성화
-  const isOwner = String(currentDocument?.userId) === String(user?.id);
-  const myPermission = currentDocument?.permissions?.find(p => String(p.userId) === String(user?.id));
-  const hasWritePermission = isOwner || myPermission?.permissionType === 'WRITE' || myPermission?.permissionType === 'OWNER';
-  const canRestore = hasWritePermission;
+  const canRestore = hasWritePermission(currentDocument, user);
 
   const PAGE_SIZE = 20;
   const [page, setPage] = useState(0);
