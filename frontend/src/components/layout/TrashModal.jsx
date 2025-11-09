@@ -198,18 +198,6 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
                 const path = getDocumentPath(doc);
                 const pathString = formatPath(path);
                 
-                // 디버깅: 경로가 있는데 표시되지 않는 경우 확인
-                if (doc.parentId && !pathString) {
-                  console.warn('경로 표시 안 됨', { 
-                    docId: doc.id, 
-                    docTitle: doc.title, 
-                    parentId: doc.parentId,
-                    pathLength: path.length,
-                    path: path.map(p => ({ id: p.id, title: p.title })),
-                    pathDetails: path
-                  });
-                }
-                
                 return (
                   <li key={doc.id} className="flex items-start gap-3 py-2">
                     {/* 아이콘 */}
