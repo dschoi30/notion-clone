@@ -46,6 +46,10 @@ public class Document extends BaseEntity {
     @Column(name = "title_column_width", nullable = false)
     private Integer titleColumnWidth = 288;
 
+    @Builder.Default
+    @Column(name = "is_locked", nullable = false)
+    private boolean isLocked = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     private Document parent;
@@ -111,5 +115,13 @@ public class Document extends BaseEntity {
 
     public void setTitleColumnWidth(Integer titleColumnWidth) {
         this.titleColumnWidth = titleColumnWidth;
+    }
+
+    public boolean isLocked() {
+        return isLocked;
+    }
+
+    public void setLocked(boolean locked) {
+        this.isLocked = locked;
     }
 } 

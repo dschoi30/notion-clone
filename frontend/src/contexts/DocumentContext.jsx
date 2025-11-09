@@ -132,8 +132,9 @@ export function DocumentProvider({ children }) {
     try {
       setError(null);
       const updated = await documentApi.updateDocument(currentWorkspace.id, id, documentData);
-      // 백엔드 응답에 permissions가 누락되면 기존 currentDocument.permissions를 유지(부모 권한 병합분 보존)
+      // 기존 currentDocument의 모든 필드를 보존하고, 업데이트된 필드만 덮어쓰기
       const mergedUpdated = {
+        ...(currentDocument?.id === id ? currentDocument : {}),
         ...updated,
         permissions: (Array.isArray(updated?.permissions) && updated.permissions.length > 0)
           ? updated.permissions

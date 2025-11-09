@@ -1128,3 +1128,19 @@
       - `DocumentSharePopover.jsx`: `isDocumentOwner` 유틸 사용
       - `DocumentTableView.jsx`: `isDocumentOwner` 유틸 사용
   - 영향: 권한 체크 로직의 일관성 확보, 코드 중복 제거, 향후 권한 체크 로직 변경 시 한 곳만 수정하면 됨
+- 문서 잠금 기능 구현
+  - 백엔드:
+    - `Document` 엔티티에 `isLocked` 필드 추가 (기본값: false)
+    - `UpdateDocumentRequest`에 `isLocked` 필드 추가
+    - `DocumentResponse`에 `isLocked` 필드 추가 및 매핑
+    - `DocumentService.updateDocument`에서 `isLocked` 상태 업데이트 처리
+    - DB 스키마 자동 업데이트 (JPA ddl-auto: update 사용)
+  - 프론트엔드:
+    - `DocumentHeader.jsx`에 잠금/잠금 해제 버튼 추가 (문서 경로 우측)
+    - `DocumentEditor.jsx`에서 잠금 상태에 따라 `isReadOnly` 적용
+    - 잠금 토글 핸들러 구현 (`handleLockToggle`)
+    - 잠금 상태는 DB에 저장되어 재방문 시에도 유지됨
+  - 동작:
+    - 기본 상태: 잠금 해제
+    - 잠금 버튼 클릭 시: 모든 내용이 readOnly로 변경, 버튼 텍스트는 "잠금 해제"로 변경
+    - 잠금 해제 버튼 클릭 시: 원상 복구

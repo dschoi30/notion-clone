@@ -38,10 +38,9 @@ const DocumentEditor = () => {
   // 공유 팝오버 상태
   const [showShareModal, setShowShareModal] = useState(false);
   const shareButtonRef = useRef(null);
-
   const canWrite = hasWritePermission(currentDocument, user);
-  const isReadOnly = !canWrite;
-
+  // 잠금 상태 또는 권한이 없으면 읽기 전용
+  const isReadOnly = !canWrite || (currentDocument?.isLocked ?? false);
   const viewers = useDocumentPresence(currentDocument?.id, user);
   const { properties, titleWidth } = useDocumentPropertiesStore(state => ({ properties: state.properties, titleWidth: state.titleWidth }));
   const SNAPSHOT_INTERVAL_MS = (import.meta.env && import.meta.env.MODE === 'development') ? 30 * 1000 : 10 * 60 * 1000;
@@ -299,6 +298,22 @@ const DocumentEditor = () => {
     }
   };
 
+  // 잠금 토글 핸들러
+  const handleLockToggle = async () => {
+    if (!currentDocument || !currentWorkspace) return;
+    try {
+      const newLockState = !currentDocument.isLocked;
+      // 잠금 상태만 업데이트할 때도 현재 title과 content를 함께 보내서 덮어쓰기 방지
+      await updateDocument(currentDocument.id, { 
+        isLocked: newLockState,
+        title: titleRef.current || currentDocument.title || '',
+        content: contentRef.current || currentDocument.content || ''
+      });
+    } catch (error) {
+      console.error('잠금 상태 변경 실패:', error);
+    }
+  };
+
   if (!currentDocument) {
     return <div className="p-4 text-sm">선택된 문서가 없습니다.</div>;
   }
@@ -326,6 +341,7 @@ const DocumentEditor = () => {
           currentWorkspace={currentWorkspace}
           path={path}
           onPathClick={handlePathClick}
+          onLockToggle={handleLockToggle}
         />
         {currentDocument.viewType === 'PAGE' && (
           <DocumentPageView
