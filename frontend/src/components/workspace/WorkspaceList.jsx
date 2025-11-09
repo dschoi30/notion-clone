@@ -195,10 +195,6 @@ export default function WorkspaceList() {
           onClose={() => setIsCreateModalOpen(false)}
         />
       )}
-
-      {isSettingsPanelOpen && (
-        <SettingsPanel onClose={() => setIsSettingsPanelOpen(false)} />
-      )}
     </div>
   );
 } 
