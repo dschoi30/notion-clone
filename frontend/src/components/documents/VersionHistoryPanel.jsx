@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Tooltip } from '@/components/ui/tooltip';
 import { getDocumentVersions, getDocumentVersion, restoreDocumentVersion, getProperties } from '@/services/documentApi';
 import { createLogger } from '@/lib/logger';
 import { useDocument } from '@/contexts/DocumentContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { formatKoreanDateSmart } from '@/lib/utils';
 import { getColorObj } from '@/lib/colors';
 import UserBadge from '@/components/documents/shared/UserBadge';
@@ -77,6 +79,13 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
   const [tagOptionsByPropId, setTagOptionsByPropId] = useState({});
   const log = createLogger('version');
   const { fetchDocument, currentDocument, fetchDocuments, refreshAllChildDocuments } = useDocument();
+  const { user } = useAuth();
+
+  // 권한 체크: 읽기 권한만 있는 경우 복원 버튼 비활성화
+  const isOwner = String(currentDocument?.userId) === String(user?.id);
+  const myPermission = currentDocument?.permissions?.find(p => String(p.userId) === String(user?.id));
+  const hasWritePermission = isOwner || myPermission?.permissionType === 'WRITE' || myPermission?.permissionType === 'OWNER';
+  const canRestore = hasWritePermission;
 
   const PAGE_SIZE = 20;
   const [page, setPage] = useState(0);
@@ -256,7 +265,16 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
             </ul>
           </div>
           <div className="flex justify-end pt-3 border-t">
-            <Button className="w-16" onClick={handleRestore} disabled={restoring}>{restoring ? '복원 중...' : '복원'}</Button>
+            <Tooltip 
+              content={!canRestore ? '문서의 쓰기 권한을 가진 사용자만 복원이 가능합니다' : ''} 
+              side="top"
+              delayDuration={300}
+              className="whitespace-nowrap"
+            >
+              <Button className="w-16" onClick={handleRestore} disabled={restoring || !canRestore}>
+                {restoring ? '복원 중...' : '복원'}
+              </Button>
+            </Tooltip>
           </div>
         </div>
         {/* 닫기 버튼: ui/dialog 스타일과 유사하게 */}

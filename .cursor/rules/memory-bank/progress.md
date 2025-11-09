@@ -1080,3 +1080,17 @@
     - 버튼이 이미 렌더링되었는지 확인하고, 중복 렌더링 방지
     - 기존 버튼이 있으면 제거 후 새로 렌더링하여 중복 방지
   - 영향: 구글 로그인 버튼이 첫 번째 클릭부터 정상적으로 동작하며, 스크립트 중복 로드 및 버튼 중복 렌더링 문제 해결
+
+## 2025-11-09 (VersionHistoryPanel 권한 체크 기능 추가)
+- **VersionHistoryPanel 읽기 권한 사용자 복원 버튼 비활성화 기능 구현**
+  - 목적: 읽기 권한만 가진 사용자는 문서를 복원할 수 없도록 제한
+  - 구현 사항:
+    - `useAuth` 훅을 통해 현재 사용자 정보 가져오기
+    - `DocumentEditor.jsx`와 동일한 권한 체크 로직 적용
+      - 문서 소유자 확인: `isOwner = String(currentDocument?.userId) === String(user?.id)`
+      - 사용자별 권한 확인: `myPermission = currentDocument?.permissions?.find(...)`
+      - 쓰기 권한 확인: `hasWritePermission = isOwner || myPermission?.permissionType === 'WRITE' || myPermission?.permissionType === 'OWNER'`
+    - 복원 버튼에 `disabled={restoring || !canRestore}` 적용
+    - 기존 Tooltip 컴포넌트를 활용하여 읽기 권한만 있는 경우 툴팁으로 안내 메시지 표시: "문서의 쓰기 권한을 가진 사용자만 복원이 가능합니다"
+    - 툴팁 지연 시간 300ms로 설정하여 빠른 피드백 제공
+  - 영향: 읽기 권한만 가진 사용자는 버전 기록을 조회할 수 있지만 복원은 불가능하며, 명확한 안내 메시지 제공
