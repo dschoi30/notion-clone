@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, Hash, Calendar, Tag as TagIcon, User, Clock, Edit3 } from 'lucide-react';
+import { Text, Hash, Calendar, Tag as TagIcon, User, Clock, Edit3, Shield } from 'lucide-react';
 
 export function getPropertyIcon(type) {
   switch (type) {
@@ -11,6 +11,8 @@ export function getPropertyIcon(type) {
       return <Calendar className="inline mr-1" size={16} />;
     case 'TAG':
       return <TagIcon className="inline mr-1" size={16} />;
+    case 'ROLE':
+      return <Shield className="inline mr-1" size={16} />;
     case 'CREATED_BY':
       return <User className="inline mr-1" size={16} />;
     case 'LAST_UPDATED_BY':

@@ -7,6 +7,7 @@ import WorkspaceGeneralForm from './WorkspaceGeneralForm';
 import DummyDataTestPanel from './DummyDataTestPanel';
 import AccountBasicForm from './AccountBasicForm';
 import PermissionExample from '../examples/PermissionExample';
+import UserManagementPanel from './UserManagementPanel';
 import { Z_INDEX } from '@/constants/zIndex';
 
 // 단순 레이아웃 셸: VersionHistoryPanel과 동일한 패널/오버레이 구조
@@ -30,6 +31,9 @@ export default function SettingsPanel({ onClose }) {
       items.push({ id: 'admin', label: '관리자', isSection: true });
       items.push({ id: 'admin-dummy', label: '더미 데이터 테스트' });
     }
+    if (user?.role === 'SUPER_ADMIN') {
+      items.push({ id: 'user-management', label: '사용자 관리' });
+    }
     return items;
   }, [user?.role]);
 
@@ -46,6 +50,8 @@ export default function SettingsPanel({ onClose }) {
         return '더미 데이터 테스트';
       case 'permission-example':
         return '권한 시스템 예시';
+      case 'user-management':
+        return '사용자 관리';
       default:
         return '설정';
     }
@@ -108,6 +114,10 @@ export default function SettingsPanel({ onClose }) {
           
           {selected === 'permission-example' && (
             <PermissionExample workspaceId={currentWorkspace?.id} />
+          )}
+
+          {selected === 'user-management' && (
+            <UserManagementPanel />
           )}
         </div>
 

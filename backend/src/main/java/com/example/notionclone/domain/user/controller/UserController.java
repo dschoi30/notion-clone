@@ -10,7 +10,12 @@ import com.example.notionclone.security.CurrentUser;
 import com.example.notionclone.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -76,5 +81,36 @@ public class UserController {
             log.error("Error changing password for user: {}", userPrincipal.getId(), e);
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    /**
+     * 전체 사용자 목록 조회 (페이지네이션 지원)
+     * SUPER_ADMIN 전용
+     */
+    @GetMapping
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<Page<UserResponse>> getAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(required = false) String sort) {
+        log.debug("Get all users request: page={}, size={}, sort={}", page, size, sort);
+        
+        // 정렬 파라미터 처리
+        Sort sortObj = Sort.by(Sort.Direction.ASC, "id"); // 기본값: id 오름차순
+        if (sort != null && !sort.isEmpty()) {
+            String[] sortParts = sort.split(",");
+            if (sortParts.length == 2) {
+                String field = sortParts[0].trim();
+                String direction = sortParts[1].trim().toUpperCase();
+                sortObj = Sort.by(
+                    "DESC".equals(direction) ? Sort.Direction.DESC : Sort.Direction.ASC,
+                    field
+                );
+            }
+        }
+        
+        Pageable pageable = PageRequest.of(page, size, sortObj);
+        Page<UserResponse> users = userService.getAllUsers(pageable);
+        return ResponseEntity.ok(users);
     }
 }
