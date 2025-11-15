@@ -6,6 +6,7 @@ import { createLogger } from '@/lib/logger';
 import { authSync } from '@/utils/authSync';
 import { useToast } from '@/hooks/useToast';
 import { setGlobalToast } from '@/services/api';
+import { setSentryUser } from '@/lib/sentry';
 
 const AuthContext = createContext();
 
@@ -40,6 +41,15 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     setGlobalToast(toast);
   }, [toast]);
+
+  // Sentry 사용자 컨텍스트 설정
+  useEffect(() => {
+    if (user) {
+      setSentryUser(user);
+    } else {
+      setSentryUser(null);
+    }
+  }, [user]);
 
 
   // authSync 이벤트 처리
