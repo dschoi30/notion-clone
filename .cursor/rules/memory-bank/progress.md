@@ -949,55 +949,6 @@
   - 부모 폴더 선택 시 "자식 문서들이 부모 폴더의 속성을 자동으로 상속받습니다" 안내
   - 테스트 결과에 상속된 속성 개수 표시
 
-## 2025-10-25
-- 성능 테스트 기능 전면 제거 (프론트/백엔드)
-  - FE: `frontend/src/components/settings/DummyDataTestPanel.jsx`에서 성능 테스트 UI/상태/로직 삭제
-  - BE: `DummyDataController`의 `/performance-test` 엔드포인트 제거, `DummyDataService` 테스트 메서드 일체 제거
-- 더미 데이터 생성 고도화
-  - 속성 생성 시 타입(TEXT/NUMBER/DATE/TAG)별 더미 값 자동 생성
-  - 루트 경로(parentId 없음)에서도 문서 속성 템플릿 생성 후 각 문서에 상속/저장되도록 처리
-- 관리 도구 개선
-  - DB 최적화(PostgreSQL): 인덱스 생성 + `ANALYZE` 수행, 단계별 로깅 추가
-  - 더미 데이터 삭제: FK 제약 고려한 안전 삭제 순서 적용
-    1) `document_property_values`(document_id/property_id 참조)
-    2) `document_versions`
-    3) `document_properties`(document_id/name 조건)
-    4) `documents`(title LIKE 'Dummy%')
-- UI/UX 보완
-  - 관리 도구 버튼 툴팁/설명 추가, 기능별 로딩 상태 분리(`isOptimizing`, `isClearing`)
-  - 숫자 천 단위 콤마 포맷팅 도입 (`formatNumber`), 상단 카운터 라벨 개선(전체 문서/전체 속성)
-- 로깅 일원화: `DummyDataService`에 `@Slf4j` 적용 및 단계별 info/warn/error 로그 추가
-
-## 2025-10-26 (권한 관리 시스템 엔티티명 통일)
-- **WorkspaceMembership을 WorkspacePermission으로 통일**
-  - 목적: 문서별 권한(Permission)과 워크스페이스 권한을 일관된 명명 규칙으로 통일
-  - 변경사항:
-    - 엔티티명: `WorkspaceMembership` → `WorkspacePermission`
-    - 테이블명: `workspace_memberships` → `workspace_permissions`
-    - Repository명: `WorkspaceMembershipRepository` → `WorkspacePermissionRepository`
-    - 모든 관련 서비스, 컨트롤러, Aspect에서 참조 업데이트
-  - 영향: 권한 관리 시스템의 일관성 확보, 개발자 경험 향상
-- **클래스 다이어그램 및 ERD 업데이트**
-  - `notion_clone_class_diagram.mermaid`: WorkspacePermission 엔티티 및 관계 추가
-  - `notion_clone_erd.mermaid`: WorkspacePermission 테이블 및 관계 매핑 추가
-  - WorkspaceRole enum과의 관계 명확화
-  - 영향: 시스템 아키텍처 문서의 정확성 및 최신성 확보
-- WorkspacePermission enum을 WorkspacePermissionType으로 변경하여 엔티티와의 이름 충돌 해결
-  - 모든 관련 파일에서 참조 업데이트 완료 (WorkspaceRole, WorkspaceMembership, WorkspaceRoleService, UnifiedPermissionService, RoleBasedAccessControlAspect)
-  - 클래스 다이어그램에 WorkspacePermissionType enum 추가 및 관계 정의
-  - 권한 시스템 구조 개선으로 더 명확한 코드 구조 확보
-
-## 2025-10-30 (PR #60 보안/성능 리뷰 반영)
-- 관리자 보호 복구: `DummyDataController` `@PreAuthorize('ADMIN')` 재활성화 (generate-bulk/clear/optimize)
-- 접근 권한 검증: `DocumentController.getTableDocuments`에 `@CurrentUser` 추가 및 `UnifiedPermissionService.hasWorkspacePermission(VIEW_DOCUMENT)` 검사
-- 보안 강화: 더미 사용자 비밀번호를 `passwordEncoder.encode("dummy")`로 해시 저장
-- N+1 제거/배치 저장: 자식 문서 속성 값 생성 시 `findByDocumentIdIn(...)`로 일괄 조회 후 `DocumentPropertyValueRepository.saveAll(...)` 사용
-- JPQL 정리: `CAST(d.viewType AS string)` 제거, DTO 변환부에서 `String.valueOf(result[2])`로 안전 변환
-- 리포지토리 보강: `DocumentPropertyRepository.findByDocumentIdIn(...)` 추가
-- 의존성 주입 개선: `@Autowired` 필드 주입을 생성자 주입으로 변경
-  - `DummyDataController`: `@RequiredArgsConstructor` 추가, 필드를 `final`로 변경하여 불변성 확보
-  - `DummyDataService`: `@RequiredArgsConstructor` 추가, 필드를 `final`로 변경하여 테스트 가능성 및 불변성 향상
-
 ## 2025-11-06 (WorkspacePermission 엔티티 캡슐화 강화)
 - **WorkspacePermission 엔티티 Builder 패턴 적용 및 명시적 상태 변경 메서드 추가**
   - 목적: 다른 엔티티들과 일관된 Builder 패턴 사용, 무분별한 setter 사용 방지
@@ -1173,3 +1124,15 @@
     - [ ] `SortManager` 위치 계산 문제: 초기에는 올바른 위치에 표시되다가 브라우저 좌상단으로 이동하는 현상
       - 원인: `useLayoutEffect`에서 위치 계산이 여러 번 실행되면서 잘못된 값으로 덮어씌워지는 것으로 추정
       - 추후 처리 과제로 기록
+## 2025-11-11 (환경 변수 전달 개선)
+- Docker 프로덕션 프론트엔드 이미지 빌드시 Vite 환경 변수를 build args로 전달하도록 개선
+  - `frontend/Dockerfile.prod`에 `ARG/ENV` 추가 (`VITE_API_BASE_URL`, `VITE_BACKEND_ORIGIN`, `VITE_SENTRY_DSN`)
+  - `docker-compose.yml` 프론트 서비스에 build args 설정 및 기본 `VITE_API_BASE_URL=/api`
+  - 개발용 compose에서도 기본 API base를 `/api`로 지정하여 dev/prod 요청 경로 일관성 확보
+- 프론트 nginx에 `/sentry-api/` 프록시를 추가하여 Sentry self-hosted로 터널링 요청을 전달 (`proxy_pass http://sentry-web:9000/api/`)
+
+## 2025-11-13 (오픈소스 로깅 시스템 도입 완료)
+  - 백엔드: logstash-logback-encoder를 사용한 JSON 구조화 로깅, LoggingFilter를 통한 MDC 기반 요청 추적 ID 생성
+  - 프론트엔드: loglevel 기반 브라우저 호환 로깅, Sentry 통합을 통한 에러 추적 및 모니터링
+  - 환경별 로깅 설정 개선 (dev/prod), logback-spring.xml을 통한 JSON 포맷 및 파일 로깅 관리
+  - Winston을 loglevel로 교체하여 브라우저 호환성 문제 해결

@@ -29,9 +29,8 @@ logging:
     # 프로덕션 환경에서 과도한 로깅 방지
     com.example.notionclone.security.JwtAuthenticationFilter: ${LOG_LEVEL_JWT_FILTER:DEBUG}
     com.example.notionclone.domain.user.service.AuthService: ${LOG_LEVEL_AUTH_SERVICE:DEBUG}
-  pattern:
-    # 프로덕션에서는 간단한 로그 포맷 사용
-    console: ${LOG_PATTERN:%-5level [%thread] %logger{36} - %msg%n}
+  # logback-spring.xml에서 JSON 포맷 및 파일 로깅 설정을 관리
+  config: classpath:logback-spring.xml
 
 jwt:
   secret: ${JWT_SECRET}

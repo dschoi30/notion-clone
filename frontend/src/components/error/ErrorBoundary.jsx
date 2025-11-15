@@ -3,6 +3,7 @@ import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getReactErrorMessage } from '@/lib/errorUtils';
 import { createLogger } from '@/lib/logger';
+import { captureException } from '@/lib/sentry';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -19,6 +20,13 @@ class ErrorBoundary extends React.Component {
   componentDidCatch(error, errorInfo) {
     // 에러 로깅 서비스에 에러를 기록할 수 있습니다.
     this.logger.error('ErrorBoundary caught an error:', error, errorInfo);
+    
+    // Sentry에 에러 전송
+    captureException(error, {
+      errorInfo,
+      componentStack: errorInfo.componentStack,
+    });
+    
     this.setState({
       error: error,
       errorInfo: errorInfo

@@ -110,8 +110,36 @@ api.interceptors.response.use(
     }
     
     // 500+ 서버 에러
+    // 백엔드에서 이미 로그를 남기므로, 프론트엔드에서는 로그만 남기고
+    // Grafana Loki + Promtail을 통해 백엔드 로그를 수집하는 것을 권장합니다.
     if (error.response?.status >= 500) {
       console.error('Server Error:', error.response.status, error.response.data);
+      alog.error('서버 에러 발생', {
+        status: error.response.status,
+        url: error.config?.url,
+        method: error.config?.method,
+        responseData: error.response.data,
+      });
+      
+      // 참고: 백엔드 로그는 Grafana Loki + Promtail로 수집됩니다.
+      // 프론트엔드 Sentry는 클라이언트 사이드 에러에만 집중합니다.
+    }
+    
+    // 429 Too Many Requests - Rate Limiting 이슈 추적
+    if (error.response?.status === 429) {
+      if (typeof window !== 'undefined' && window.Sentry) {
+        try {
+          window.Sentry.captureMessage('Rate limit exceeded', {
+            level: 'warning',
+            tags: {
+              endpoint: error.config?.url || 'unknown',
+              retry_after: error.response.headers['retry-after'] || 'unknown',
+            },
+          });
+        } catch (sentryError) {
+          console.error('Sentry capture failed:', sentryError);
+        }
+      }
     }
     
     return Promise.reject(error);

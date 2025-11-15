@@ -1,23 +1,27 @@
 /* eslint-env node */
-// vite.config.js
+/* global process */
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { fileURLToPath } from 'url'; // 추가
+import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url); // 추가
-const __dirname = path.dirname(__filename);       // 추가
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // https://vitejs.dev/config/
-export default ({ mode }) => {
-  const env = loadEnv(mode, __dirname, '');
-  const backendOrigin = env.VITE_BACKEND_ORIGIN || 'http://localhost:8080';
+export default defineConfig(({ mode }) => {
+  // frontend 디렉토리에서 .env 파일 로드
+  const envDir = __dirname;
+  const env = loadEnv(mode, envDir, 'VITE_');
 
-  return defineConfig({
+  // 프로세스 환경 변수도 확인 (Docker에서 전달된 환경 변수)
+  const backendOrigin = env.VITE_BACKEND_ORIGIN || process.env.VITE_BACKEND_ORIGIN || 'http://localhost:8080';
+
+  return {
+    envDir,
     plugins: [react()],
     resolve: {
       alias: {
-        // 이제 __dirname 사용 가능 
         '@': path.resolve(__dirname, './src'),
       },
     },
@@ -28,6 +32,7 @@ export default ({ mode }) => {
         interval: 100,
       },
       proxy: {
+        // 백엔드 API 프록시
         '/api': {
           target: backendOrigin,
           changeOrigin: true,
@@ -43,5 +48,5 @@ export default ({ mode }) => {
     define: {
       global: 'window',
     },
-  });
-};
+  };
+});
