@@ -13,4 +13,18 @@ RUN pnpm install --include=dev
 RUN ls -la node_modules/.bin/ | head -10
 COPY . .
 EXPOSE 5173
-CMD ["pnpm", "dev", "--host", "0.0.0.0"]
+
+# 환경변수를 런타임에 주입하기 위한 entrypoint 스크립트 생성
+RUN echo '#!/bin/sh\n\
+# 환경변수 출력 (디버깅용)\n\
+echo "=== Environment Variables ==="\n\
+echo "VITE_SENTRY_DSN: $VITE_SENTRY_DSN"\n\
+echo "VITE_BACKEND_ORIGIN: $VITE_BACKEND_ORIGIN"\n\
+echo "VITE_API_BASE_URL: $VITE_API_BASE_URL"\n\
+echo "============================="\n\
+\n\
+# Vite 개발 서버 실행\n\
+exec pnpm dev --host 0.0.0.0\n\
+' > /entrypoint.sh && chmod +x /entrypoint.sh
+
+CMD ["/entrypoint.sh"]

@@ -1,5 +1,6 @@
 // App.jsx
 import { BrowserRouter as Router } from 'react-router-dom';
+import * as Sentry from '@sentry/react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { WorkspaceProvider } from './contexts/WorkspaceContext';
 import { DocumentProvider } from './contexts/DocumentContext';
@@ -28,12 +29,22 @@ const AppContent = () => {
   );
 };
 
+// Sentry ErrorBoundary로 감싸기
+const SentryWrappedAppContent = Sentry.withErrorBoundary(AppContent, {
+  fallback: ({ error, resetError }) => <ErrorBoundary />,
+  beforeCapture: (scope, error, errorInfo) => {
+    scope.setContext('react', {
+      componentStack: errorInfo?.componentStack,
+    });
+  },
+});
+
 const App = () => {
   return (
     <ErrorBoundary>
       <Router>
         <AuthProvider>
-          <AppContent />
+          <SentryWrappedAppContent />
         </AuthProvider>
       </Router>
     </ErrorBoundary>

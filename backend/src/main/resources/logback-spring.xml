@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- 환경별 프로파일 설정 -->
+    <springProfile name="dev">
+        <!-- 개발 환경: 콘솔에 JSON + 일반 텍스트 로그 출력 -->
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <providers>
+                    <timestamp>
+                        <timeZone>Asia/Seoul</timeZone>
+                    </timestamp>
+                    <version/>
+                    <logLevel/>
+                    <loggerName/>
+                    <message/>
+                    <mdc/>
+                    <stackTrace/>
+                    <pattern>
+                        <pattern>
+                            {
+                                "timestamp": "%d{yyyy-MM-dd HH:mm:ss.SSS}",
+                                "level": "%-5level",
+                                "thread": "%thread",
+                                "logger": "%logger{36}",
+                                "message": "%msg"
+                            }
+                        </pattern>
+                    </pattern>
+                </providers>
+            </encoder>
+        </appender>
+
+        <!-- 개발 환경용 간단한 텍스트 로그 (가독성 향상) -->
+        <appender name="CONSOLE_TEXT" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="prod">
+        <!-- 프로덕션 환경: JSON 형식으로 파일 및 콘솔 출력 -->
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <providers>
+                    <timestamp>
+                        <timeZone>Asia/Seoul</timeZone>
+                    </timestamp>
+                    <version/>
+                    <logLevel/>
+                    <loggerName/>
+                    <message/>
+                    <mdc/>
+                    <stackTrace/>
+                    <pattern>
+                        <pattern>
+                            {
+                                "timestamp": "%d{yyyy-MM-dd HH:mm:ss.SSS}",
+                                "level": "%-5level",
+                                "thread": "%thread",
+                                "logger": "%logger{36}",
+                                "message": "%msg"
+                            }
+                        </pattern>
+                    </pattern>
+                </providers>
+            </encoder>
+        </appender>
+
+        <!-- 파일 로그 (JSON 형식) -->
+        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>logs/notion-clone.log</file>
+            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <providers>
+                    <timestamp>
+                        <timeZone>Asia/Seoul</timeZone>
+                    </timestamp>
+                    <version/>
+                    <logLevel/>
+                    <loggerName/>
+                    <message/>
+                    <mdc/>
+                    <stackTrace/>
+                </providers>
+            </encoder>
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <fileNamePattern>logs/notion-clone-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+                <maxFileSize>100MB</maxFileSize>
+                <maxHistory>30</maxHistory>
+                <totalSizeCap>3GB</totalSizeCap>
+            </rollingPolicy>
+        </appender>
+
+        <!-- 에러 전용 파일 로그 -->
+        <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>logs/notion-clone-error.log</file>
+            <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+                <level>ERROR</level>
+            </filter>
+            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <providers>
+                    <timestamp>
+                        <timeZone>Asia/Seoul</timeZone>
+                    </timestamp>
+                    <version/>
+                    <logLevel/>
+                    <loggerName/>
+                    <message/>
+                    <mdc/>
+                    <stackTrace/>
+                </providers>
+            </encoder>
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <fileNamePattern>logs/notion-clone-error-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+                <maxFileSize>100MB</maxFileSize>
+                <maxHistory>30</maxHistory>
+                <totalSizeCap>1GB</totalSizeCap>
+            </rollingPolicy>
+        </appender>
+
+        <root level="WARN">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+            <appender-ref ref="ERROR_FILE"/>
+        </root>
+    </springProfile>
+
+    <!-- 애플리케이션 로거 설정 -->
+    <logger name="com.example.notionclone" level="${LOG_LEVEL_APP:-INFO}"/>
+    
+    <!-- 보안 관련 로거 -->
+    <logger name="com.example.notionclone.security" level="${LOG_LEVEL_SECURITY:-INFO}"/>
+    
+    <!-- JWT 필터 로거 -->
+    <logger name="com.example.notionclone.security.JwtAuthenticationFilter" level="${LOG_LEVEL_JWT_FILTER:-INFO}"/>
+    
+    <!-- 인증 서비스 로거 -->
+    <logger name="com.example.notionclone.domain.user.service.AuthService" level="${LOG_LEVEL_AUTH_SERVICE:-INFO}"/>
+
+    <!-- Spring Framework 로거 -->
+    <logger name="org.springframework" level="INFO"/>
+    <logger name="org.springframework.security" level="${LOG_LEVEL_SECURITY:-WARN}"/>
+    
+    <!-- Hibernate 로거 -->
+    <logger name="org.hibernate" level="WARN"/>
+    <logger name="org.hibernate.orm.jdbc.bind" level="${LOG_LEVEL_HIBERNATE:-WARN}"/>
+</configuration>
+
