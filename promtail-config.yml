@@ -20,7 +20,7 @@ scrape_configs:
       - json:
           expressions:
             level: level
-            logger: logger_name
+            logger: logger
             message: message
             traceId: traceId
             requestMethod: requestMethod
@@ -35,5 +35,5 @@ scrape_configs:
           requestUri:
       - timestamp:
           source: timestamp
-          format: RFC3339Nano
+          format: '2006-01-02 15:04:05.000'  # logback-spring.xml의 yyyy-MM-dd HH:mm:ss.SSS 포맷과 일치
 
