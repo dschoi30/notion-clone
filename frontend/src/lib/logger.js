@@ -16,8 +16,8 @@ log.setLevel(getLogLevel());
 // 개발 환경 여부
 const isDev = Boolean(import.meta.env.DEV);
 
-// Namespace 필터링 설정
-const getNamespaceFilter = () => {
+// Namespace 필터링 설정 (모듈 로드 시 한 번만 계산)
+const namespaceFilter = (() => {
   const envNs = String(import.meta.env.VITE_DEBUG_NS ?? '')
     .split(',')
     .map((s) => s.trim())
@@ -32,11 +32,33 @@ const getNamespaceFilter = () => {
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
-  } catch (_) {
-    // ignore URL/localStorage errors in non-browser contexts
+  } catch (err) {
+    // 개발 환경에서만 경고 로그 출력
+    if (import.meta.env.DEV) {
+      console.warn('Failed to read runtime debug config:', err.message);
+    }
+    runtimeNs = [];
   }
 
   return { envNs, runtimeNs };
+})();
+
+// 런타임 네임스페이스 필터 갱신 함수 (필요 시 호출)
+const updateRuntimeNamespaceFilter = () => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const queryNs = String(params.get('debug') ?? '');
+    const storageNs = String(localStorage.getItem('DEBUG') ?? '');
+    namespaceFilter.runtimeNs = (queryNs + ',' + storageNs)
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  } catch (err) {
+    if (import.meta.env.DEV) {
+      console.warn('Failed to update runtime debug config:', err.message);
+    }
+    namespaceFilter.runtimeNs = [];
+  }
 };
 
 // 로그 포맷터
@@ -73,7 +95,9 @@ const formatLog = (level, namespace, message, meta = {}) => {
  * @returns {object} 로거 객체 (debug, info, warn, error 메서드 포함)
  */
 export function createLogger(namespace) {
-  const { envNs, runtimeNs } = getNamespaceFilter();
+  // 런타임 필터 갱신 (URL이나 localStorage 변경 가능성 고려)
+  updateRuntimeNamespaceFilter();
+  const { envNs, runtimeNs } = namespaceFilter;
   
   // 네임스페이스 필터링
   const nsEnabled =

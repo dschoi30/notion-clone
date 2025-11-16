@@ -1,7 +1,5 @@
 # 프로덕션 환경 설정
 spring:
-  profiles:
-    active: prod
   jpa:
     show-sql: false
     properties:
