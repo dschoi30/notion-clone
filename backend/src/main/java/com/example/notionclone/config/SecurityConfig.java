@@ -76,7 +76,8 @@ public class SecurityConfig {
                 "/manifest.json",
                 "/logo192.png",
                 "/logo512.png",
-                "/actuator/health"
+                "/actuator/health",
+                "/actuator/prometheus"
             )
             .permitAll()
             .anyRequest().authenticated())
@@ -115,6 +116,8 @@ public class SecurityConfig {
                 "/logo192.png",
                 "/logo512.png",
                 "/actuator/health"
+                // 프로덕션 환경에서는 /actuator/prometheus를 인증 없이 접근 불가
+                // Prometheus는 내부 네트워크에서만 접근 가능하도록 별도 포트 사용 권장
             )
             .permitAll()
             .anyRequest().authenticated())
