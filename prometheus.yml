@@ -19,8 +19,10 @@ scrape_configs:
       - targets: ['cadvisor:8080']
 
   # Spring Boot Actuator (백엔드 애플리케이션 메트릭)
+  # 프로덕션 환경에서는 별도 포트(9091) 사용, 개발 환경에서는 8080 포트 사용
+  # 환경 변수 MANAGEMENT_SERVER_PORT가 설정되어 있으면 해당 포트 사용, 없으면 9091 사용
   - job_name: 'backend'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['backend:8080']
+      - targets: ['backend:9091']  # 기본값: 별도 포트 사용 (보안 강화)
 
