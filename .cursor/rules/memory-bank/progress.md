@@ -1220,16 +1220,18 @@
 ## 2025-11-16: PR #74 리뷰 이슈 조치
 
 ### 변경 사항
-- **Critical: Promtail 타임스탬프 필드 불일치 수정**
+- **Critical: Promtail 타임스탬프 필드 및 포맷 불일치 수정**
   - `promtail-config.yml`에서 `"@timestamp"` 필드를 찾던 문제 수정
   - 실제 로그는 `timestamp` 필드로 출력되므로 JSON 파싱 단계에서 `timestamp` 필드 추출하도록 변경
   - regex 단계 제거하고 JSON 파싱 단계에서 직접 추출하도록 수정
+  - 타임스탬프 포맷 불일치 수정: `RFC3339Nano` → `2006-01-02 15:04:05.000` (logback-spring.xml의 `yyyy-MM-dd HH:mm:ss.SSS` 포맷과 일치)
   - 타임스탬프 기반 필터링 및 정렬 기능 정상화
 - **Critical: Prometheus 메트릭 엔드포인트 보안 강화**
   - 프로덕션 환경에서 `/actuator/prometheus` 엔드포인트를 `permitAll()`에서 제거
   - 별도 포트(9091)로 Actuator 관리 엔드포인트 노출 (보안 강화)
   - `application.yml`에 `management.server.port` 설정 추가 (기본값: 9091)
-  - 개발 환경에서는 기본 서버 포트(8080) 사용하도록 `application-dev.yml` 설정
+  - 개발 환경에서는 `management.server.port` 설정 제거하여 기본 서버 포트(8080) 사용
+  - 빈 포트 기본값으로 인한 런타임 오류 방지
   - `docker-compose.yml`에 관리 포트(9091) 노출 추가
   - `prometheus.yml`에서 별도 포트(9091) 사용하도록 수정
 - **보안: Grafana 비밀번호 환경 변수화**
