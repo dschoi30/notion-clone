@@ -1136,3 +1136,109 @@
   - 프론트엔드: loglevel 기반 브라우저 호환 로깅, Sentry 통합을 통한 에러 추적 및 모니터링
   - 환경별 로깅 설정 개선 (dev/prod), logback-spring.xml을 통한 JSON 포맷 및 파일 로깅 관리
   - Winston을 loglevel로 교체하여 브라우저 호환성 문제 해결
+
+## 2025-11-15 (Loki + Promtail 로그 수집 시스템 연동 완료)
+  - **목적**: 백엔드 로그를 중앙화하여 수집하고 시각화하기 위한 로그 수집 시스템 구축
+  - **구현 사항**:
+    - `docker-compose.yml`에 Loki, Promtail, Grafana 서비스 추가
+      - Loki: 로그 저장소 (포트 3100)
+      - Promtail: 로그 수집 에이전트 (백엔드 로그 파일 모니터링)
+      - Grafana: 로그 시각화 대시보드 (포트 3000, 기본 비밀번호: admin)
+    - `promtail-config.yml` 생성: 백엔드 로그 파일 수집 설정
+      - `/var/log/backend/*.log` 경로의 로그 파일 모니터링
+      - JSON 형식 로그 파싱 (timestamp, level, logger, message, traceId, requestMethod, requestUri, userId)
+      - 파싱된 필드를 라벨로 추가하여 Loki에서 필터링 및 검색 가능
+    - 백엔드 로그 디렉토리 마운트: `./backend/logs` → `/var/log/backend` (읽기 전용)
+  - **사용 방법**:
+    1. `docker-compose up -d`로 서비스 시작
+    2. Grafana 접속: `http://localhost:3000` (admin/admin)
+    3. Configuration → Data Sources → Add data source → Loki 선택
+    4. URL: `http://loki:3100` 입력 후 Save & Test
+    5. Explore 메뉴에서 LogQL 쿼리로 로그 조회 가능
+  - **LogQL 쿼리 예시**:
+    - 에러 로그만 조회: `{job="notion-clone-backend"} |= "ERROR"`
+    - 특정 traceId로 요청 추적: `{job="notion-clone-backend"} | json | traceId="abc123def456"`
+    - 특정 사용자의 로그: `{job="notion-clone-backend"} | json | userId="123"`
+    - 특정 엔드포인트의 로그: `{job="notion-clone-backend"} | json | requestUri=~"/api/documents.*"`
+  - **영향**: 백엔드 로그를 중앙화하여 수집하고 시각화할 수 있어 디버깅 및 모니터링 효율성 향상
+
+## 2025-11-15 (Prometheus 모니터링 및 알림 시스템 구축 완료)
+  - **목적**: CPU/메모리 등 시스템 리소스 모니터링 및 임계치 초과 시 알림 기능 제공
+  - **구현 사항**:
+    - `docker-compose.yml`에 모니터링 서비스 추가
+      - **Prometheus**: 메트릭 수집 및 저장 (포트 9090)
+      - **Node Exporter**: 호스트 시스템 메트릭 수집 (포트 9100)
+      - **cAdvisor**: Docker 컨테이너 메트릭 수집 (포트 8081)
+    - `prometheus.yml` 생성: Prometheus 설정 파일
+      - Node Exporter, cAdvisor, Prometheus 자체 메트릭 수집 설정
+      - 15초 간격으로 메트릭 수집
+    - `docs/monitoring_alerting_guide.md` 생성: 모니터링 및 알림 설정 가이드
+      - Grafana에 Prometheus 데이터 소스 추가 방법
+      - CPU/메모리 대시보드 생성 방법
+      - 알림 규칙 설정 방법 (CPU 80%, 메모리 85% 임계치)
+      - 이메일/Slack 알림 채널 설정 방법
+      - 유용한 PromQL 쿼리 예제
+  - **사용 방법**:
+    1. `docker-compose up -d prometheus node-exporter cadvisor`로 서비스 시작
+    2. Grafana 접속: `http://localhost:3000`
+    3. Configuration → Data Sources → Prometheus 추가 (URL: `http://prometheus:9090`)
+    4. Alerting → Alert rules에서 CPU/메모리 알림 규칙 생성
+    5. Notification channels에서 이메일/Slack 알림 채널 설정
+  - **기능**:
+    - 호스트 CPU/메모리/디스크 사용률 모니터링
+    - 컨테이너별 리소스 사용률 모니터링
+    - 임계치 초과 시 자동 알림 (이메일/Slack)
+    - Grafana 대시보드를 통한 시각화
+  - **영향**: 시스템 리소스 사용률을 실시간으로 모니터링하고 문제 발생 시 즉시 알림을 받을 수 있어 운영 안정성 향상
+
+## 2025-11-15 (PR #72 리뷰 대응)
+- **GitHub PR #72 리뷰 이슈 해결 완료**
+  - **Critical: CONSOLE_TEXT Appender 참조 추가**
+    - `logback-spring.xml`에서 정의되었지만 사용되지 않던 `CONSOLE_TEXT` appender를 dev 프로파일의 root logger에 참조 추가
+    - 개발 환경에서 읽기 쉬운 텍스트 형식 로그 출력 활성화
+  - **Security: Sentry DSN 보안 강화**
+    - DSN 마스킹 기능 추가 (로그에 전체 DSN 노출 방지)
+    - 개발 환경에서만 마스킹된 DSN 로그 출력
+    - 프로덕션 환경에서는 DSN 관련 로그 출력 제거
+  - **Performance: Logger Namespace 필터링 최적화**
+    - `logger.js`의 `getNamespaceFilter()` 함수를 모듈 로드 시 한 번만 계산하도록 메모이제이션
+    - 런타임 필터 갱신 함수(`updateRuntimeNamespaceFilter`) 추가로 URL/localStorage 변경 시에만 갱신
+    - 불필요한 URLSearchParams 파싱 및 localStorage 접근 최소화
+  - **Code Quality: Logger 에러 핸들링 개선**
+    - 에러 발생 시 개발 환경에서만 경고 로그 출력
+    - 명시적인 기본값 반환 (`runtimeNs = []`)
+    - 에러 메시지 포함하여 디버깅 용이성 향상
+  - **Configuration: 환경 변수 기본값 문서화**
+    - `README.md`에 환경 변수 기본값 명확히 문서화
+    - 필수/선택 환경 변수 구분
+    - 각 환경 변수의 기본값 및 가능한 값 명시
+  - **Sentry 환경 변수 값 수정**
+    - `sentry.js`에서 환경 변수 비교 로직을 Vite의 MODE 값과 일치하도록 수정
+    - `development` → `dev`, `production` → `prod`로 변경하여 Vite 환경 변수와 일관성 확보
+  - **영향**: 코드 품질 향상, 성능 최적화, 보안 강화, 문서화 개선, 환경 변수 일관성 확보
+
+## 2025-11-16: PR #74 리뷰 이슈 조치
+
+### 변경 사항
+- **Critical: Promtail 타임스탬프 필드 및 포맷 불일치 수정**
+  - `promtail-config.yml`에서 `"@timestamp"` 필드를 찾던 문제 수정
+  - 실제 로그는 `timestamp` 필드로 출력되므로 JSON 파싱 단계에서 `timestamp` 필드 추출하도록 변경
+  - regex 단계 제거하고 JSON 파싱 단계에서 직접 추출하도록 수정
+  - 타임스탬프 포맷 불일치 수정: `RFC3339Nano` → `2006-01-02 15:04:05.000` (logback-spring.xml의 `yyyy-MM-dd HH:mm:ss.SSS` 포맷과 일치)
+  - 타임스탬프 기반 필터링 및 정렬 기능 정상화
+- **Critical: Prometheus 메트릭 엔드포인트 보안 강화**
+  - 프로덕션 환경에서 `/actuator/prometheus` 엔드포인트를 `permitAll()`에서 제거
+  - 별도 포트(9091)로 Actuator 관리 엔드포인트 노출 (보안 강화)
+  - `application.yml`에 `management.server.port` 설정 추가 (기본값: 9091)
+  - 개발 환경에서는 `management.server.port` 설정 제거하여 기본 서버 포트(8080) 사용
+  - 빈 포트 기본값으로 인한 런타임 오류 방지
+  - `docker-compose.yml`에 관리 포트(9091) 노출 추가
+  - `prometheus.yml`에서 별도 포트(9091) 사용하도록 수정
+- **보안: Grafana 비밀번호 환경 변수화**
+  - `docker-compose.yml`에서 하드코딩된 `admin` 비밀번호를 환경 변수로 변경
+  - `GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}` 설정
+  - 환경 변수로 비밀번호 관리 가능하도록 개선
+- **보안: cAdvisor 권한 최소화**
+  - `privileged: true` 대신 필요한 최소 권한만 `cap_add`로 추가
+  - `SYS_TIME`, `SYS_ADMIN`, `NET_ADMIN` 권한만 추가하여 보안 강화
+- **영향**: 보안 취약점 해결, 로그 수집 정확성 향상, 프로덕션 배포 준비 완료

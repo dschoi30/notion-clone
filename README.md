@@ -63,19 +63,34 @@ cd backend
 
 ## 환경 변수 요약
 `.env` 참고:
-- DB: `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`
-- JWT: `JWT_SECRET`, `JWT_EXPIRATION`
-- Google: `GOOGLE_CLIENT_ID`
-- Cloudinary: `CLOUDINARY_*`
-- 포트: `BACKEND_PORT`, `FRONTEND_PORT`
-- 프론트 런타임:
-  - `VITE_BACKEND_ORIGIN`: dev 프록시 대상(예: `http://backend:8080`)
-  - `VITE_API_BASE_URL`: axios 기본 baseURL(운영에선 `/api` 권장)
-- 로깅 시스템:
-  - `VITE_SENTRY_DSN`: Sentry DSN (에러 추적용, 선택)
-  - `VITE_LOG_LEVEL`: 로그 레벨 (ERROR, WARN, INFO, DEBUG, TRACE, 기본값: 개발=DEBUG, 프로덕션=INFO)
-  - `VITE_DEBUG_NS`: 디버그 네임스페이스 필터 (쉼표로 구분, 예: `AuthContext,api`, 선택)
-  - 백엔드 로그 레벨: `LOG_LEVEL_APP`, `LOG_LEVEL_SECURITY`, `LOG_LEVEL_JWT_FILTER`, `LOG_LEVEL_AUTH_SERVICE`, `LOG_LEVEL_HIBERNATE` (선택)
+
+### 필수 환경 변수
+- **DB**: `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`
+- **JWT**: `JWT_SECRET`, `JWT_EXPIRATION`
+- **포트**: `BACKEND_PORT`, `FRONTEND_PORT`
+
+### 선택적 환경 변수 (기본값 포함)
+
+#### 프론트엔드
+- `VITE_BACKEND_ORIGIN`: dev 프록시 대상 (기본값: `http://backend:8080`)
+- `VITE_API_BASE_URL`: axios 기본 baseURL (기본값: `/api`, 운영 권장: `/api`)
+- `VITE_SENTRY_DSN`: Sentry DSN (에러 추적용, 기본값: 없음, 선택)
+- `VITE_LOG_LEVEL`: 로그 레벨 (기본값: 개발=DEBUG, 프로덕션=INFO)
+  - 가능한 값: `ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`
+- `VITE_DEBUG_NS`: 디버그 네임스페이스 필터 (기본값: 없음, 선택)
+  - 쉼표로 구분, 예: `AuthContext,api`
+- `VITE_APP_VERSION`: 앱 버전 (기본값: `unknown`, Sentry 릴리즈 추적용)
+
+#### 백엔드
+- `LOG_LEVEL_APP`: 애플리케이션 로그 레벨 (기본값: `INFO`)
+- `LOG_LEVEL_SECURITY`: 보안 로그 레벨 (기본값: `INFO`)
+- `LOG_LEVEL_JWT_FILTER`: JWT 필터 로그 레벨 (기본값: `INFO`)
+- `LOG_LEVEL_AUTH_SERVICE`: 인증 서비스 로그 레벨 (기본값: `INFO`)
+- `LOG_LEVEL_HIBERNATE`: Hibernate 로그 레벨 (기본값: `WARN`)
+
+#### OAuth/외부 서비스
+- `GOOGLE_CLIENT_ID`: Google OAuth 클라이언트 ID (선택)
+- `CLOUDINARY_*`: Cloudinary 설정 (선택)
 
 ## Sentry 에러 추적 (선택)
 

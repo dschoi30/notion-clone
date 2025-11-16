@@ -184,6 +184,15 @@ setSentryUser({
 
 ## 모니터링 및 분석
 
+### 로그 시각화
+
+JSON 형태의 로그를 Grafana 대시보드에서 시각적으로 표현하는 방법은 `docs/log_visualization_guide.md`를 참고하세요.
+
+**주요 방법**:
+1. **Spring Boot Actuator 메트릭** (권장): 이미 설정되어 있으며 HTTP 요청 메트릭을 Prometheus에서 바로 사용 가능
+2. **LogQL 집계 함수**: 로그에서 직접 통계 생성 (count_over_time, rate 등)
+3. **Promtail Metrics Stage**: 로그를 Prometheus 메트릭으로 변환
+
 ### 로그 수집 시스템 연동
 
 백엔드의 JSON 로그는 다음 시스템과 쉽게 연동할 수 있습니다:
@@ -322,7 +331,16 @@ scrape_configs:
 {job="notion-clone-backend"} | json | userId="123"
 
 # 특정 엔드포인트의 로그
-{job="notion-clone-backend"} | json | requestUri=~"/api/documents.*"
+# 방법 1: 라벨로 필터링 (requestUri가 라벨로 추가된 경우)
+{job="notion-clone-backend", requestUri=~"/api/.*documents.*"}
+
+# 방법 2: JSON 파싱 후 필터링 (라벨이 없는 경우)
+{job="notion-clone-backend"} | json | requestUri=~"/api/.*documents.*"
+
+# 실제 URI 패턴 예시:
+# - /api/workspaces/1/documents/2/children
+# - /api/workspaces/1/documents/2
+# 따라서 패턴은 /api/.*documents.* 또는 /api/workspaces/.*/documents.* 사용
 ```
 
 ### 2. ELK Stack (Elasticsearch + Logstash + Kibana)

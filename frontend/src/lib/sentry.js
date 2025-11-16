@@ -6,7 +6,7 @@ import * as Sentry from '@sentry/react';
  * 환경 변수에서 DSN을 가져와서 초기화합니다.
  */
 export function initSentry() {
-  const environment = import.meta.env.MODE || 'development';
+  const environment = import.meta.env.MODE || 'dev';
   // 릴리즈 버전: 환경 변수 또는 package.json 버전 사용
   const release = import.meta.env.VITE_APP_VERSION || 'unknown';
 
@@ -14,8 +14,16 @@ export function initSentry() {
   const dsn = import.meta.env.VITE_SENTRY_DSN;
   
   if (!dsn) {
-    console.warn('Sentry DSN이 설정되지 않았습니다. 에러 추적이 비활성화됩니다.');
+    if (environment === 'dev') {
+      console.warn('Sentry DSN이 설정되지 않았습니다. 에러 추적이 비활성화됩니다.');
+    }
     return;
+  }
+
+  // DSN 마스킹 (보안: 로그에 전체 DSN이 노출되지 않도록)
+  const maskedDsn = dsn.length > 8 ? `${dsn.substring(0, 4)}...${dsn.substring(dsn.length - 4)}` : '****';
+  if (environment === 'dev') {
+    console.log(`Sentry 초기화됨 (DSN: ${maskedDsn})`);
   }
 
   const sentryOptions = {
@@ -25,10 +33,10 @@ export function initSentry() {
     
     // 샘플링 비율 (0.0 ~ 1.0)
     // 프로덕션에서는 10%만 추적하여 비용 절감
-    tracesSampleRate: environment === 'production' ? 0.1 : 1.0,
+    tracesSampleRate: environment === 'prod' ? 0.1 : 1.0,
     
     // 세션 리플레이 설정 (프로덕션에서만 활성화)
-    replaysSessionSampleRate: environment === 'production' ? 0.1 : 1.0,
+    replaysSessionSampleRate: environment === 'prod' ? 0.1 : 1.0,
     replaysOnErrorSampleRate: 1.0,
     
     // 통합 기능 설정
@@ -43,7 +51,7 @@ export function initSentry() {
     // 에러 필터링 (개발 환경에서 일부 에러 무시)
     beforeSend(event, hint) {
       // 개발 환경에서는 일부 에러를 무시
-      if (environment === 'development') {
+      if (environment === 'dev') {
         // React 개발 모드 경고는 무시
         if (event.message?.includes('Warning:') || 
             event.message?.includes('ReactDOM')) {
