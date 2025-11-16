@@ -1216,3 +1216,27 @@
     - `sentry.js`에서 환경 변수 비교 로직을 Vite의 MODE 값과 일치하도록 수정
     - `development` → `dev`, `production` → `prod`로 변경하여 Vite 환경 변수와 일관성 확보
   - **영향**: 코드 품질 향상, 성능 최적화, 보안 강화, 문서화 개선, 환경 변수 일관성 확보
+
+## 2025-11-16: PR #74 리뷰 이슈 조치
+
+### 변경 사항
+- **Critical: Promtail 타임스탬프 필드 불일치 수정**
+  - `promtail-config.yml`에서 `"@timestamp"` 필드를 찾던 문제 수정
+  - 실제 로그는 `timestamp` 필드로 출력되므로 JSON 파싱 단계에서 `timestamp` 필드 추출하도록 변경
+  - regex 단계 제거하고 JSON 파싱 단계에서 직접 추출하도록 수정
+  - 타임스탬프 기반 필터링 및 정렬 기능 정상화
+- **Critical: Prometheus 메트릭 엔드포인트 보안 강화**
+  - 프로덕션 환경에서 `/actuator/prometheus` 엔드포인트를 `permitAll()`에서 제거
+  - 별도 포트(9091)로 Actuator 관리 엔드포인트 노출 (보안 강화)
+  - `application.yml`에 `management.server.port` 설정 추가 (기본값: 9091)
+  - 개발 환경에서는 기본 서버 포트(8080) 사용하도록 `application-dev.yml` 설정
+  - `docker-compose.yml`에 관리 포트(9091) 노출 추가
+  - `prometheus.yml`에서 별도 포트(9091) 사용하도록 수정
+- **보안: Grafana 비밀번호 환경 변수화**
+  - `docker-compose.yml`에서 하드코딩된 `admin` 비밀번호를 환경 변수로 변경
+  - `GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}` 설정
+  - 환경 변수로 비밀번호 관리 가능하도록 개선
+- **보안: cAdvisor 권한 최소화**
+  - `privileged: true` 대신 필요한 최소 권한만 `cap_add`로 추가
+  - `SYS_TIME`, `SYS_ADMIN`, `NET_ADMIN` 권한만 추가하여 보안 강화
+- **영향**: 보안 취약점 해결, 로그 수집 정확성 향상, 프로덕션 배포 준비 완료

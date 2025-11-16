@@ -60,3 +60,6 @@ management:
     export:
       prometheus:
         enabled: true
+  # 프로덕션 환경에서 Prometheus 엔드포인트를 별도 포트로 노출 (보안 강화)
+  server:
+    port: ${MANAGEMENT_SERVER_PORT:9091}

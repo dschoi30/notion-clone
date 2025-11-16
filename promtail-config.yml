@@ -26,8 +26,7 @@ scrape_configs:
             requestMethod: requestMethod
             requestUri: requestUri
             userId: userId
-      - regex:
-          expression: '"@timestamp"\s*:\s*"(?P<timestamp>[^"]+)"'
+            timestamp: timestamp
       - labels:
           level:
           logger:
