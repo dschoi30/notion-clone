@@ -76,7 +76,8 @@ public class SecurityConfig {
                 "/manifest.json",
                 "/logo192.png",
                 "/logo512.png",
-                "/actuator/health"
+                "/actuator/health",
+                "/actuator/prometheus"
             )
             .permitAll()
             .anyRequest().authenticated())
@@ -114,7 +115,8 @@ public class SecurityConfig {
                 "/manifest.json",
                 "/logo192.png",
                 "/logo512.png",
-                "/actuator/health"
+                "/actuator/health",
+                "/actuator/prometheus"
             )
             .permitAll()
             .anyRequest().authenticated())
