@@ -71,6 +71,36 @@ cd backend
 - 프론트 런타임:
   - `VITE_BACKEND_ORIGIN`: dev 프록시 대상(예: `http://backend:8080`)
   - `VITE_API_BASE_URL`: axios 기본 baseURL(운영에선 `/api` 권장)
+- 로깅 시스템:
+  - `VITE_SENTRY_DSN`: Sentry DSN (에러 추적용, 선택)
+  - `VITE_LOG_LEVEL`: 로그 레벨 (ERROR, WARN, INFO, DEBUG, TRACE, 기본값: 개발=DEBUG, 프로덕션=INFO)
+  - `VITE_DEBUG_NS`: 디버그 네임스페이스 필터 (쉼표로 구분, 예: `AuthContext,api`, 선택)
+  - 백엔드 로그 레벨: `LOG_LEVEL_APP`, `LOG_LEVEL_SECURITY`, `LOG_LEVEL_JWT_FILTER`, `LOG_LEVEL_AUTH_SERVICE`, `LOG_LEVEL_HIBERNATE` (선택)
+
+## Sentry 에러 추적 (선택)
+
+클라우드 Sentry를 사용하여 에러 추적 및 성능 모니터링을 설정할 수 있습니다.
+
+### 설정 방법
+1. [Sentry.io](https://sentry.io)에서 계정 생성 및 프로젝트 생성
+2. 프로젝트 설정에서 DSN 복사
+3. `.env` 파일에 DSN 설정:
+   ```bash
+   VITE_SENTRY_DSN=https://your-key@your-org.ingest.sentry.io/your-project-id
+   ```
+4. (선택) 릴리즈 버전 설정:
+   ```bash
+   VITE_APP_VERSION=1.0.0
+   ```
+5. 프론트엔드 재시작
+
+### 주요 기능
+- **에러 추적**: 자동으로 JavaScript 에러 캡처
+- **성능 모니터링**: 페이지 로드 시간 및 API 응답 시간 추적
+- **세션 리플레이**: 에러 발생 시 사용자 행동 재현
+- **릴리즈 추적**: 배포별 에러 발생률 추적
+
+자세한 내용은 `docs/sentry_monitoring_guide.md` 참고
 
 ## 주요 동작
 - API: `/api/**`

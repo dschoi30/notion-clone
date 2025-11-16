@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 import { createLogger } from '@/lib/logger';
+import { captureException } from '@/lib/sentry';
 
 /**
  * 문서 실시간 협업용 WebSocket 커스텀 훅
@@ -36,11 +37,38 @@ export default function useDocumentSocket(documentId, onRemoteEdit) {
       // debug: (str) => console.log(str),
       reconnectDelay: 5000,
       onConnect: () => {
+        rlog.info('WebSocket 연결 성공:', documentId);
         stompClient.subscribe(`/topic/document/${documentId}`, (msg) => {
           if (msg.body && onRemoteEditRef.current) {
             onRemoteEditRef.current(JSON.parse(msg.body));
           }
         });
+      },
+      onStompError: (frame) => {
+        rlog.error('STOMP 에러:', frame);
+        captureException(new Error('WebSocket STOMP error'), {
+          tags: {
+            document_id: documentId,
+            error_type: 'websocket_stomp',
+          },
+          extra: {
+            command: frame.command,
+            message: frame.message,
+            headers: frame.headers,
+          },
+        });
+      },
+      onWebSocketError: (event) => {
+        rlog.error('WebSocket 연결 에러:', event);
+        captureException(new Error('WebSocket connection error'), {
+          tags: {
+            document_id: documentId,
+            error_type: 'websocket_connection',
+          },
+        });
+      },
+      onDisconnect: () => {
+        rlog.info('WebSocket 연결 종료:', documentId);
       },
     });
     stompClient.activate();
