@@ -64,3 +64,53 @@ export const getUsersPaged = async (page = 0, size = 50, sortField = 'id', sortD
     throw error;
   }
 };
+
+// ===== SUPER_ADMIN 기능 =====
+
+// 사용자 역할 변경
+export const updateUserRole = async (userId, newRole) => {
+  try {
+    const response = await api.put(`/api/admin/users/${userId}/role`, {
+      role: newRole
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`사용자 ${userId} 역할 변경 실패:`, error);
+    throw error;
+  }
+};
+
+// 사용자 비밀번호 재설정
+export const resetUserPassword = async (userId) => {
+  try {
+    const response = await api.post(`/api/admin/users/${userId}/reset-password`);
+    return response.data;
+  } catch (error) {
+    console.error(`사용자 ${userId} 비밀번호 재설정 실패:`, error);
+    throw error;
+  }
+};
+
+// 사용자 계정 활성화/비활성화
+export const toggleUserStatus = async (userId, isActive) => {
+  try {
+    const response = await api.put(`/api/admin/users/${userId}/status`, {
+      isActive
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`사용자 ${userId} 상태 변경 실패:`, error);
+    throw error;
+  }
+};
+
+// 사용자 계정 삭제
+export const deleteUser = async (userId) => {
+  try {
+    const response = await api.delete(`/api/admin/users/${userId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`사용자 ${userId} 삭제 실패:`, error);
+    throw error;
+  }
+};

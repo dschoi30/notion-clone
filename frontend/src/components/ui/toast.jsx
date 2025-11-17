@@ -6,16 +6,21 @@ import { cva } from "class-variance-authority"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { Z_INDEX } from "@/constants/zIndex"
 
 const ToastProvider = ToastPrimitives.Provider
 
-const ToastViewport = React.forwardRef(({ className, ...props }, ref) => (
+const ToastViewport = React.forwardRef(({ className, style, ...props }, ref) => (
   <ToastPrimitives.Viewport
     ref={ref}
     className={cn(
-      "fixed bottom-0 left-1/2 z-[100] flex max-h-screen w-full max-w-[420px] -translate-x-1/2 flex-col p-4",
+      "fixed bottom-0 left-1/2 flex max-h-screen w-full max-w-[420px] -translate-x-1/2 flex-col p-4",
       className
     )}
+    style={{
+      zIndex: Z_INDEX.TOAST,
+      ...style,
+    }}
     {...props}
   />
 ))
