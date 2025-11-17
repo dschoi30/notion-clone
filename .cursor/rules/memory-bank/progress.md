@@ -1242,3 +1242,23 @@
   - `privileged: true` 대신 필요한 최소 권한만 `cap_add`로 추가
   - `SYS_TIME`, `SYS_ADMIN`, `NET_ADMIN` 권한만 추가하여 보안 강화
 - **영향**: 보안 취약점 해결, 로그 수집 정확성 향상, 프로덕션 배포 준비 완료
+
+## 2025-11-17 (사용자 관리 패널 고도화)
+- **백엔드 관리자 API 정비**
+  - `AdminController`/`UserService`에 역할 변경, 비밀번호 초기화, 계정 잠금/잠금 해제, 삭제용 SUPER_ADMIN 전용 엔드포인트를 구현하고 권한 검사를 강화했습니다.
+  - `User` 엔티티와 `UserResponse` DTO에 `isActive`, `lastLoginAt`, `updatedAt` 필드를 추가해 계정 잠금 상태와 최신 활동 정보를 제공하도록 했습니다.
+- **프론트엔드 UserManagementPanel UX 개선**
+  - 체크박스 다중 선택 시 노션 스타일의 선택 상태 바와 `BulkUserActionPopover`가 버튼 기준 우측에 정확히 정렬되도록 위치 계산 로직을 추가했습니다.
+  - 개별 `UserActionPopover`도 버튼 우측에 고정되며 외부 클릭, 다이얼로그, 드롭다운 상태를 고려해 자연스럽게 닫히도록 개선했습니다.
+  - 역할/계정 잠금 토글 후 `fetchTableData()`를 호출해 그리드를 즉시 새로고침하고, 계정 잠금 상태(예/아니오)와 `수정일시` 컬럼을 추가해 최신 정보를 보여줍니다.
+  - 이메일/이름/프로필 열에 말줄임(`truncate`) 처리와 `overflow-hidden`을 적용하고, UserBadge 옆에는 텍스트만 노출해 긴 문구가 인접 열을 침범하지 않도록 했습니다.
+- **Bulk 액션 UX**
+  - 일괄 역할 변경/계정 잠금/비밀번호 초기화 버튼이 선택 개수와 사용자의 잠금 상태에 따라 문구와 버튼 구성이 동적으로 바뀌도록 구현했습니다.
+- **토스트/모달 레이어링 정리**
+  - `Z_INDEX.TOAST`를 1200으로 상향하고 ToastViewport에도 동일 값을 적용해 SettingsPanel 등 모든 패널 위에 표시되도록 했으며, Popover 내부 Dialog도 상단 레이어에서 렌더링되도록 조정했습니다.
+- **정렬 드롭다운 위치 보정**
+  - `SortDropdown`이 트리거와 떨어진 곳에 렌더링되던 문제를 해결하기 위해 버튼 ref 기준으로 좌표를 계산해 버튼 바로 아래에서 열리도록 직접 포지셔닝했습니다.
+  - 사용자 관리 화면에서는 문서용 “이름” 속성이 자동으로 추가되지 않도록 `autoAddNameProperty` 옵션을 추가했습니다.
+- **버그 픽스 및 기타**
+  - `useUserTableData` 훅이 `fetchTableData`를 `refetch`라는 이름으로만 반환하던 문제를 수정해 Bulk 액션 완료 후 새로고침 오류를 제거했습니다.
+  - 선택 상태 바의 절대 위치를 조정(`top: -50`)해 SortManager가 표시될 때도 UI가 겹치지 않도록 했습니다.

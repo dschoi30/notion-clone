@@ -16,7 +16,7 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-black/30  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
     {...props} />
@@ -31,6 +31,7 @@ const DialogContent = React.forwardRef(
       overlay = true,
       portal = true,
       contentStyle,
+      overlayStyle,
       noDefaultStyle = false,
       ...props
     },
@@ -57,11 +58,15 @@ const DialogContent = React.forwardRef(
       </DialogPrimitive.Content>
     );
 
+    const Overlay = overlay ? (
+      <DialogOverlay style={overlayStyle} />
+    ) : null;
+
     if (!portal) {
       // Portal 없이 렌더링 (TrashModal 등)
       return (
         <>
-          {overlay && <DialogOverlay />}
+          {Overlay}
           {Content}
         </>
       );
@@ -70,7 +75,7 @@ const DialogContent = React.forwardRef(
     // 기본: Portal + Overlay
     return (
       <DialogPortal>
-        {overlay && <DialogOverlay />}
+        {Overlay}
         {Content}
       </DialogPortal>
     );
