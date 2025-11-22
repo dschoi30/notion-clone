@@ -18,8 +18,9 @@ import {
   updateUserRole,
   resetUserPassword,
   toggleUserStatus,
+  deleteUser,
 } from '@/services/userApi';
-import { ChevronDown, Lock, UserCheck } from 'lucide-react';
+import { ChevronDown, Lock, Trash2, UserCheck } from 'lucide-react';
 import { Z_INDEX } from '@/constants/zIndex';
 
 /**
@@ -36,7 +37,7 @@ function BulkUserActionPopover({
 }) {
   const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
-  const [confirmAction, setConfirmAction] = useState(null); // 'resetPassword' | 'toggleStatus'
+  const [confirmAction, setConfirmAction] = useState(null); // 'resetPassword' | 'toggleStatus' | 'delete'
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const contentRef = useRef(null);
@@ -131,7 +132,7 @@ function BulkUserActionPopover({
   }, [selectedUserIds, toast, onActionComplete]);
 
   /**
-   * 일괄 계정 활성화/비활성화
+   * 일괄 계정 잠금/잠금 해제
    */
   const handleBulkToggleStatus = useCallback(async (isActive) => {
     setIsLoading(true);
@@ -154,7 +155,7 @@ function BulkUserActionPopover({
       toast({
         variant: 'default',
         title: '상태 변경 완료',
-        description: `${successCount}명 ${isActive ? '활성화' : '비활성화'}됨${failCount > 0 ? `, ${failCount}명 실패` : ''}`,
+        description: `${successCount}명 ${isActive ? '잠금 해제' : '잠금'}됨${failCount > 0 ? `, ${failCount}명 실패` : ''}`,
       });
 
       onActionComplete?.('bulkStatusChanged', { count: successCount });
@@ -214,6 +215,47 @@ function BulkUserActionPopover({
     }
   }, [selectedUserIds, toast, onActionComplete]);
 
+  /**
+   * 일괄 계정 삭제
+   */
+  const handleBulkDelete = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const userIds = Array.from(selectedUserIds);
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const userId of userIds) {
+        try {
+          await deleteUser(userId);
+          successCount++;
+        } catch (error) {
+          console.error(`사용자 ${userId} 삭제 실패:`, error);
+          failCount++;
+        }
+      }
+
+      toast({
+        variant: 'default',
+        title: '삭제 완료',
+        description: `${successCount}명 삭제됨${failCount > 0 ? `, ${failCount}명 실패` : ''}`,
+      });
+
+      onActionComplete?.('bulkDelete', { count: successCount });
+      setIsConfirmDialogOpen(false);
+    } catch (error) {
+      console.error('일괄 삭제 실패:', error);
+      toast({
+        variant: 'destructive',
+        title: '오류',
+        description: error.response?.data?.message || '삭제에 실패했습니다.',
+      });
+    } finally {
+      setIsLoading(false);
+      setConfirmAction(null);
+    }
+  }, [selectedUserIds, toast, onActionComplete]);
+
   // 조건 확인: 선택된 사용자가 없거나 SUPER_ADMIN이 아니면 렌더링하지 않음
   if (!selectedUserIds || selectedUserIds.size === 0 || !isSuperAdmin) {
     return null;
@@ -259,8 +301,8 @@ function BulkUserActionPopover({
           </DropdownMenu>
         </div>
 
-        {/* 계정 활성화/비활성화 - 역할 변경 바로 아래 */}
-        {/* 전체 선택 시에는 계정 활성화/비활성화 버튼 숨김 */}
+        {/* 계정 잠금/잠금 해제 - 역할 변경 바로 아래 */}
+        {/* 전체 선택 시에는 계정 잠금/잠금 해제 버튼 숨김 */}
         {!isAllSelected && (
           selectedUserIds.size === 1 && selectedUsers.length > 0 ? (
             // 한 명만 선택했을 때: 해당 사용자의 상태에 따라 버튼 텍스트 변경
@@ -296,7 +338,7 @@ function BulkUserActionPopover({
               disabled={isLoading}
             >
               <UserCheck className="h-4 w-4" />
-              계정 활성화/비활성화
+              계정 잠금/잠금 해제
             </Button>
           )
         )}
@@ -319,6 +361,20 @@ function BulkUserActionPopover({
             비밀번호 재설정
           </Button>
         )}
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start text-xs gap-2 text-red-600 hover:bg-red-50"
+          onClick={() => {
+            setConfirmAction('delete');
+            setIsConfirmDialogOpen(true);
+          }}
+          disabled={isLoading}
+        >
+          <Trash2 className="h-4 w-4" />
+          계정 삭제
+        </Button>
       </div>
 
       {/* 확인 다이얼로그 */}
@@ -333,7 +389,11 @@ function BulkUserActionPopover({
         >
           <DialogHeader>
             <DialogTitle>
-              {confirmAction === 'resetPassword' ? '비밀번호 재설정' : '계정 상태 변경'}
+              {confirmAction === 'resetPassword'
+                ? '비밀번호 재설정'
+                : confirmAction === 'delete'
+                ? '계정 삭제'
+                : '계정 상태 변경'}
             </DialogTitle>
             <DialogDescription>
               {confirmAction === 'resetPassword' ? (
@@ -341,9 +401,14 @@ function BulkUserActionPopover({
                   사용자 비밀번호를 재설정하시겠습니까?
                   임시 비밀번호가 이메일로 발송됩니다.
                 </>
+              ) : confirmAction === 'delete' ? (
+                <>
+                  선택한 {selectedUserIds.size}명의 사용자 계정을 삭제하시겠습니까?
+                  이 작업은 되돌릴 수 없습니다.
+                </>
               ) : (
                 <>
-                  선택한 {selectedUserIds.size}명의 사용자 계정을 활성화/비활성화하시겠습니까?
+                  선택한 {selectedUserIds.size}명의 사용자 계정을 잠금 또는 잠금 해제하시겠습니까?
                 </>
               )}
             </DialogDescription>
@@ -366,6 +431,14 @@ function BulkUserActionPopover({
               >
                 {isLoading ? '처리 중...' : '재설정'}
               </Button>
+            ) : confirmAction === 'delete' ? (
+              <Button
+                variant="destructive"
+                onClick={handleBulkDelete}
+                disabled={isLoading}
+              >
+                {isLoading ? '처리 중...' : '삭제'}
+              </Button>
             ) : (
               // 한 명만 선택했을 때: 해당 사용자의 상태에 따라 버튼 하나만 표시
               selectedUserIds.size === 1 && selectedUsers.length > 0 ? (
@@ -385,7 +458,7 @@ function BulkUserActionPopover({
                   );
                 })()
               ) : (
-                // 여러 명 선택했을 때: 활성화/비활성화 버튼 둘 다 표시
+                // 여러 명 선택했을 때: 잠금 해제/잠금 버튼 둘 다 표시
                 <>
                   <Button
                     variant="outline"
@@ -394,7 +467,7 @@ function BulkUserActionPopover({
                     }}
                     disabled={isLoading}
                   >
-                    {isLoading ? '처리 중...' : '활성화'}
+                    {isLoading ? '처리 중...' : '잠금 해제'}
                   </Button>
                   <Button
                     variant="destructive"
@@ -403,7 +476,7 @@ function BulkUserActionPopover({
                     }}
                     disabled={isLoading}
                   >
-                    {isLoading ? '처리 중...' : '비활성화'}
+                    {isLoading ? '처리 중...' : '잠금'}
                   </Button>
                 </>
               )

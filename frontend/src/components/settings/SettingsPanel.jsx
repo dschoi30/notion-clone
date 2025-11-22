@@ -57,13 +57,23 @@ export default function SettingsPanel({ onClose }) {
     }
   }, [selected, currentWorkspace]);
 
+  const isUserManagement = selected === 'user-management';
+  const panelStyle = {
+    width: isUserManagement ? '90%' : '1040px',
+    transition: 'width 300ms ease',
+  };
+
   return (
     <div 
       className="flex fixed inset-0 justify-center items-center bg-black/30" 
       style={{ zIndex: Z_INDEX.SETTINGS_PANEL }}
       onClick={onClose}
     >
-      <div className="relative bg-white w-[1040px] h-[85vh] rounded-lg shadow-2xl flex" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="relative bg-white h-[85vh] rounded-lg shadow-2xl flex"
+        style={panelStyle}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* 좌측 네비 (좌측 배치 + 구분선) */}
         <div className="flex relative flex-col p-4 w-80 h-full bg-white rounded-l-lg border-r">
           <div className="overflow-auto flex-1">
