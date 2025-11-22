@@ -45,6 +45,61 @@ function BulkUserActionPopover({
   // SUPER_ADMIN만 이 기능을 사용할 수 있음
   const isSuperAdmin = currentUserRole === 'SUPER_ADMIN';
 
+  /**
+   * 일괄 작업 공통 처리 함수
+   * @param {Function} actionFn - 각 사용자에 대해 실행할 액션 함수
+   * @param {string} successTitle - 성공 토스트 제목
+   * @param {Function} getDescription - 성공 토스트 설명 생성 함수 (successCount, failCount) => string
+   * @param {string} errorTitle - 에러 토스트 제목
+   * @param {string} actionType - 액션 타입 (onActionComplete에 전달)
+   */
+  const handleBulkAction = useCallback(async (
+    actionFn,
+    successTitle,
+    getDescription,
+    errorTitle,
+    actionType
+  ) => {
+    setIsLoading(true);
+    try {
+      const userIds = Array.from(selectedUserIds);
+      
+      // 모든 사용자에 대해 병렬로 액션 실행
+      const results = await Promise.allSettled(
+        userIds.map(userId => actionFn(userId))
+      );
+
+      const successCount = results.filter(r => r.status === 'fulfilled').length;
+      const failCount = results.filter(r => r.status === 'rejected').length;
+
+      // 실패한 작업 로깅
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          console.error(`사용자 ${userIds[index]} 작업 실패:`, result.reason);
+        }
+      });
+
+      toast({
+        variant: 'default',
+        title: successTitle,
+        description: getDescription(successCount, failCount),
+      });
+
+      onActionComplete?.(actionType, { count: successCount });
+      setIsConfirmDialogOpen(false);
+    } catch (error) {
+      console.error(`일괄 작업 실패:`, error);
+      toast({
+        variant: 'destructive',
+        title: '오류',
+        description: error.response?.data?.error || error.response?.data?.message || errorTitle,
+      });
+    } finally {
+      setIsLoading(false);
+      setConfirmAction(null);
+    }
+  }, [selectedUserIds, toast, onActionComplete]);
+
   // 외부 클릭 감지하여 팝오버 닫기
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -94,167 +149,54 @@ function BulkUserActionPopover({
    * 일괄 역할 변경
    */
   const handleBulkRoleChange = useCallback(async (newRole) => {
-    setIsLoading(true);
-    try {
-      const userIds = Array.from(selectedUserIds);
-      let successCount = 0;
-      let failCount = 0;
-
-      // 각 사용자의 역할을 순차적으로 변경
-      for (const userId of userIds) {
-        try {
-          await updateUserRole(userId, newRole);
-          successCount++;
-        } catch (error) {
-          console.error(`사용자 ${userId} 역할 변경 실패:`, error);
-          failCount++;
-        }
-      }
-
-      toast({
-        variant: 'default',
-        title: '역할 변경 완료',
-        description: `${successCount}명 변경됨${failCount > 0 ? `, ${failCount}명 실패` : ''}`,
-      });
-
-      onActionComplete?.('bulkRoleChanged', { count: successCount });
-      setIsRoleMenuOpen(false);
-    } catch (error) {
-      console.error('일괄 역할 변경 실패:', error);
-      toast({
-        variant: 'destructive',
-        title: '오류',
-        description: error.response?.data?.message || '역할 변경에 실패했습니다.',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [selectedUserIds, toast, onActionComplete]);
+    await handleBulkAction(
+      (userId) => updateUserRole(userId, newRole),
+      '역할 변경 완료',
+      (successCount, failCount) => `${successCount}명 변경됨${failCount > 0 ? `, ${failCount}명 실패` : ''}`,
+      '역할 변경에 실패했습니다.',
+      'bulkRoleChanged'
+    );
+    setIsRoleMenuOpen(false);
+  }, [handleBulkAction]);
 
   /**
    * 일괄 계정 잠금/잠금 해제
    */
   const handleBulkToggleStatus = useCallback(async (isActive) => {
-    setIsLoading(true);
-    try {
-      const userIds = Array.from(selectedUserIds);
-      let successCount = 0;
-      let failCount = 0;
-
-      // 각 사용자의 상태를 순차적으로 변경
-      for (const userId of userIds) {
-        try {
-          await toggleUserStatus(userId, isActive);
-          successCount++;
-        } catch (error) {
-          console.error(`사용자 ${userId} 상태 변경 실패:`, error);
-          failCount++;
-        }
-      }
-
-      toast({
-        variant: 'default',
-        title: '상태 변경 완료',
-        description: `${successCount}명 ${isActive ? '잠금 해제' : '잠금'}됨${failCount > 0 ? `, ${failCount}명 실패` : ''}`,
-      });
-
-      onActionComplete?.('bulkStatusChanged', { count: successCount });
-      setIsConfirmDialogOpen(false);
-    } catch (error) {
-      console.error('일괄 상태 변경 실패:', error);
-      toast({
-        variant: 'destructive',
-        title: '오류',
-        description: error.response?.data?.message || '상태 변경에 실패했습니다.',
-      });
-    } finally {
-      setIsLoading(false);
-      setConfirmAction(null);
-    }
-  }, [selectedUserIds, toast, onActionComplete]);
+    await handleBulkAction(
+      (userId) => toggleUserStatus(userId, isActive),
+      '상태 변경 완료',
+      (successCount, failCount) => `${successCount}명 ${isActive ? '잠금 해제' : '잠금'}됨${failCount > 0 ? `, ${failCount}명 실패` : ''}`,
+      '상태 변경에 실패했습니다.',
+      'bulkStatusChanged'
+    );
+  }, [handleBulkAction]);
 
   /**
    * 일괄 비밀번호 재설정
    */
   const handleBulkResetPassword = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const userIds = Array.from(selectedUserIds);
-      let successCount = 0;
-      let failCount = 0;
-
-      // 각 사용자의 비밀번호를 순차적으로 재설정
-      for (const userId of userIds) {
-        try {
-          await resetUserPassword(userId);
-          successCount++;
-        } catch (error) {
-          console.error(`사용자 ${userId} 비밀번호 재설정 실패:`, error);
-          failCount++;
-        }
-      }
-
-      toast({
-        variant: 'default',
-        title: '비밀번호 재설정 완료',
-        description: `${successCount}명 처리됨${failCount > 0 ? `, ${failCount}명 실패` : ''}`,
-      });
-
-      onActionComplete?.('bulkPasswordReset', { count: successCount });
-      setIsConfirmDialogOpen(false);
-    } catch (error) {
-      console.error('일괄 비밀번호 재설정 실패:', error);
-      toast({
-        variant: 'destructive',
-        title: '오류',
-        description: error.response?.data?.message || '비밀번호 재설정에 실패했습니다.',
-      });
-    } finally {
-      setIsLoading(false);
-      setConfirmAction(null);
-    }
-  }, [selectedUserIds, toast, onActionComplete]);
+    await handleBulkAction(
+      (userId) => resetUserPassword(userId),
+      '비밀번호 재설정 완료',
+      (successCount, failCount) => `${successCount}명 처리됨${failCount > 0 ? `, ${failCount}명 실패` : ''}`,
+      '비밀번호 재설정에 실패했습니다.',
+      'bulkPasswordReset'
+    );
+  }, [handleBulkAction]);
 
   /**
    * 일괄 계정 삭제
    */
   const handleBulkDelete = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const userIds = Array.from(selectedUserIds);
-      let successCount = 0;
-      let failCount = 0;
-
-      for (const userId of userIds) {
-        try {
-          await deleteUser(userId);
-          successCount++;
-        } catch (error) {
-          console.error(`사용자 ${userId} 삭제 실패:`, error);
-          failCount++;
-        }
-      }
-
-      toast({
-        variant: 'default',
-        title: '삭제 완료',
-        description: `${successCount}명 삭제됨${failCount > 0 ? `, ${failCount}명 실패` : ''}`,
-      });
-
-      onActionComplete?.('bulkDelete', { count: successCount });
-      setIsConfirmDialogOpen(false);
-    } catch (error) {
-      console.error('일괄 삭제 실패:', error);
-      toast({
-        variant: 'destructive',
-        title: '오류',
-        description: error.response?.data?.message || '삭제에 실패했습니다.',
-      });
-    } finally {
-      setIsLoading(false);
-      setConfirmAction(null);
-    }
-  }, [selectedUserIds, toast, onActionComplete]);
+    await handleBulkAction(
+      (userId) => deleteUser(userId),
+      '삭제 완료',
+      (successCount, failCount) => `${successCount}명 삭제됨${failCount > 0 ? `, ${failCount}명 실패` : ''}`,
+      '삭제에 실패했습니다.',
+      'bulkDelete'
+    );
+  }, [handleBulkAction]);
 
   // 조건 확인: 선택된 사용자가 없거나 SUPER_ADMIN이 아니면 렌더링하지 않음
   if (!selectedUserIds || selectedUserIds.size === 0 || !isSuperAdmin) {

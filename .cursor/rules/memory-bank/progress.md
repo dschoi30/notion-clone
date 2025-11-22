@@ -1262,3 +1262,17 @@
 - **버그 픽스 및 기타**
   - `useUserTableData` 훅이 `fetchTableData`를 `refetch`라는 이름으로만 반환하던 문제를 수정해 Bulk 액션 완료 후 새로고침 오류를 제거했습니다.
   - 선택 상태 바의 절대 위치를 조정(`top: -50`)해 SortManager가 표시될 때도 UI가 겹치지 않도록 했습니다.
+
+## 2025-11-22 (PR #77 리뷰 개선 사항 반영)
+- **Critical: 보안 취약점 수정**
+  - 임시 비밀번호 생성 알고리즘 개선: `java.util.Random` → `java.security.SecureRandom` 사용, 8자 → 12자로 증가
+- **Critical: 성능 개선**
+  - 일괄 작업 병렬 처리: `BulkUserActionPopover`의 4개 bulk 작업 함수를 `Promise.allSettled`로 병렬 처리하도록 변경
+  - 순차 처리로 인한 성능 저하 문제 해결, 대량 사용자 처리 시 속도 향상
+- **Important: 코드 품질 개선**
+  - 메모리 누수 수정: `UserManagementPanel`의 이벤트 리스너 의존성 배열에서 `selectedUserIds.size` 제거
+  - 에러 메시지 개선: `AdminController`의 모든 에러 응답에 에러 메시지 body 추가
+  - 중복 코드 제거: `BulkUserActionPopover`의 4개 bulk 작업 함수에서 공통 패턴을 `handleBulkAction` 공통 함수로 추출
+- **버그 수정**
+  - `SortDropdown` 위치 계산 오류: `window.scrollY` 추가로 인한 fixed 위치 오류 수정
+  - Select all 로직 오류: `visibleRows` 대신 `finalFilteredRows` 사용하여 무한 스크롤 환경에서도 정확한 전체 선택 동작 보장

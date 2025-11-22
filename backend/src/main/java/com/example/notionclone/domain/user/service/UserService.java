@@ -163,7 +163,7 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
-        // 임시 비밀번호 생성 (8자리 랜덤 문자열)
+        // 임시 비밀번호 생성 (12자리 암호학적으로 안전한 랜덤 문자열)
         String temporaryPassword = generateTemporaryPassword();
         
         // 비밀번호 재설정
@@ -243,13 +243,13 @@ public class UserService {
     }
 
     /**
-     * 임시 비밀번호 생성 (8자리 랜덤 문자열)
+     * 임시 비밀번호 생성 (12자리 암호학적으로 안전한 랜덤 문자열)
      */
     private String generateTemporaryPassword() {
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
         StringBuilder password = new StringBuilder();
-        java.util.Random random = new java.util.Random();
-        for (int i = 0; i < 8; i++) {
+        java.security.SecureRandom random = new java.security.SecureRandom();
+        for (int i = 0; i < 12; i++) {
             password.append(chars.charAt(random.nextInt(chars.length())));
         }
         return password.toString();

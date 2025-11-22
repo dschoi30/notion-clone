@@ -44,7 +44,7 @@ const SortDropdown = ({ properties, onSortAdd, onClearAllSorts, isReadOnly, acti
       const triggerRect = triggerRef.current.getBoundingClientRect();
 
       menuElement.style.left = `${triggerRect.left}px`;
-      menuElement.style.top = `${triggerRect.bottom + window.scrollY}px`;
+      menuElement.style.top = `${triggerRect.bottom}px`;
       menuElement.style.transform = 'none';
     };
 

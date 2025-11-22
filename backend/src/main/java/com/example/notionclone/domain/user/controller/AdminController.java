@@ -31,7 +31,7 @@ public class AdminController {
      * SUPER_ADMIN만 다른 사용자의 역할을 변경할 수 있음
      */
     @PutMapping("/{userId}/role")
-    public ResponseEntity<UserResponse> updateUserRole(
+    public ResponseEntity<?> updateUserRole(
             @PathVariable Long userId,
             @RequestBody Map<String, String> request,
             @CurrentUser UserPrincipal currentUser) {
@@ -41,7 +41,7 @@ public class AdminController {
         
         String roleStr = request.get("role");
         if (roleStr == null) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(Map.of("error", "역할(role)이 필요합니다."));
         }
 
         try {
@@ -50,13 +50,13 @@ public class AdminController {
             return ResponseEntity.ok(updatedUser);
         } catch (IllegalArgumentException e) {
             log.error("Invalid role: {}", roleStr, e);
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(Map.of("error", "유효하지 않은 역할입니다: " + roleStr));
         } catch (SecurityException e) {
             log.error("Security error updating role for user {}: {}", userId, e.getMessage());
-            return ResponseEntity.status(403).build();
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
         } catch (RuntimeException e) {
             log.error("Error updating role for user {}: {}", userId, e.getMessage());
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -72,14 +72,14 @@ public class AdminController {
         log.info("Admin {} is resetting password for user {}", currentUser.getId(), userId);
         
         try {
-            String temporaryPassword = userService.resetUserPassword(userId, currentUser.getId());
-            return ResponseEntity.ok(Map.of("temporaryPassword", temporaryPassword));
+            userService.resetUserPassword(userId, currentUser.getId());
+            return ResponseEntity.ok(Map.of("message", "비밀번호가 재설정되었습니다. 임시 비밀번호는 이메일로 발송됩니다."));
         } catch (SecurityException e) {
             log.error("Security error resetting password for user {}: {}", userId, e.getMessage());
-            return ResponseEntity.status(403).build();
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
         } catch (RuntimeException e) {
             log.error("Error resetting password for user {}: {}", userId, e.getMessage());
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -88,7 +88,7 @@ public class AdminController {
      * SUPER_ADMIN만 다른 사용자의 계정 상태를 변경할 수 있음
      */
     @PutMapping("/{userId}/status")
-    public ResponseEntity<UserResponse> toggleUserStatus(
+    public ResponseEntity<?> toggleUserStatus(
             @PathVariable Long userId,
             @RequestBody Map<String, Boolean> request,
             @CurrentUser UserPrincipal currentUser) {
@@ -98,7 +98,7 @@ public class AdminController {
         
         Boolean isActive = request.get("isActive");
         if (isActive == null) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(Map.of("error", "isActive 필드가 필요합니다."));
         }
 
         try {
@@ -106,10 +106,10 @@ public class AdminController {
             return ResponseEntity.ok(updatedUser);
         } catch (SecurityException e) {
             log.error("Security error toggling status for user {}: {}", userId, e.getMessage());
-            return ResponseEntity.status(403).build();
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
         } catch (RuntimeException e) {
             log.error("Error toggling status for user {}: {}", userId, e.getMessage());
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -118,7 +118,7 @@ public class AdminController {
      * SUPER_ADMIN만 다른 사용자의 계정을 삭제할 수 있음
      */
     @DeleteMapping("/{userId}")
-    public ResponseEntity<Void> deleteUser(
+    public ResponseEntity<?> deleteUser(
             @PathVariable Long userId,
             @CurrentUser UserPrincipal currentUser) {
         
@@ -129,10 +129,10 @@ public class AdminController {
             return ResponseEntity.noContent().build();
         } catch (SecurityException e) {
             log.error("Security error deleting user {}: {}", userId, e.getMessage());
-            return ResponseEntity.status(403).build();
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
         } catch (RuntimeException e) {
             log.error("Error deleting user {}: {}", userId, e.getMessage());
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 }

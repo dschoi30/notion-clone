@@ -174,7 +174,7 @@ const UserManagementPanel = () => {
 
   // BulkUserActionPopover 위치 업데이트 (스크롤/리사이즈 시)
   useEffect(() => {
-    if (!bulkActionMenuOpen || !bulkActionAnchorRef.current || selectedUserIds.size === 0) return;
+    if (!bulkActionMenuOpen || !bulkActionAnchorRef.current) return;
 
     let animationId = null;
     
@@ -205,7 +205,7 @@ const UserManagementPanel = () => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('scroll', handleScroll);
     };
-  }, [bulkActionMenuOpen, selectedUserIds.size]);
+  }, [bulkActionMenuOpen]);
 
   // 선택 해제 시 팝오버도 닫기
   useEffect(() => {
@@ -243,12 +243,12 @@ const UserManagementPanel = () => {
 
   // 전체 선택/해제
   const handleSelectAll = useCallback(() => {
-    if (selectedUserIds.size === visibleRows.length) {
+    if (selectedUserIds.size === finalFilteredRows.length && finalFilteredRows.length > 0) {
       setSelectedUserIds(new Set());
     } else {
-      setSelectedUserIds(new Set(visibleRows.map(row => row.id)));
+      setSelectedUserIds(new Set(finalFilteredRows.map(row => row.id)));
     }
-  }, [visibleRows, selectedUserIds.size]);
+  }, [finalFilteredRows, selectedUserIds.size]);
 
   // 액션 완료 후 처리
   const handleActionComplete = useCallback(() => {
@@ -481,7 +481,7 @@ const UserManagementPanel = () => {
             <BulkUserActionPopover
               selectedUserIds={selectedUserIds}
               selectedUsers={finalFilteredRows.filter(row => selectedUserIds.has(row.id))}
-              isAllSelected={selectedUserIds.size === visibleRows.length && visibleRows.length > 0}
+              isAllSelected={selectedUserIds.size === finalFilteredRows.length && finalFilteredRows.length > 0}
               anchorRef={bulkActionAnchorRef}
               onClose={() => {
                 setBulkActionMenuOpen(false);
@@ -512,7 +512,7 @@ const UserManagementPanel = () => {
             style={{ minWidth: colWidths[0], width: colWidths[0] }}
           >
             <Checkbox
-              checked={selectedUserIds.size === visibleRows.length && visibleRows.length > 0}
+              checked={selectedUserIds.size === finalFilteredRows.length && finalFilteredRows.length > 0}
               onCheckedChange={handleSelectAll}
               aria-label="전체 선택"
             />
