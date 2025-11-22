@@ -46,4 +46,12 @@ public class User extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
     private UserRole role = UserRole.USER;
+
+    /**
+     * 계정 활성화 상태
+     * - true: 활성화된 계정 (기본값)
+     * - false: 비활성화된 계정
+     */
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
 } 

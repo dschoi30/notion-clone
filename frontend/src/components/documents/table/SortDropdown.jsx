@@ -12,7 +12,7 @@ import { Z_INDEX } from '@/constants/zIndex';
 
 const SortDropdown = ({ properties, onSortAdd, onClearAllSorts, isReadOnly, activeSorts = [], forceShowDropdown = false, autoAddNameProperty = true, menuAlign = 'start' }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const menuRef = useRef(null);
+  const triggerRef = useRef(null);
   // 문서명과 사용자 정의 속성을 함께 표시
   // autoAddNameProperty가 true이고 properties에 id: 0인 속성이 없으면 "이름" 속성 추가 (문서 테이블용)
   const hasNameProperty = properties.some(p => p.id === 0 || p.id === '0');
@@ -32,33 +32,32 @@ const SortDropdown = ({ properties, onSortAdd, onClearAllSorts, isReadOnly, acti
     setIsDropdownOpen(false);
   };
 
-  // 메뉴를 화면 좌측에 고정
+  // 메뉴를 트리거 바로 아래에 고정
   useEffect(() => {
-    if (isDropdownOpen && menuAlign === 'start') {
-      const updatePosition = () => {
-        // Portal로 렌더링된 메뉴 요소 찾기
-        const menuElement = document.querySelector('[data-radix-popper-content-wrapper]');
-        if (menuElement) {
-          const rect = menuElement.getBoundingClientRect();
-          if (rect.left > 0) {
-            menuElement.style.left = '0px';
-            menuElement.style.right = 'auto';
-            menuElement.style.transform = 'none';
-            menuElement.style.width = 'auto';
-          }
-        }
-      };
-      
-      // 약간의 지연 후 위치 조정 (Radix UI가 포지셔닝을 완료한 후)
-      const timeoutId = setTimeout(updatePosition, 10);
-      const intervalId = setInterval(updatePosition, 10);
-      
-      return () => {
-        clearTimeout(timeoutId);
-        clearInterval(intervalId);
-      };
-    }
-  }, [isDropdownOpen, menuAlign]);
+    if (!isDropdownOpen || !triggerRef.current) return;
+
+    const menuElement = document.querySelector('[data-radix-popper-content-wrapper]');
+    if (!menuElement) return;
+
+    const updatePosition = () => {
+      if (!triggerRef.current || !menuElement) return;
+      const triggerRect = triggerRef.current.getBoundingClientRect();
+
+      menuElement.style.left = `${triggerRect.left}px`;
+      menuElement.style.top = `${triggerRect.bottom + window.scrollY}px`;
+      menuElement.style.transform = 'none';
+    };
+
+    updatePosition();
+
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, { passive: true });
+
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition);
+    };
+  }, [isDropdownOpen]);
 
   if (isReadOnly) {
     return (
@@ -73,33 +72,24 @@ const SortDropdown = ({ properties, onSortAdd, onClearAllSorts, isReadOnly, acti
     );
   }
 
-  // activeSorts가 있고 forceShowDropdown이 false면 드랍다운을 표시하지 않고 정렬 제거만 수행
-  if (activeSorts.length > 0 && !forceShowDropdown) {
-    return (
-      <Button 
-        size="sm" 
-        variant="ghost" 
-        className="p-2"
-        onClick={handleClearAllSorts}
-      >
-        <ArrowUpDown size={16} className="text-blue-500" />
-      </Button>
-    );
-  }
+  // activeSorts가 있으면 파란색 배경으로 표시
+  const hasActiveSorts = activeSorts.length > 0;
+  const buttonClassName = hasActiveSorts 
+    ? "p-2 bg-blue-50 text-blue-500 hover:bg-blue-100 hover:text-blue-600"
+    : "p-2";
 
   return (
     <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen} modal={false}>
-      <DropdownMenuTrigger asChild>
+      <DropdownMenuTrigger asChild ref={triggerRef}>
         <Button 
           size="sm" 
-          variant="ghost" 
-          className="p-2"
+          variant={hasActiveSorts ? "outline" : "ghost"}
+          className={buttonClassName}
         >
-          <ArrowUpDown size={16} />
+          <ArrowUpDown size={16} className={hasActiveSorts ? "text-blue-500" : ""} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
-        ref={menuRef}
         onCloseAutoFocus={(e) => e.preventDefault()}
         side="bottom"
         align={menuAlign === 'start' ? 'end' : menuAlign}

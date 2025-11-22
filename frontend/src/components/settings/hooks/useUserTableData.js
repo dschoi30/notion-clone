@@ -37,8 +37,10 @@ export function useUserTableData() {
         name: user.name,
         profileImageUrl: user.profileImageUrl,
         role: user.role,
+        isActive: user.isActive !== undefined ? user.isActive : true,
         createdAt: user.createdAt,
         lastLoginAt: user.lastLoginAt,
+        updatedAt: user.updatedAt,
       }));
       setRows(tableRows);
       setNextPage(1);
@@ -68,8 +70,10 @@ export function useUserTableData() {
         name: user.name,
         profileImageUrl: user.profileImageUrl,
         role: user.role,
+        isActive: user.isActive !== undefined ? user.isActive : true,
         createdAt: user.createdAt,
         lastLoginAt: user.lastLoginAt,
+        updatedAt: user.updatedAt,
       }));
       setRows((prev) => [...prev, ...pageRows]);
       const newPage = (pageResp?.number || nextPage) + 1;
@@ -86,7 +90,6 @@ export function useUserTableData() {
   // 정렬 변경 시 데이터 다시 로드
   useEffect(() => {
     fetchTableData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortField, sortDir]);
 
   // 정렬 파라미터 업데이트 함수
@@ -109,6 +112,7 @@ export function useUserTableData() {
     sortDir,
     updateSortParams,
     refetch: fetchTableData,
+    fetchTableData,
   };
 }
 

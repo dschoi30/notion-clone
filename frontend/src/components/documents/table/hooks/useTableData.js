@@ -122,7 +122,12 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
         values: valuesByRowId[child.id] || {},
         document: child,
       }));
-      setRows((prev) => [...prev, ...pageRows]);
+      // 중복 제거: 기존 행에 이미 같은 id가 있으면 추가하지 않음
+      setRows((prev) => {
+        const existingIds = new Set(prev.map(r => r.id));
+        const newRows = pageRows.filter(row => !existingIds.has(row.id));
+        return [...prev, ...newRows];
+      });
       const newPage = (pageResp?.number || nextPage) + 1;
       setNextPage(newPage);
       setHasMore(newPage < (pageResp?.totalPages || 0));
