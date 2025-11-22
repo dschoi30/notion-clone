@@ -48,14 +48,11 @@ const UserManagementPanel = () => {
   const [fixedPosition, setFixedPosition] = useState({ top: null, left: null });
   const loadMoreRef = useRef(null);
   const bulkActionAnchorRef = useRef(null);
-  const userActionAnchorRefs = useRef({});
 
   // 체크박스 및 팝오버 상태
   const [selectedUserIds, setSelectedUserIds] = useState(new Set());
-  const [popoverOpenUserId, setPopoverOpenUserId] = useState(null);
   const [bulkActionMenuOpen, setBulkActionMenuOpen] = useState(false);
   const [bulkActionPosition, setBulkActionPosition] = useState({ top: null, left: null });
-  const [userActionPositions, setUserActionPositions] = useState({});
 
   // 훅
   const { user } = useAuth();
@@ -218,52 +215,17 @@ const UserManagementPanel = () => {
     }
   }, [selectedUserIds.size]);
 
-  // UserActionPopover 위치 업데이트 (스크롤/리사이즈 시)
-  useEffect(() => {
-    if (!popoverOpenUserId || Object.keys(userActionPositions).length === 0) return;
-
-    let animationId = null;
-    
-    const updateUserActionPositions = () => {
-      const newPositions = {};
-      Object.keys(userActionPositions).forEach(userId => {
-        const anchorRef = userActionAnchorRefs.current[userId];
-        if (anchorRef) {
-          const rect = anchorRef.getBoundingClientRect();
-          newPositions[userId] = {
-            top: rect.top,
-            left: rect.right + 8,
-          };
-        }
-      });
-      if (Object.keys(newPositions).length > 0) {
-        setUserActionPositions(newPositions);
-      }
-    };
-
-    const handleResize = () => {
-      if (animationId) cancelAnimationFrame(animationId);
-      animationId = requestAnimationFrame(updateUserActionPositions);
-    };
-    
-    const handleScroll = () => {
-      if (animationId) cancelAnimationFrame(animationId);
-      animationId = requestAnimationFrame(updateUserActionPositions);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    
-    return () => {
-      if (animationId) cancelAnimationFrame(animationId);
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, [popoverOpenUserId, userActionPositions]);
 
   // 표시할 행 데이터 (무한 스크롤 적용)
   const visibleRows = useMemo(() => {
-    return finalFilteredRows.slice(0, displayedRows);
+    // 중복 제거: 같은 id를 가진 행이 여러 개 있으면 첫 번째만 유지
+    const uniqueRows = finalFilteredRows.reduce((acc, row) => {
+      if (!acc.find(r => r.id === row.id)) {
+        acc.push(row);
+      }
+      return acc;
+    }, []);
+    return uniqueRows.slice(0, displayedRows);
   }, [finalFilteredRows, displayedRows]);
 
   // 체크박스 핸들러
@@ -289,15 +251,8 @@ const UserManagementPanel = () => {
   }, [visibleRows, selectedUserIds.size]);
 
   // 액션 완료 후 처리
-  const handleActionComplete = useCallback((actionType, data) => {
-    // 토스트는 팝오버에서 처리됨
-    // 여기서는 데이터 새로고침 또는 상태 업데이트 처리
-    setPopoverOpenUserId(null);
-    setSelectedUserIds(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(data.userId);
-      return newSet;
-    });
+  const handleActionComplete = useCallback(() => {
+    setSelectedUserIds(new Set());
     fetchTableData();
   }, [fetchTableData]);
 
@@ -305,6 +260,9 @@ const UserManagementPanel = () => {
   const colWidths = useMemo(() => {
     return [50, ...USER_PROPERTIES.map(p => p.width || 150)];
   }, []);
+  const totalTableWidth = useMemo(() => {
+    return colWidths.reduce((sum, width) => sum + width, 0);
+  }, [colWidths]);
 
   // 역할 표시
   const getRoleBadge = (role) => {
@@ -427,18 +385,16 @@ const UserManagementPanel = () => {
         
         {/* 우측: 정렬 드롭다운 버튼 + 검색 */}
         <div className="flex items-center gap-2">
-          {/* 정렬 드롭다운 - 정렬이 없을 때만 표시 */}
-          {activeSorts.length === 0 && (
-            <SortDropdown
-              properties={SORT_PROPERTIES}
-              onSortAdd={addSort}
-              onClearAllSorts={clearAllSorts}
-              isReadOnly={false}
-              activeSorts={activeSorts}
-              autoAddNameProperty={false}
-              menuAlign="start"
-            />
-          )}
+          {/* 정렬 드롭다운 - 항상 표시 */}
+          <SortDropdown
+            properties={SORT_PROPERTIES}
+            onSortAdd={addSort}
+            onClearAllSorts={clearAllSorts}
+            isReadOnly={false}
+            activeSorts={activeSorts}
+            autoAddNameProperty={false}
+            menuAlign="start"
+          />
           
           {/* 검색 */}
           <SearchSlideInput
@@ -548,7 +504,7 @@ const UserManagementPanel = () => {
         {/* 헤더 */}
         <div
           className="flex sticky top-0 items-center bg-white border-b"
-          style={{ zIndex: Z_INDEX.TABLE_HEADER }}
+          style={{ zIndex: Z_INDEX.TABLE_HEADER, minWidth: totalTableWidth }}
         >
           {/* 체크박스 컬럼 */}
           <div
@@ -587,7 +543,6 @@ const UserManagementPanel = () => {
           <>
             {visibleRows.map((row) => {
               const isSelected = selectedUserIds.has(row.id);
-              const isPopoverOpen = popoverOpenUserId === row.id;
 
               return (
                 <div
@@ -595,22 +550,39 @@ const UserManagementPanel = () => {
                   className={`flex items-center border-b relative ${
                     isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
                   }`}
-                  style={{ minHeight: '40px' }}
+                  style={{ minHeight: '40px', minWidth: totalTableWidth }}
+                  onClick={() => handleSelectUser(row.id)}
                 >
                   {/* 체크박스 컬럼 */}
                   <div
                     className="flex items-center justify-center px-4 py-2 border-r"
                     style={{ minWidth: colWidths[0], width: colWidths[0] }}
+                    onClick={(e) => {
+                      // 체크박스 자체를 클릭한 경우는 제외
+                      if (e.target.closest('[role="checkbox"]')) {
+                        return;
+                      }
+                      e.stopPropagation();
+                      handleSelectUser(row.id);
+                    }}
                   >
                     <Checkbox
                       checked={isSelected}
-                      onCheckedChange={() => handleSelectUser(row.id)}
+                      onCheckedChange={(checked) => {
+                        handleSelectUser(row.id);
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                      }}
                       aria-label={`${row.email} 선택`}
                     />
                   </div>
 
                   {/* 데이터 컬럼 */}
-                  <div className="flex-1 flex items-center">
+                  <div
+                    className="flex items-center"
+                    style={{ minWidth: totalTableWidth - colWidths[0] }}
+                  >
                     {USER_PROPERTIES.map((prop, idx) => (
                       <div
                         key={prop.id}
@@ -622,78 +594,6 @@ const UserManagementPanel = () => {
                     ))}
                   </div>
 
-                  {/* ... 버튼 및 팝오버 */}
-                  {user?.role === 'SUPER_ADMIN' && (
-                    <div className="flex items-center px-2 relative">
-                      <button
-                        ref={(el) => {
-                          if (el) {
-                            userActionAnchorRefs.current[row.id] = el;
-                          } else {
-                            delete userActionAnchorRefs.current[row.id];
-                          }
-                        }}
-                        className="flex items-center justify-center w-8 h-8 rounded hover:bg-gray-200 text-gray-600 hover:text-gray-800"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const buttonRect = e.currentTarget.getBoundingClientRect();
-                          setUserActionPositions(prev => ({
-                            ...prev,
-                            [row.id]: {
-                              top: buttonRect.top,
-                              left: buttonRect.right + 8, // 버튼 우측 8px
-                            }
-                          }));
-                          setPopoverOpenUserId(isPopoverOpen ? null : row.id);
-                        }}
-                        aria-label="사용자 작업 메뉴"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <circle cx="12" cy="12" r="1" />
-                          <circle cx="12" cy="5" r="1" />
-                          <circle cx="12" cy="19" r="1" />
-                        </svg>
-                      </button>
-
-                      {/* 팝오버 메뉴 - 버튼 바로 우측에 표시 */}
-                      {isPopoverOpen && userActionPositions[row.id] && (
-                        <div
-                          className="fixed"
-                          style={{
-                            top: userActionPositions[row.id].top,
-                            left: userActionPositions[row.id].left,
-                            zIndex: Z_INDEX.POPOVER,
-                          }}
-                        >
-                          <UserActionPopover
-                            user={row}
-                            anchorRef={userActionAnchorRefs.current[row.id]}
-                            onActionComplete={handleActionComplete}
-                            isOpen={isPopoverOpen}
-                            onClose={() => {
-                              setPopoverOpenUserId(null);
-                              setUserActionPositions(prev => {
-                                const newPositions = { ...prev };
-                                delete newPositions[row.id];
-                                return newPositions;
-                              });
-                            }}
-                            currentUserRole={user?.role}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               );
             })}

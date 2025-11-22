@@ -72,29 +72,21 @@ const SortDropdown = ({ properties, onSortAdd, onClearAllSorts, isReadOnly, acti
     );
   }
 
-  // activeSorts가 있고 forceShowDropdown이 false면 드랍다운을 표시하지 않고 정렬 제거만 수행
-  if (activeSorts.length > 0 && !forceShowDropdown) {
-    return (
-      <Button 
-        size="sm" 
-        variant="ghost" 
-        className="p-2"
-        onClick={handleClearAllSorts}
-      >
-        <ArrowUpDown size={16} className="text-blue-500" />
-      </Button>
-    );
-  }
+  // activeSorts가 있으면 파란색 배경으로 표시
+  const hasActiveSorts = activeSorts.length > 0;
+  const buttonClassName = hasActiveSorts 
+    ? "p-2 bg-blue-50 text-blue-500 hover:bg-blue-100 hover:text-blue-600"
+    : "p-2";
 
   return (
     <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen} modal={false}>
       <DropdownMenuTrigger asChild ref={triggerRef}>
         <Button 
           size="sm" 
-          variant="ghost" 
-          className="p-2"
+          variant={hasActiveSorts ? "outline" : "ghost"}
+          className={buttonClassName}
         >
-          <ArrowUpDown size={16} />
+          <ArrowUpDown size={16} className={hasActiveSorts ? "text-blue-500" : ""} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
