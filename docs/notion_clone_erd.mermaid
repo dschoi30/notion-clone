@@ -14,6 +14,7 @@ class Document {
     boolean  isTrashed
     Integer  titleColumnWidth
     ViewType  viewType
+    boolean  isLocked
 }
 class DocumentProperty {
     Long  id
@@ -50,6 +51,9 @@ class User {
     String  password
     String  name
     String  profileImageUrl
+    UserRole  role
+    Boolean  isActive
+    LocalDateTime  lastLoginAt
 }
 class Workspace {
     Long  id
@@ -83,6 +87,12 @@ class PermissionStatus {
     PENDING
     ACCEPTED
     REJECTED
+}
+class UserRole {
+    <<enumeration>>
+    SUPER_ADMIN
+    ADMIN
+    USER
 }
 class NotificationType {
     <<enumeration>>
@@ -126,3 +136,4 @@ Permission "0..*" --> "0..1" PermissionType
 Permission "0..*" --> "0..1" PermissionStatus 
 Workspace "0..*" --> "0..1" User 
 Workspace "0..1" <--> "0..*" Workspace 
+User "0..*" --> "0..1" UserRole 

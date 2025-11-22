@@ -203,7 +203,14 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
 
   // 표시할 행 데이터 (무한 스크롤 적용)
   const visibleRows = useMemo(() => {
-    return finalFilteredRows.slice(0, displayedRows);
+    // 중복 제거: 같은 id를 가진 행이 여러 개 있으면 첫 번째만 유지
+    const uniqueRows = finalFilteredRows.reduce((acc, row) => {
+      if (!acc.find(r => r.id === row.id)) {
+        acc.push(row);
+      }
+      return acc;
+    }, []);
+    return uniqueRows.slice(0, displayedRows);
   }, [finalFilteredRows, displayedRows]);
 
   // 상단 툴바에서 새 문서 추가 (첫 번째 행에 추가)
