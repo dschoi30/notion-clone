@@ -198,11 +198,12 @@ export function DocumentProvider({ children }) {
       const updated = await documentApi.updateDocument(currentWorkspace.id, id, documentData);
       
       // 기존 currentDocument의 모든 필드를 보존하고, 업데이트된 필드만 덮어쓰기
-      // documentData에 포함된 필드들도 명시적으로 포함 (백엔드 응답에 누락될 수 있음)
+      // 우선순위: documentData > updated (백엔드 응답) > currentDocument
+      // documentData의 필드들(isLocked 등)을 명시적으로 우선 적용
       const mergedUpdated = currentDocument?.id === id ? {
         ...currentDocument,
-        ...updated,
-        ...documentData, // documentData의 필드들을 명시적으로 포함 (isLocked 등)
+        ...updated, // 백엔드 응답 먼저 적용
+        ...documentData, // documentData의 필드들을 최종적으로 적용 (우선순위 높음)
         permissions: (Array.isArray(updated?.permissions) && updated.permissions.length > 0)
           ? updated.permissions
           : (currentDocument.permissions || []),
