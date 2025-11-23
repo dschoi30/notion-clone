@@ -1,4 +1,7 @@
 import api from './api';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('auth');
 
 export const login = async (email, password) => {
   try {
@@ -8,7 +11,7 @@ export const login = async (email, password) => {
     }
     return response.data;
   } catch (error) {
-    console.error('로그인 실패:', error);
+    log.error('로그인 실패', error);
     throw error;
   }
 };
@@ -21,7 +24,7 @@ export const register = async (email, password, name) => {
     }
     return response.data;
   } catch (error) {
-    console.error('회원가입 실패:', error);
+    log.error('회원가입 실패', error);
     throw error;
   }
 };
@@ -36,7 +39,7 @@ export const loginWithGoogle = async (credential) => {
 
     return response.data;
   } catch (error) {
-    console.error('Google 로그인 실패:', error);
+    log.error('Google 로그인 실패', error);
     throw error;
   }
 };

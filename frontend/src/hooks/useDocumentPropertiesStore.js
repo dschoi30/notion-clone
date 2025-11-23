@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 import * as documentApi from '@/services/documentApi';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('useDocumentPropertiesStore');
 
 export const useDocumentPropertiesStore = create((set, get) => ({
   properties: [],
@@ -29,7 +32,7 @@ export const useDocumentPropertiesStore = create((set, get) => ({
       await documentApi.updateTitleWidth(workspaceId, documentId, width);
       set({ titleWidth: width });
     } catch (err) {
-      console.error('타이틀 컬럼 너비 업데이트 실패:', err);
+      log.error('타이틀 컬럼 너비 업데이트 실패', err);
       throw err;
     }
   },
@@ -37,7 +40,7 @@ export const useDocumentPropertiesStore = create((set, get) => ({
   // 태그 옵션 추가
   addTagOption: async (workspaceId, propertyId, tag) => {
     if (!workspaceId || !propertyId) {
-      console.warn('addTagOption: workspaceId 또는 propertyId가 올바르지 않습니다', workspaceId, propertyId);
+      log.warn('addTagOption: workspaceId 또는 propertyId가 올바르지 않습니다', { workspaceId, propertyId });
       return;
     }
     const result = await documentApi.addTagOption(workspaceId, propertyId, tag);
@@ -48,7 +51,7 @@ export const useDocumentPropertiesStore = create((set, get) => ({
   // 태그 옵션 수정
   editTagOption: async (workspaceId, optionId, tag) => {
     if (!workspaceId || !optionId) {
-      console.warn('editTagOption: workspaceId 또는 optionId가 올바르지 않습니다', workspaceId, optionId);
+      log.warn('editTagOption: workspaceId 또는 optionId가 올바르지 않습니다', { workspaceId, optionId });
       return;
     }
     const result = await documentApi.editTagOption(workspaceId, optionId, tag);
@@ -59,7 +62,7 @@ export const useDocumentPropertiesStore = create((set, get) => ({
   // 태그 옵션 삭제
   removeTagOption: async (workspaceId, optionId) => {
     if (!workspaceId || !optionId) {
-      console.warn('removeTagOption: workspaceId 또는 optionId가 올바르지 않습니다', workspaceId, optionId);
+      log.warn('removeTagOption: workspaceId 또는 optionId가 올바르지 않습니다', { workspaceId, optionId });
       return;
     }
     const result = await documentApi.removeTagOption(workspaceId, optionId);

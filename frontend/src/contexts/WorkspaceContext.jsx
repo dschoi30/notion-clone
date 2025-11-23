@@ -61,14 +61,18 @@ export function WorkspaceProvider({ children }) {
       return filtered;
     },
     staleTime: 1000 * 60 * 5, // 5분 - 워크스페이스는 자주 변경되지 않음
-    onError: (e) => {
-      wlog.error('워크스페이스 목록 조회 실패', e);
-      handleError(e, {
+  });
+
+  // 에러 처리 (React Query v5 권장 방식)
+  useEffect(() => {
+    if (workspacesError) {
+      wlog.error('워크스페이스 목록 조회 실패', workspacesError);
+      handleError(workspacesError, {
         customMessage: '워크스페이스 목록을 불러오지 못했습니다.',
         showToast: true
       });
-    },
-  });
+    }
+  }, [workspacesError, handleError]);
 
   // React Query 데이터를 로컬 변수로 동기화
   const workspaces = workspacesData || [];
