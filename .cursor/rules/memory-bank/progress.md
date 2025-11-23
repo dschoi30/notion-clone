@@ -1338,3 +1338,61 @@
   - 해결: `useErrorHandler`에서 모듈 레벨의 `toast` 함수를 직접 import하여 사용하도록 수정
   - `handleError`의 의존성 배열에서 `toast` 제거하여 안정적인 함수 참조 보장
   - 영향: `VersionHistoryPanel`의 여러 `useEffect`에서 `handleError`를 의존성 배열에 포함해도 불필요한 재실행 방지, 메모리 누수 해결
+
+## 2025-11-23 (Zustand 클라이언트 상태 관리 시스템 전체 도입 완료)
+- **Phase 1: AuthContext → zustand store 마이그레이션 완료**
+  - `stores/authStore.js` 생성: 사용자 인증 상태 및 액션을 zustand store로 이동
+  - persist 미들웨어로 localStorage 자동 동기화 (user 상태만 persist)
+  - useErrorHandler 패턴 적용하여 에러 처리 통일 (useWorkspacePermissions.js와 동일한 방식)
+  - AuthContext를 zustand store 래퍼로 변경 (기존 API 호환성 유지)
+  - shallow 비교를 사용하여 여러 값 한 번에 가져오기로 최적화
+  - 기존 useAuth() hook 인터페이스 유지하여 컴포넌트 수정 최소화
+  - Sentry 사용자 컨텍스트 자동 동기화
+  - authSync 이벤트 처리 유지
+  - 관련 이슈: #88
+
+- **Phase 2: WorkspaceContext → zustand store 마이그레이션 완료**
+  - `stores/workspaceStore.js` 생성: 워크스페이스 클라이언트 상태 관리
+  - `currentWorkspace`, `isSettingsPanelOpen`, `isSearchModalOpen` 상태를 zustand로 이동
+  - persist 미들웨어로 localStorage 자동 동기화 (currentWorkspace만 persist)
+  - WorkspaceContext를 zustand store 래퍼로 변경 (React Query 데이터는 유지)
+  - useShallow로 최적화하여 불필요한 리렌더링 방지
+  - 관련 이슈: #88
+
+- **Phase 3: DocumentContext → zustand store 마이그레이션 완료**
+  - `stores/documentStore.js` 생성: 문서 클라이언트 상태 관리
+  - `currentDocument`, `documentLoading` 상태를 zustand로 이동
+  - persist 미들웨어로 localStorage 자동 동기화 (currentDocument만 persist)
+  - DocumentContext를 zustand store 래퍼로 변경 (React Query 데이터는 유지)
+  - DocumentEditor에서 zustand store 직접 구독하여 즉시 반영
+  - `isReadOnly`를 useMemo로 감싸서 currentDocument?.isLocked 변경 시 재계산
+  - Editor 컴포넌트에서 editable prop 변경 시 editor.setEditable() 호출 추가
+  - 관련 이슈: #88
+  - 알려진 이슈: #89 (문서 잠금/해제 버튼 클릭 시 에디터 즉시 반영 문제)
+
+- **Phase 4: NotificationContext 및 UI 상태 → zustand store 마이그레이션 완료**
+  - `stores/notificationStore.js` 생성: 알림 모달 상태 관리
+    - `isNotificationModalOpen` 상태를 zustand로 이동
+  - `stores/uiStore.js` 생성: 전역 UI 상태 통합
+    - `showShareModal`: 공유 모달 상태
+    - `showVersionHistory`: 버전 기록 패널 상태
+  - NotificationContext를 zustand store 래퍼로 변경 (React Query 데이터는 유지)
+  - DocumentEditor와 DocumentHeader의 UI 상태를 uiStore로 이동
+  - useShallow로 최적화하여 불필요한 리렌더링 방지
+  - 관련 이슈: #88
+
+- **Phase 5: 기타 로컬 상태 통합 및 정리 완료**
+  - Zustand 마이그레이션 완료 요약 문서 작성 (`docs/zustand_migration_summary.md`)
+  - useTableSort는 복잡한 로직과 문서별 상태 관리로 인해 현재 구조 유지
+    (향후 필요시 zustand로 마이그레이션 가능)
+  - 모든 Context Provider는 여전히 필요 (React Query 데이터 제공 또는 래퍼 역할)
+  - 마이그레이션 완료 상태 확인 및 문서화
+
+- **전체 마이그레이션 완료 요약**
+  - 생성된 Store: authStore, workspaceStore, documentStore, notificationStore, uiStore
+  - 개선 효과:
+    - 상태 관리 패턴 통일
+    - 불필요한 리렌더링 감소 (useShallow 활용)
+    - 코드 명확성 향상
+    - 디버깅 용이성 향상 (zustand devtools 사용 가능)
+  - 관련 이슈: #88, #89
