@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getTrashedDocuments,
@@ -19,20 +19,25 @@ export default function useTrash(workspaceId) {
   const {
     data: trashedDocuments = [],
     isLoading: loading,
+    error: queryError,
     refetch: refetchTrashedDocuments,
   } = useQuery({
     queryKey: ['trashed-documents', workspaceId],
     queryFn: () => getTrashedDocuments(workspaceId),
     enabled: !!workspaceId,
     staleTime: 1000 * 60 * 1, // 1분 - 휴지통은 자주 변경될 수 있음
-    onError: (e) => {
-      log.error('휴지통 목록 조회 실패', e);
-      handleError(e, {
+  });
+
+  // 에러 처리 (React Query v5 권장 방식)
+  useEffect(() => {
+    if (queryError) {
+      log.error('휴지통 목록 조회 실패', queryError);
+      handleError(queryError, {
         customMessage: '휴지통 목록을 불러오지 못했습니다.',
         showToast: true
       });
-    },
-  });
+    }
+  }, [queryError, handleError]);
 
   // 문서 복원 mutation
   const restoreMutation = useMutation({
