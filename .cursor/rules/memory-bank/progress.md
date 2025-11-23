@@ -1396,3 +1396,21 @@
     - 코드 명확성 향상
     - 디버깅 용이성 향상 (zustand devtools 사용 가능)
   - 관련 이슈: #88, #89
+
+- **보안 개선: 토큰 저장소 변경 (localStorage → sessionStorage)**
+  - 문제점: localStorage에 JWT 토큰 저장 시 XSS 공격에 취약
+  - 개선 사항:
+    - accessToken을 sessionStorage로 변경하여 탭별 격리 (한 탭에서 탈취되어도 다른 탭은 안전)
+    - 브라우저 탭이 닫히면 자동으로 토큰 삭제
+    - 수정된 파일:
+      - `services/auth.js`: login, register, loginWithGoogle, logout, getCurrentUser, isAuthenticated
+      - `services/api.js`: clearTokens, request interceptor
+      - `utils/authSync.js`: handleAutoLogout, handleLoginSuccess
+      - `lib/errorUtils.js`: getStoredAuthData
+      - `hooks/useDocumentSocket.js`: WebSocket 토큰 접근
+      - `hooks/useDocumentPresence.js`: WebSocket 토큰 접근
+      - `contexts/AuthContext.jsx`: clearTokens
+  - 장기 개선 계획:
+    - HttpOnly 쿠키 사용 (백엔드 변경 필요)
+    - CSRF 토큰 추가
+    - 관련 문서: `docs/security_token_migration_guide.md`

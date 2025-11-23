@@ -15,7 +15,8 @@ export default function useDocumentPresence(documentId, user) {
 
   useEffect(() => {
     if (!documentId || !user) return;
-    const token = localStorage.getItem('accessToken');
+    // 보안: sessionStorage에서 토큰 가져오기
+    const token = sessionStorage.getItem('accessToken');
     const wsUrl = token ? `/ws/presence?token=${token}` : '/ws/presence';
     const stompClient = new Client({
       webSocketFactory: () => new SockJS(wsUrl),

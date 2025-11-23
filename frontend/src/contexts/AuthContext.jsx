@@ -31,8 +31,9 @@ export function AuthProvider({ children }) {
   const [error, setError] = useState(null);
 
   // 기존 토큰 제거 공통 함수
+  // 보안: accessToken은 sessionStorage 사용 (XSS 위험 완화, 탭별 격리)
   const clearTokens = () => {
-    localStorage.removeItem('accessToken');
+    sessionStorage.removeItem('accessToken');
     localStorage.removeItem('user');
     localStorage.removeItem('userId');
   };

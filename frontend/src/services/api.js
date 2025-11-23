@@ -13,8 +13,9 @@ export const setGlobalToast = (toastFn) => {
 };
 
 // 토큰 제거 공통 함수
+// 보안: accessToken은 sessionStorage 사용 (XSS 위험 완화, 탭별 격리)
 const clearTokens = () => {
-  localStorage.removeItem('accessToken');
+  sessionStorage.removeItem('accessToken');
   localStorage.removeItem('user');
   localStorage.removeItem('userId');
 };
@@ -70,8 +71,8 @@ api.interceptors.request.use(
     
     alog.debug('API 요청 - 현재 사용자 ID:', currentUserId);
     
-    // 기존 방식 사용
-    token = localStorage.getItem('accessToken');
+    // 보안: sessionStorage에서 토큰 가져오기 (XSS 위험 완화)
+    token = sessionStorage.getItem('accessToken');
 
     if (token) {
       config.headers = {

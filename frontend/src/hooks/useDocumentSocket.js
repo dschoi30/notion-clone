@@ -28,7 +28,8 @@ export default function useDocumentSocket(documentId, onRemoteEdit) {
     }
     // console.log('useDocumentSocket: documentId 있음, 연결 시도');
     // JWT 토큰을 쿼리 파라미터로 전달 (accessToken 사용)
-    const token = localStorage.getItem('accessToken');
+    // 보안: sessionStorage에서 토큰 가져오기
+    const token = sessionStorage.getItem('accessToken');
     // console.log('WebSocket 연결에 사용할 accessToken:', token);
     const wsUrl = token ? `/ws/document?token=${token}` : '/ws/document';
     // console.log('WebSocket 연결 URL:', wsUrl);

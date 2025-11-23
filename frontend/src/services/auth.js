@@ -6,8 +6,9 @@ const log = createLogger('auth');
 export const login = async (email, password) => {
   try {
     const response = await api.post('/api/auth/login', { email, password });
+    // 보안: sessionStorage 사용 (XSS 위험 완화, 탭별 격리)
     if (response.data.accessToken) {
-      localStorage.setItem('accessToken', response.data.accessToken);
+      sessionStorage.setItem('accessToken', response.data.accessToken);
     }
     return response.data;
   } catch (error) {
@@ -19,8 +20,9 @@ export const login = async (email, password) => {
 export const register = async (email, password, name) => {
   try {
     const response = await api.post('/api/auth/register', { email, password, name });
+    // 보안: sessionStorage 사용 (XSS 위험 완화, 탭별 격리)
     if (response.data.accessToken) {
-      localStorage.setItem('accessToken', response.data.accessToken);
+      sessionStorage.setItem('accessToken', response.data.accessToken);
     }
     return response.data;
   } catch (error) {
@@ -33,8 +35,9 @@ export const loginWithGoogle = async (credential) => {
   try {
     const response = await api.post('/api/auth/google', { credential });
     
+    // 보안: sessionStorage 사용 (XSS 위험 완화, 탭별 격리)
     if (response.data.accessToken) {
-      localStorage.setItem('accessToken', response.data.accessToken);
+      sessionStorage.setItem('accessToken', response.data.accessToken);
     }
 
     return response.data;
@@ -45,7 +48,8 @@ export const loginWithGoogle = async (credential) => {
 };
 
 export const logout = () => {
-  localStorage.removeItem('accessToken');
+  // 보안: sessionStorage에서 토큰 제거
+  sessionStorage.removeItem('accessToken');
   localStorage.removeItem('user');
   localStorage.removeItem('userId');
   // 로그인 페이지로 리다이렉트
@@ -57,7 +61,8 @@ export const getCurrentUser = async () => {
     const response = await api.get('/api/users/me');
     return response.data;
   } catch (error) {
-    localStorage.removeItem('accessToken');
+    // 보안: sessionStorage에서 토큰 제거
+    sessionStorage.removeItem('accessToken');
     localStorage.removeItem('user');
     localStorage.removeItem('userId');
     throw error;
@@ -65,5 +70,6 @@ export const getCurrentUser = async () => {
 };
 
 export const isAuthenticated = () => {
-  return !!localStorage.getItem('accessToken');
+  // 보안: sessionStorage에서 토큰 확인
+  return !!sessionStorage.getItem('accessToken');
 }; 

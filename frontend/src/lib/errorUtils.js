@@ -213,21 +213,22 @@ const ERROR_MESSAGES = {
 };
 
 /**
- * 안전한 localStorage 접근
+ * 안전한 저장소 접근
+ * 보안: accessToken은 sessionStorage 사용 (XSS 위험 완화)
  * @returns {Object} {token: string|null, user: string|null}
  */
 const getStoredAuthData = () => {
   try {
-    if (typeof window === 'undefined' || !window.localStorage) {
+    if (typeof window === 'undefined') {
       return { token: null, user: null };
     }
     
     return {
-      token: localStorage.getItem('accessToken'),
+      token: sessionStorage.getItem('accessToken'),
       user: localStorage.getItem('user')
     };
   } catch (error) {
-    elog.warn('localStorage 접근 실패:', error);
+    elog.warn('저장소 접근 실패:', error);
     return { token: null, user: null };
   }
 };

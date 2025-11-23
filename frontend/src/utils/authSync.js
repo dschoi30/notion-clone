@@ -53,7 +53,8 @@ class AuthSync {
     alog.info('현재 사용자의 세션 무효화 - 로그아웃 처리');
     
     // 현재 사용자의 세션 무효화인 경우에만 로그아웃 처리
-    localStorage.removeItem('accessToken');
+    // 보안: sessionStorage에서 토큰 제거
+    sessionStorage.removeItem('accessToken');
     localStorage.removeItem('user');
     localStorage.removeItem('userId');
 
@@ -74,7 +75,8 @@ class AuthSync {
     // 다른 사용자가 로그인한 경우 현재 사용자 로그아웃
     if (currentUserId && currentUserId !== user.id.toString()) {
       alog.info('다른 사용자 로그인 - 현재 사용자 로그아웃:', currentUserId, '->', user.id);
-      localStorage.removeItem('accessToken');
+      // 보안: sessionStorage에서 토큰 제거
+      sessionStorage.removeItem('accessToken');
       localStorage.removeItem('user');
       localStorage.removeItem('userId');
       
