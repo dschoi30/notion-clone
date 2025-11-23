@@ -1,14 +1,17 @@
 // contexts/AuthContext.jsx
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import * as auth from '@/services/auth';
+import { useAuthStore } from '@/stores/authStore';
+import { shallow } from 'zustand/shallow';
 import { createLogger } from '@/lib/logger';
 import { authSync } from '@/utils/authSync';
 import { useToast } from '@/hooks/useToast';
 import { setGlobalToast } from '@/services/api';
 import { setSentryUser } from '@/lib/sentry';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 const AuthContext = createContext();
+const alog = createLogger('AuthContext');
 
 export function useAuth() {
   const context = useContext(AuthContext);
@@ -20,22 +23,34 @@ export function useAuth() {
 
 export function AuthProvider({ children }) {
   const navigate = useNavigate();
-  const alog = createLogger('AuthContext');
   const { toast } = useToast();
-  const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem('user');
-    const parsedUser = savedUser ? JSON.parse(savedUser) : null;
-    return parsedUser;
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  // 기존 토큰 제거 공통 함수
-  const clearTokens = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('user');
-    localStorage.removeItem('userId');
-  };
+  const { handleError } = useErrorHandler();
+  
+  // zustand store에서 상태와 액션을 한 번에 가져오기 (shallow 비교로 최적화)
+  const {
+    user,
+    loading,
+    error,
+    login,
+    register,
+    loginWithGoogle,
+    logout,
+    updateUser,
+    clearError
+  } = useAuthStore(
+    (state) => ({
+      user: state.user,
+      loading: state.loading,
+      error: state.error,
+      login: state.login,
+      register: state.register,
+      loginWithGoogle: state.loginWithGoogle,
+      logout: state.logout,
+      updateUser: state.updateUser,
+      clearError: state.clearError
+    }),
+    shallow
+  );
 
   // 전역 Toast 함수 설정
   useEffect(() => {
@@ -51,6 +66,28 @@ export function AuthProvider({ children }) {
     }
   }, [user]);
 
+  // 에러 처리 (useWorkspacePermissions.js 패턴과 동일)
+  useEffect(() => {
+    if (error) {
+      alog.error('AuthStore 에러 발생', error);
+      
+      // 에러 타입별 커스텀 메시지 설정
+      let customMessage = null;
+      if (error.response?.status === 401) {
+        customMessage = '이메일 또는 비밀번호를 확인해주세요.';
+      } else if (error.response?.status === 400) {
+        customMessage = '입력한 정보를 다시 확인해주세요.';
+      }
+      
+      handleError(error, {
+        customMessage,
+        showToast: true
+      });
+      
+      // 에러 처리 후 에러 상태 초기화
+      clearError();
+    }
+  }, [error, handleError, clearError]);
 
   // authSync 이벤트 처리
   useEffect(() => {
@@ -60,7 +97,7 @@ export function AuthProvider({ children }) {
 
       // 현재 사용자와 다른 사용자의 세션 무효화인지 확인
       const currentUserId = localStorage.getItem('userId');
-      if (userId && currentUserId && String(userId) !== currentUserId) {
+      if (userId && currentUserId && String(userId) !== String(currentUserId)) {
         alog.info('다른 사용자의 세션 무효화 - 현재 사용자에게 영향 없음');
         return;
       }
@@ -107,144 +144,41 @@ export function AuthProvider({ children }) {
     };
   }, [alog, toast, navigate]);
 
-  const login = useCallback(async (email, password) => {
+  // 기존 API와 호환성을 위한 래퍼 함수들
+  const loginWrapper = useCallback(async (email, password) => {
     try {
-      setLoading(true);
-      setError(null);
-      
-      // 기존 토큰 제거 (새 로그인 시 이전 세션 무효화)
-      clearTokens();
-      
-      const data = await auth.login(email, password);
-      const userData = {
-        id: data.user.id,
-        email: data.user.email,
-        name: data.user.name,
-        profileImageUrl: data.user.profileImageUrl,
-        role: data.user.role
-      };
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('userId', userData.id);
-      
-      // 다른 탭에 로그인 알림
-      authSync.notifyLogin(userData);
-      
+      await login(email, password);
     } catch (err) {
-      alog.error('로그인 에러:', err);
-      setError(err.message);
-      toast({
-        title: '로그인 실패',
-        description: err.message || '이메일 또는 비밀번호를 확인해주세요.',
-        variant: 'destructive'
-      });
+      // 에러는 store에서 처리하고, useEffect에서 handleError 호출됨
       throw err;
-    } finally {
-      setLoading(false);
     }
-  }, []);
+  }, [login]);
 
-  const register = useCallback(async (email, password, name) => {
+  const registerWrapper = useCallback(async (email, password, name) => {
     try {
-      setLoading(true);
-      setError(null);
-      
-      // 기존 토큰 제거
-      clearTokens();
-      
-      const data = await auth.register(email, password, name);
-      const userData = {
-        id: data.user.id,
-        email: data.user.email,
-        name: data.user.name,
-        profileImageUrl: data.user.profileImageUrl,
-        role: data.user.role
-      };
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('userId', userData.id);
-      
-      // 다른 탭에 로그인 알림
-      authSync.notifyLogin(userData);
-      
+      await register(email, password, name);
     } catch (err) {
-      alog.error('회원가입 에러:', err);
-      setError(err.message);
-      toast({
-        title: '회원가입 실패',
-        description: err.message || '입력한 정보를 다시 확인해주세요.',
-        variant: 'destructive'
-      });
+      // 에러는 store에서 처리하고, useEffect에서 handleError 호출됨
       throw err;
-    } finally {
-      setLoading(false);
     }
-  }, []);
+  }, [register]);
 
-  const loginWithGoogle = useCallback(async (credential) => {
+  const loginWithGoogleWrapper = useCallback(async (credential) => {
     try {
-      setLoading(true);
-      setError(null);
-      
-      // 기존 토큰 제거
-      clearTokens();
-      
-      const data = await auth.loginWithGoogle(credential);
-      const userData = {
-        id: data.user.id,
-        email: data.user.email,
-        name: data.user.name,
-        profileImageUrl: data.user.profileImageUrl,
-        role: data.user.role
-      };
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('userId', userData.id);
-      
-      // 다른 탭에 로그인 알림
-      authSync.notifyLogin(userData);
-      
+      await loginWithGoogle(credential);
     } catch (err) {
-      alog.error('구글 로그인 에러:', err);
-      setError(err.message);
-      toast({
-        title: '구글 로그인 실패',
-        description: err.message || '구글 계정으로 로그인할 수 없습니다. 다시 시도해주세요.',
-        variant: 'destructive'
-      });
+      // 에러는 store에서 처리하고, useEffect에서 handleError 호출됨
       throw err;
-    } finally {
-      setLoading(false);
     }
-  }, []);
-
-  const logout = useCallback(() => {
-    auth.logout();
-    setUser(null);
-    
-    // 다른 탭에 로그아웃 알림
-    authSync.notifyLogout('MANUAL_LOGOUT');
-  }, []);
-
-  const updateUser = useCallback((updatedUserData) => {
-    const userData = {
-      id: updatedUserData.id || user?.id,
-      email: updatedUserData.email,
-      name: updatedUserData.name,
-      profileImageUrl: updatedUserData.profileImageUrl,
-      role: updatedUserData.role
-    };
-    setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
-  }, [user]);
+  }, [loginWithGoogle]);
 
   const value = {
     user,
     loading,
-    error,
-    login,
-    register,
-    loginWithGoogle,
+    error: error?.message || null, // 기존 API 호환성을 위해 message만 반환
+    login: loginWrapper,
+    register: registerWrapper,
+    loginWithGoogle: loginWithGoogleWrapper,
     logout,
     updateUser
   };
