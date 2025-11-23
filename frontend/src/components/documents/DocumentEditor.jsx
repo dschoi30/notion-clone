@@ -1,9 +1,11 @@
 // src/components/documents/DocumentEditor.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useDocument } from '@/contexts/DocumentContext';
+import { useUIStore } from '@/stores/uiStore';
+import { useShallow } from 'zustand/react/shallow';
 import useDocumentSocket from '@/hooks/useDocumentSocket';
 import useDocumentPresence from '@/hooks/useDocumentPresence';
 import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
@@ -24,6 +26,7 @@ const DocumentEditor = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  // useDocument()에서 currentDocument를 가져와서 단일 진실 공급원(Single Source of Truth) 유지
   const { currentDocument, updateDocument, documentLoading, documents, selectDocument } = useDocument();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -35,12 +38,20 @@ const DocumentEditor = () => {
   const editorRef = useRef(null);
   const pageViewRef = useRef(null);
 
-  // 공유 팝오버 상태
-  const [showShareModal, setShowShareModal] = useState(false);
+  // 공유 팝오버 상태 (zustand store에서 관리)
+  const { showShareModal, setShowShareModal } = useUIStore(
+    useShallow((state) => ({
+      showShareModal: state.showShareModal,
+      setShowShareModal: state.setShowShareModal
+    }))
+  );
   const shareButtonRef = useRef(null);
   const canWrite = hasWritePermission(currentDocument, user);
   // 잠금 상태 또는 권한이 없으면 읽기 전용
-  const isReadOnly = !canWrite || (currentDocument?.isLocked ?? false);
+  // useMemo로 감싸서 currentDocument?.isLocked 변경 시 즉시 재계산되도록 보장
+  const isReadOnly = useMemo(() => {
+    return !canWrite || (currentDocument?.isLocked ?? false);
+  }, [canWrite, currentDocument?.isLocked]);
   const viewers = useDocumentPresence(currentDocument?.id, user);
   const { properties, titleWidth } = useDocumentPropertiesStore(state => ({ properties: state.properties, titleWidth: state.titleWidth }));
   const SNAPSHOT_INTERVAL_MS = (import.meta.env && import.meta.env.MODE === 'development') ? 30 * 1000 : 10 * 60 * 1000;
@@ -304,6 +315,7 @@ const DocumentEditor = () => {
     try {
       const newLockState = !currentDocument.isLocked;
       // 잠금 상태만 업데이트할 때도 현재 title과 content를 함께 보내서 덮어쓰기 방지
+      // updateDocument에서 이미 updateCurrentDocument를 호출하여 zustand store가 업데이트됨
       await updateDocument(currentDocument.id, { 
         isLocked: newLockState,
         title: titleRef.current || currentDocument.title || '',

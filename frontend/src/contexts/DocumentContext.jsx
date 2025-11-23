@@ -1,12 +1,50 @@
 // src/contexts/DocumentContext.jsx
-import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useDocumentStore } from '@/stores/documentStore';
+import { useShallow } from 'zustand/react/shallow';
 import * as documentApi from '@/services/documentApi';
 import { createLogger } from '@/lib/logger';
 import { useWorkspace } from './WorkspaceContext';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 const DocumentContext = createContext();
+
+/**
+ * 문서 업데이트 데이터 병합 함수
+ * 명확한 우선순위로 문서 데이터를 병합합니다.
+ * 
+ * 우선순위:
+ * 1. documentData (클라이언트 업데이트, isLocked 등 즉시 반영 필요)
+ * 2. updated (서버 응답)
+ * 3. currentDocument (기존 문서 데이터)
+ * 
+ * @param {Object} currentDocument - 현재 문서 데이터
+ * @param {Object} serverResponse - 서버 응답 데이터
+ * @param {Object} clientUpdate - 클라이언트 업데이트 데이터
+ * @returns {Object} 병합된 문서 데이터
+ * 
+ * Note: Fast refresh 경고는 무시 가능 (실제 기능에 영향 없음)
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+const mergeDocumentUpdate = (currentDocument, serverResponse, clientUpdate) => {
+  // Base: 현재 문서
+  const base = currentDocument || {};
+  
+  // 1단계: 서버 응답 적용
+  const withServerData = { ...base, ...serverResponse };
+  
+  // 2단계: 클라이언트 업데이트 적용 (isLocked 등 우선순위 높음)
+  const withClientData = { ...withServerData, ...clientUpdate };
+  
+  // 3단계: permissions는 서버 데이터 우선 (서버 데이터가 있으면 사용, 없으면 기존 데이터 유지)
+  return {
+    ...withClientData,
+    permissions: (Array.isArray(serverResponse?.permissions) && serverResponse.permissions.length > 0)
+      ? serverResponse.permissions
+      : (base.permissions || []),
+  };
+};
 
 export function useDocument() {
   const context = useContext(DocumentContext);
@@ -18,12 +56,31 @@ export function useDocument() {
 
 export function DocumentProvider({ children }) {
   const rlog = createLogger('router');
-  const [currentDocument, setCurrentDocument] = useState(null);
-  const [documentLoading, setDocumentLoading] = useState(false);
   const queryClient = useQueryClient();
   const { currentWorkspace } = useWorkspace();
   const { handleError } = useErrorHandler();
   const lastSelectRef = React.useRef({ id: null, at: 0 });
+
+  // zustand store에서 클라이언트 상태 가져오기 (useShallow로 최적화)
+  const {
+    currentDocument,
+    documentLoading,
+    setCurrentDocument,
+    setDocumentLoading,
+    updateCurrentDocument,
+    clearCurrentDocument,
+    handleDocumentDeletion
+  } = useDocumentStore(
+    useShallow((state) => ({
+      currentDocument: state.currentDocument,
+      documentLoading: state.documentLoading,
+      setCurrentDocument: state.setCurrentDocument,
+      setDocumentLoading: state.setDocumentLoading,
+      updateCurrentDocument: state.updateCurrentDocument,
+      clearCurrentDocument: state.clearCurrentDocument,
+      handleDocumentDeletion: state.handleDocumentDeletion
+    }))
+  );
 
   // React Query로 문서 목록 조회
   const {
@@ -85,6 +142,9 @@ export function DocumentProvider({ children }) {
 
   // currentWorkspace 변경 시 즉시 상태 초기화
   useEffect(() => {
+    // 즉시 모든 상태 초기화 (이전 워크스페이스 데이터 제거)
+    clearCurrentDocument();
+    // React Query 캐시도 무효화
     if (currentWorkspace) {
       // 이전 워크스페이스의 진행 중인 요청 취소
       queryClient.cancelQueries({ queryKey: ['documents'] });
@@ -93,7 +153,7 @@ export function DocumentProvider({ children }) {
       // React Query 캐시도 무효화
       queryClient.invalidateQueries({ queryKey: ['documents', currentWorkspace.id] });
     }
-  }, [currentWorkspace, queryClient]);
+  }, [currentWorkspace, queryClient, clearCurrentDocument]);
 
   // fetchDocuments 함수는 기존 API와 호환성을 위해 유지 (refetch로 동작)
   const fetchDocuments = useCallback(async (page = null, size = null) => {
@@ -173,14 +233,11 @@ export function DocumentProvider({ children }) {
     try {
       const updated = await documentApi.updateDocument(currentWorkspace.id, id, documentData);
       
-      // 기존 currentDocument의 모든 필드를 보존하고, 업데이트된 필드만 덮어쓰기
-      const mergedUpdated = {
-        ...(currentDocument?.id === id ? currentDocument : {}),
-        ...updated,
-        permissions: (Array.isArray(updated?.permissions) && updated.permissions.length > 0)
-          ? updated.permissions
-          : (currentDocument?.permissions || []),
-      };
+      // 명확한 우선순위로 문서 데이터 병합
+      // 우선순위: documentData (클라이언트) > updated (서버) > currentDocument (기존)
+      const mergedUpdated = currentDocument?.id === id
+        ? mergeDocumentUpdate(currentDocument, updated, documentData)
+        : { ...updated, ...documentData };
       
       // React Query 캐시 업데이트
       queryClient.setQueryData(['documents', currentWorkspace.id], (oldData) => {
@@ -191,7 +248,11 @@ export function DocumentProvider({ children }) {
         };
       });
       
-      if (currentDocument?.id === id) setCurrentDocument(mergedUpdated);
+      // 현재 문서가 업데이트된 경우 zustand store도 업데이트
+      if (currentDocument?.id === id) {
+        updateCurrentDocument(mergedUpdated);
+      }
+      
       return mergedUpdated;
     } catch (err) {
       rlog.error('문서 수정 실패', err);
@@ -201,7 +262,7 @@ export function DocumentProvider({ children }) {
       });
       throw err;
     }
-  }, [currentWorkspace, currentDocument, queryClient, handleError]);
+  }, [currentWorkspace, currentDocument, queryClient, handleError, updateCurrentDocument]);
 
   const deleteDocument = useCallback(async (id) => {
     if (!currentWorkspace) return;
@@ -224,9 +285,10 @@ export function DocumentProvider({ children }) {
         };
       });
       
+      // 현재 문서가 삭제된 경우 다른 문서로 전환
       if (currentDocument?.id === id) {
         const remainingDocs = documents.filter(d => d.id !== id);
-        setCurrentDocument(remainingDocs[0] || null);
+        handleDocumentDeletion(id, remainingDocs);
       }
     } catch (err) {
       rlog.error('문서 삭제 실패', err);
@@ -236,7 +298,7 @@ export function DocumentProvider({ children }) {
       });
       throw err;
     }
-  }, [currentWorkspace, currentDocument, documents, queryClient, handleError]);
+  }, [currentWorkspace, currentDocument, documents, queryClient, handleError, handleDocumentDeletion]);
 
   const selectDocument = useCallback(async (document, options = {}) => {
     if (!currentWorkspace || !document) return;
@@ -279,7 +341,6 @@ export function DocumentProvider({ children }) {
       
       setCurrentDocument(fullDocument);
       lastSelectRef.current = { id: document.id, at: Date.now() };
-      localStorage.setItem(`lastDocumentId:${currentWorkspace.id}`, document.id);
     } catch (err) {
       rlog.error('문서 선택 실패', err, { documentId: document.id });
       handleError(err, {
@@ -291,7 +352,7 @@ export function DocumentProvider({ children }) {
     } finally {
       setDocumentLoading(false);
     }
-  }, [currentWorkspace, handleError]);
+  }, [currentWorkspace, currentDocument, documentLoading, handleError, setCurrentDocument, setDocumentLoading]);
 
   const updateDocumentOrder = useCallback(async (documentIds) => {
     if (!currentWorkspace) return;
@@ -339,7 +400,7 @@ export function DocumentProvider({ children }) {
     } finally {
       if (!isSilent) setDocumentLoading(false);
     }
-  }, [currentWorkspace]);
+  }, [currentWorkspace, setCurrentDocument, setDocumentLoading]);
 
   // parentId 기반 하위 문서(서브페이지) 목록 조회
   const fetchChildDocuments = useCallback(async (parentId, options = {}) => {
