@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as notificationApi from '@/services/notificationApi';
 import { createLogger } from '@/lib/logger';
@@ -21,66 +21,114 @@ export function NotificationProvider({ children }) {
   const {
     data: notifications = [],
     isLoading,
+    error: notificationsError,
     refetch: refetchNotifications,
   } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => notificationApi.getNotifications(),
     staleTime: 1000 * 60 * 1, // 1분 - 알림은 자주 변경됨
-    refetchInterval: 1000 * 60 * 5, // 5분마다 자동 리페칭
-    onError: (e) => {
-      log.error('알림 조회 실패', e);
-      handleError(e, {
+    refetchInterval: isNotificationModalOpen ? 1000 * 60 * 5 : false, // 모달이 열려있을 때만 자동 리페칭
+    refetchIntervalInBackground: false, // 백그라운드에서 리페칭하지 않음
+  });
+
+  // 에러 처리 (React Query v5 권장 방식)
+  useEffect(() => {
+    if (notificationsError) {
+      log.error('알림 조회 실패', notificationsError);
+      handleError(notificationsError, {
         customMessage: '알림 목록을 불러오지 못했습니다.',
         showToast: true
       });
-    },
-  });
+    }
+  }, [notificationsError, handleError]);
 
-  // 알림 수락 mutation
+  // 알림 수락 mutation (optimistic update)
   const acceptMutation = useMutation({
     mutationFn: (id) => notificationApi.acceptNotification(id),
-    onSuccess: () => {
-      // 알림 목록 자동 리페칭
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    onMutate: async (id) => {
+      // 진행 중인 쿼리 취소
+      await queryClient.cancelQueries({ queryKey: ['notifications'] });
+      
+      // 이전 데이터 백업
+      const previous = queryClient.getQueryData(['notifications']);
+      
+      // 낙관적 업데이트: 수락된 알림 제거
+      queryClient.setQueryData(['notifications'], (old = []) =>
+        old.filter(n => n.id !== id)
+      );
+      
+      return { previous };
     },
-    onError: (e) => {
-      log.error('알림 수락 실패', e);
-      handleError(e, {
+    onError: (err, id, context) => {
+      // 에러 시 이전 데이터로 복구
+      if (context?.previous) {
+        queryClient.setQueryData(['notifications'], context.previous);
+      }
+      log.error('알림 수락 실패', err);
+      handleError(err, {
         customMessage: '알림 수락에 실패했습니다.',
         showToast: true
       });
     },
-  });
-
-  // 알림 거절 mutation
-  const rejectMutation = useMutation({
-    mutationFn: (id) => notificationApi.rejectNotification(id),
-    onSuccess: () => {
-      // 알림 목록 자동 리페칭
+    onSettled: () => {
+      // 최종적으로 서버 데이터와 동기화
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
-    onError: (e) => {
-      log.error('알림 거절 실패', e);
-      handleError(e, {
+  });
+
+  // 알림 거절 mutation (optimistic update)
+  const rejectMutation = useMutation({
+    mutationFn: (id) => notificationApi.rejectNotification(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['notifications'] });
+      const previous = queryClient.getQueryData(['notifications']);
+      
+      queryClient.setQueryData(['notifications'], (old = []) =>
+        old.filter(n => n.id !== id)
+      );
+      
+      return { previous };
+    },
+    onError: (err, id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['notifications'], context.previous);
+      }
+      log.error('알림 거절 실패', err);
+      handleError(err, {
         customMessage: '알림 거절에 실패했습니다.',
         showToast: true
       });
     },
-  });
-
-  // 알림 읽음 처리 mutation
-  const markAsReadMutation = useMutation({
-    mutationFn: (id) => notificationApi.markAsRead(id),
-    onSuccess: () => {
-      // 알림 목록 자동 리페칭
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
-    onError: (e) => {
-      log.error('알림 읽음 처리 실패', e);
-      handleError(e, {
+  });
+
+  // 알림 읽음 처리 mutation (optimistic update)
+  const markAsReadMutation = useMutation({
+    mutationFn: (id) => notificationApi.markAsRead(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['notifications'] });
+      const previous = queryClient.getQueryData(['notifications']);
+      
+      queryClient.setQueryData(['notifications'], (old = []) =>
+        old.map(n => n.id === id ? { ...n, isRead: true } : n)
+      );
+      
+      return { previous };
+    },
+    onError: (err, id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['notifications'], context.previous);
+      }
+      log.error('알림 읽음 처리 실패', err);
+      handleError(err, {
         customMessage: '알림 읽음 처리에 실패했습니다.',
         showToast: true
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 

@@ -73,14 +73,18 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     queryFn: () => getProperties(workspaceId, documentId),
     enabled: !!workspaceId && !!documentId,
     staleTime: 1000 * 60 * 2, // 2분
-    onError: (e) => {
-      log.error('속성 조회 실패', e);
-      handleError(e, {
+  });
+
+  // 에러 처리 (React Query v5 권장 방식)
+  useEffect(() => {
+    if (propertiesError) {
+      log.error('속성 조회 실패', propertiesError);
+      handleError(propertiesError, {
         customMessage: '속성 목록을 불러오지 못했습니다.',
         showToast: true
       });
-    },
-  });
+    }
+  }, [propertiesError, handleError]);
 
   const properties = propertiesData || [];
 
@@ -112,21 +116,25 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     initialPageParam: 0,
     enabled: !!workspaceId && !!documentId,
     staleTime: 1000 * 60 * 2, // 2분
-    onError: (e) => {
-      log.error('자식 문서 조회 실패', e);
-      handleError(e, {
+  });
+
+  // 에러 처리 (React Query v5 권장 방식)
+  useEffect(() => {
+    if (rowsError) {
+      log.error('자식 문서 조회 실패', rowsError);
+      handleError(rowsError, {
         customMessage: '문서 목록을 불러오지 못했습니다.',
         showToast: true
       });
-    },
-  });
+    }
+  }, [rowsError, handleError]);
 
   // 모든 페이지의 children을 하나의 배열로 합치기
   const allChildren = useMemo(() => {
     return rowsData?.pages.flatMap((page) => page.children) || [];
   }, [rowsData]);
 
-  // 3. 속성 값 조회 (React Query) - properties와 children이 있을 때만 조회
+  // 3. 속성 값 조회 (React Query) - 백엔드에서 빈 배열 처리
   const {
     data: propertyValuesData,
     isLoading: valuesLoading,
@@ -134,16 +142,20 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
   } = useQuery({
     queryKey: ['table-property-values', workspaceId, documentId],
     queryFn: () => getPropertyValuesByChildDocuments(workspaceId, documentId),
-    enabled: !!workspaceId && !!documentId && properties.length > 0 && allChildren.length > 0,
+    enabled: !!workspaceId && !!documentId, // 백엔드에서 빈 케이스 처리
     staleTime: 1000 * 60 * 1, // 1분 - 속성 값은 자주 변경됨
-    onError: (e) => {
-      log.error('속성 값 조회 실패', e);
-      handleError(e, {
+  });
+
+  // 에러 처리 (React Query v5 권장 방식)
+  useEffect(() => {
+    if (valuesError) {
+      log.error('속성 값 조회 실패', valuesError);
+      handleError(valuesError, {
         customMessage: '속성 값을 불러오지 못했습니다.',
         showToast: true
       });
-    },
-  });
+    }
+  }, [valuesError, handleError]);
 
   // 속성 값을 documentId별로 그룹화
   const valuesByRowId = useMemo(() => {

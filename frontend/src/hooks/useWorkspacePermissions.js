@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useWorkspace } from '../contexts/WorkspaceContext';
@@ -72,14 +72,18 @@ export const useWorkspacePermissions = (workspaceId) => {
         },
         enabled: !!user && !!workspaceId,
         staleTime: 1000 * 60 * 5, // 5분 - 권한은 자주 변경되지 않음
-        onError: (e) => {
-            log.error('권한 로드 실패', e);
-            handleError(e, {
+    });
+
+    // 에러 처리 (React Query v5 권장 방식)
+    useEffect(() => {
+        if (queryError) {
+            log.error('권한 로드 실패', queryError);
+            handleError(queryError, {
                 customMessage: '권한 정보를 불러오지 못했습니다.',
                 showToast: true
             });
-        },
-    });
+        }
+    }, [queryError, handleError]);
 
     const permissions = useMemo(() => {
         return permissionData?.hasPermission ? (permissionData.permissions || []) : [];
