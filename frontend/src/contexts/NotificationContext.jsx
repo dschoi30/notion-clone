@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNotificationStore } from '@/stores/notificationStore';
+import { useShallow } from 'zustand/react/shallow';
 import * as notificationApi from '@/services/notificationApi';
 import { createLogger } from '@/lib/logger';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
@@ -13,9 +15,19 @@ export function useNotification() {
 }
 
 export function NotificationProvider({ children }) {
-  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
   const queryClient = useQueryClient();
   const { handleError } = useErrorHandler();
+  
+  // zustand store에서 클라이언트 상태 가져오기 (useShallow로 최적화)
+  const {
+    isNotificationModalOpen,
+    setIsNotificationModalOpen
+  } = useNotificationStore(
+    useShallow((state) => ({
+      isNotificationModalOpen: state.isNotificationModalOpen,
+      setIsNotificationModalOpen: state.setIsNotificationModalOpen
+    }))
+  );
 
   // React Query로 알림 조회
   const {

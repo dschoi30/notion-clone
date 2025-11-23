@@ -1,4 +1,6 @@
-import React, { Fragment, useCallback, useState } from 'react';
+import React, { Fragment, useCallback } from 'react';
+import { useUIStore } from '@/stores/uiStore';
+import { useShallow } from 'zustand/react/shallow';
 import UserBadge from '@/components/documents/shared/UserBadge';
 import { Button } from '@/components/ui/button';
 import VersionHistoryPanel from './VersionHistoryPanel';
@@ -22,8 +24,14 @@ export default function DocumentHeader({
   onPathClick,
   onLockToggle
 }) {
-  const [showVersions, setShowVersions] = useState(false);
-  const handleCloseVersions = useCallback(() => setShowVersions(false), []);
+  // 버전 기록 패널 상태 (zustand store에서 관리)
+  const { showVersionHistory, setShowVersionHistory } = useUIStore(
+    useShallow((state) => ({
+      showVersionHistory: state.showVersionHistory,
+      setShowVersionHistory: state.setShowVersionHistory
+    }))
+  );
+  const handleCloseVersions = useCallback(() => setShowVersionHistory(false), [setShowVersionHistory]);
   const isTableView = currentDocument?.viewType === 'TABLE';
   const paddingClasses = isTableView
     ? 'px-20'
@@ -125,7 +133,7 @@ export default function DocumentHeader({
               size="sm"
               variant="ghost"
               className="text-sm text-gray-700"
-              onClick={() => setShowVersions(true)}
+              onClick={() => setShowVersionHistory(true)}
             >
               버전 기록
             </Button>
@@ -142,7 +150,7 @@ export default function DocumentHeader({
           />
         )}
       </div>
-      {showVersions && (
+      {showVersionHistory && (
         <VersionHistoryPanel
           onClose={handleCloseVersions}
           workspaceId={currentWorkspace?.id}
