@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { Camera, User } from 'lucide-react';
 import * as userApi from '@/services/userApi';
+import { toast } from '@/hooks/useToast';
 
 // Cloudinary 업로드 함수 (WorkspaceGeneralForm에서 가져옴)
 const CLOUDINARY_CLOUD_NAME = 'dsjybr8fb';
@@ -95,8 +96,11 @@ export default function AccountBasicForm() {
       const updatedUser = await userApi.updateProfile(profileData);
       await updateUser(updatedUser.user);
       
-      // 성공 메시지는 추후 toast로 대체
-      alert('프로필이 업데이트되었습니다.');
+      toast({
+        title: '프로필 업데이트',
+        description: '프로필이 업데이트되었습니다.',
+        variant: 'success',
+      });
     } catch (err) {
       console.error('프로필 업데이트 실패:', err);
       setError('프로필 업데이트에 실패했습니다. 다시 시도해주세요.');
@@ -150,7 +154,11 @@ export default function AccountBasicForm() {
         confirmPassword: ''
       });
       
-      alert('비밀번호가 변경되었습니다.');
+      toast({
+        title: '비밀번호 변경',
+        description: '비밀번호가 변경되었습니다.',
+        variant: 'success',
+      });
     } catch (err) {
       console.error('비밀번호 변경 실패:', err);
       if (err.response?.status === 400) {

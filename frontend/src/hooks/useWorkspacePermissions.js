@@ -1,7 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useWorkspace } from '../contexts/WorkspaceContext';
 import api from '../services/api';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('useWorkspacePermissions');
 
 /**
  * 워크스페이스 권한 관리 훅
@@ -10,12 +14,9 @@ import api from '../services/api';
 export const useWorkspacePermissions = (workspaceId) => {
     const { user } = useAuth();
     const { currentWorkspace } = useWorkspace();
-    const [permissions, setPermissions] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
 
     // 권한 상수 정의 (백엔드 WorkspacePermissionType.java와 일치)
-    const WORKSPACE_PERMISSIONS = {
+    const WORKSPACE_PERMISSIONS = useMemo(() => ({
         // 워크스페이스 관리
         DELETE_WORKSPACE: 'DELETE_WORKSPACE',
         MANAGE_WORKSPACE_SETTINGS: 'MANAGE_WORKSPACE_SETTINGS',
@@ -31,48 +32,54 @@ export const useWorkspacePermissions = (workspaceId) => {
         
         // 제한된 접근
         VIEW_SHARED_DOCUMENT: 'VIEW_SHARED_DOCUMENT'
-    };
+    }), []);
 
-    // 사용자 권한 로드
-    const loadPermissions = useCallback(async () => {
-        if (!user || !workspaceId) {
-            setPermissions([]);
-            setLoading(false);
-            return;
-        }
+    // React Query로 권한 조회
+    const {
+        data: permissionData,
+        isLoading: loading,
+        error: queryError,
+        refetch: reloadPermissions,
+    } = useQuery({
+        queryKey: ['workspace-permissions', workspaceId, user?.id],
+        queryFn: async () => {
+            if (!user || !workspaceId) {
+                return { hasPermission: false, permissions: [] };
+            }
 
-        try {
-            setLoading(true);
-            setError(null);
-            
-            console.log('🔍 권한 로드 디버깅:', {
+            log.debug('권한 로드 디버깅:', {
                 user: user?.id,
                 workspaceId,
                 currentWorkspace: currentWorkspace?.id,
                 currentWorkspaceOwnerId: currentWorkspace?.ownerId
             });
-            
+
             // 백엔드 API에서 권한 정보 가져오기
             const response = await api.get(`/api/workspaces/${workspaceId}/permissions`);
-            const permissionData = response.data;
-            
-            console.log('📡 백엔드에서 받은 권한 정보:', permissionData);
-            
-            if (permissionData.hasPermission) {
-                setPermissions(permissionData.permissions);
-                console.log('✅ 권한 로드 성공:', permissionData.permissions);
+            const data = response.data;
+
+            log.debug('백엔드에서 받은 권한 정보:', data);
+
+            if (data.hasPermission) {
+                log.debug('권한 로드 성공:', data.permissions);
             } else {
-                setPermissions([]);
-                console.log('❌ 권한 없음');
+                log.debug('권한 없음');
             }
-        } catch (err) {
-            console.error('권한 로드 실패:', err);
-            setError(err.message);
-            setPermissions([]);
-        } finally {
-            setLoading(false);
-        }
-    }, [user, workspaceId]);
+
+            return data;
+        },
+        enabled: !!user && !!workspaceId,
+        staleTime: 1000 * 60 * 5, // 5분 - 권한은 자주 변경되지 않음
+        onError: (err) => {
+            log.error('권한 로드 실패', err);
+        },
+    });
+
+    const permissions = useMemo(() => {
+        return permissionData?.hasPermission ? (permissionData.permissions || []) : [];
+    }, [permissionData]);
+
+    const error = queryError?.message || null;
 
     // 역할별 권한 매핑 (백엔드 WorkspaceRole.java와 동일한 로직)
     const getRolePermissions = (role) => {

@@ -14,6 +14,7 @@ import { ChevronDown } from 'lucide-react';
 import UserBadge from '@/components/documents/shared/UserBadge';
 import { Z_INDEX } from '@/constants/zIndex';
 import { isDocumentOwner } from '@/utils/permissionUtils';
+import { toast } from '@/hooks/useToast';
 
 function PermissionDropdown({ value, onChange, disabled, loading, menuEnabled = true }) {
   const options = [
@@ -208,7 +209,11 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
       });
       setIsDirty(true);
     } catch (e) {
-      alert('권한 변경/제거에 실패했습니다.');
+      toast({
+        title: '권한 변경 실패',
+        description: '권한 변경/제거에 실패했습니다.',
+        variant: 'destructive',
+      });
     }
     setLoadingUserId(null);
   };
