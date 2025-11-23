@@ -80,14 +80,18 @@ export function DocumentProvider({ children }) {
     },
     enabled: !!currentWorkspace,
     staleTime: 1000 * 60 * 2, // 2분 - 문서 목록은 자주 변경되므로 짧게 설정
-    onError: (e) => {
-      rlog.error('문서 목록 조회 실패', e);
-      handleError(e, {
+  });
+
+  // 에러 처리 (React Query v5 권장 방식)
+  useEffect(() => {
+    if (documentsError) {
+      rlog.error('문서 목록 조회 실패', documentsError);
+      handleError(documentsError, {
         customMessage: '문서 목록을 불러오지 못했습니다.',
         showToast: true
       });
-    },
-  });
+    }
+  }, [documentsError, handleError]);
 
   // React Query 데이터를 로컬 상태로 동기화
   const documents = documentsData?.documents || [];
@@ -106,6 +110,11 @@ export function DocumentProvider({ children }) {
     clearCurrentDocument();
     // React Query 캐시도 무효화
     if (currentWorkspace) {
+      // 이전 워크스페이스의 진행 중인 요청 취소
+      queryClient.cancelQueries({ queryKey: ['documents'] });
+      // 즉시 모든 상태 초기화 (이전 워크스페이스 데이터 제거)
+      setCurrentDocument(null);
+      // React Query 캐시도 무효화
       queryClient.invalidateQueries({ queryKey: ['documents', currentWorkspace.id] });
     }
   }, [currentWorkspace, queryClient, clearCurrentDocument]);
@@ -138,7 +147,11 @@ export function DocumentProvider({ children }) {
           },
         });
       } catch (err) {
-        rlog.error('fetchDocuments 에러', err);
+        rlog.error('문서 목록 조회 실패 (페이지네이션)', err);
+        handleError(err, {
+          customMessage: '문서 목록을 불러오지 못했습니다.',
+          showToast: true
+        });
         throw err;
       }
     } else {
@@ -298,7 +311,7 @@ export function DocumentProvider({ children }) {
       setCurrentDocument(fullDocument);
       lastSelectRef.current = { id: document.id, at: Date.now() };
     } catch (err) {
-      rlog.error('Failed to fetch document', err, { documentId: document.id });
+      rlog.error('문서 선택 실패', err, { documentId: document.id });
       handleError(err, {
         customMessage: '문서를 불러오지 못했습니다.',
         showToast: true
@@ -330,10 +343,14 @@ export function DocumentProvider({ children }) {
         };
       });
     } catch (err) {
-      rlog.error('updateDocumentOrder 에러', err);
+      rlog.error('문서 순서 업데이트 실패', err);
+      handleError(err, {
+        customMessage: '문서 순서 업데이트에 실패했습니다.',
+        showToast: true
+      });
       throw err;
     }
-  }, [currentWorkspace, queryClient]);
+  }, [currentWorkspace, queryClient, handleError]);
 
   // 단일 문서 정보 갱신용 fetchDocument 함수 (silent 옵션 지원)
   const fetchDocument = useCallback(async (documentId, options = {}) => {
