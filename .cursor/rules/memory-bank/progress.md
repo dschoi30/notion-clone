@@ -1263,7 +1263,7 @@
   - `useUserTableData` 훅이 `fetchTableData`를 `refetch`라는 이름으로만 반환하던 문제를 수정해 Bulk 액션 완료 후 새로고침 오류를 제거했습니다.
   - 선택 상태 바의 절대 위치를 조정(`top: -50`)해 SortManager가 표시될 때도 UI가 겹치지 않도록 했습니다.
 
-## 2025-01-15 (React Query 도입 필요성 분석)
+## 2025-11-22 (React Query 도입 필요성 분석)
 - **React Query 도입 필요성 분석 문서 작성 완료**
   - `docs/react_query_adoption_analysis.md` 생성
   - 현재 상태 분석: Context API 기반 데이터 페칭, 수동 로딩/에러 상태 관리, 중복 코드 문제 확인
@@ -1272,3 +1272,62 @@
   - 도입 우선순위 및 마이그레이션 전략 수립 (Phase 1-3 단계별 계획)
   - 비용 대비 효과 분석: 초기 투자 30-46시간, 중기 ROI 200-300% 예상
   - 결론: React Query 도입 강력 권장, 점진적 마이그레이션 전략 제안
+
+## 2025-11-23 (React Query 마이그레이션 완료)
+- **Phase 1: 핵심 기능 React Query 마이그레이션 완료**
+  - React Query 기본 설정 및 Provider 구성
+    - `@tanstack/react-query` 및 `@tanstack/react-query-devtools` 설치
+    - `QueryClient` 설정 (staleTime: 5분, cacheTime: 30분, retry: 1)
+    - `App.jsx`에 `QueryClientProvider` 및 `ReactQueryDevtools` 추가
+  - 문서 목록 조회: `DocumentContext`에서 `useQuery` 사용
+    - `fetchDocuments`를 React Query로 변환
+    - `createDocument`, `updateDocument`, `deleteDocument`에서 캐시 업데이트
+    - 페이지네이션 지원 유지
+  - 사용자 목록 조회: `useUserTableData`를 `useInfiniteQuery`로 변환
+    - 무한 스크롤 페이지네이션 지원
+    - 정렬 파라미터를 쿼리 키에 포함하여 자동 리페칭
+  - 워크스페이스 목록 조회: `WorkspaceContext`에서 `useQuery` 사용
+    - `fetchWorkspaces`를 React Query로 변환
+    - `createWorkspace`, `updateWorkspace`, `deleteWorkspace`에서 캐시 업데이트
+  - 에러 처리: 모든 `console.error/warn`을 `logger.js`의 `createLogger`로 변경
+
+- **Phase 2: 테이블 데이터 및 속성 값 조회 React Query 마이그레이션 완료**
+  - 테이블 데이터 조회: `useTableData`를 React Query로 변환
+    - `properties`: `useQuery`로 조회
+    - `rows`: `useInfiniteQuery`로 무한 스크롤 페이지네이션 지원
+    - `propertyValues`: `useQuery`로 조회 (properties와 rows가 있을 때만 enabled)
+    - 정렬 파라미터를 쿼리 키에 포함하여 자동 리페칭
+    - `handleAddProperty`, `handleDeleteProperty`, `handleCellValueChange`에서 캐시 업데이트
+  - 속성 값 조회: `usePageData`를 React Query로 변환
+    - `getPropertyValuesByDocument`를 `useQuery`로 변환
+    - `handleValueChange`에서 낙관적 업데이트 지원
+    - zustand store와 React Query 통합
+
+- **Phase 3: 알림, 문서 버전, 기타 조회 API React Query 마이그레이션 완료**
+  - 알림 조회: `NotificationContext`를 React Query로 변환
+    - `getNotifications`를 `useQuery`로 변환
+    - `acceptNotification`, `rejectNotification`, `markAsRead`를 `useMutation`으로 변환
+    - 5분마다 자동 리페칭 설정
+  - 문서 버전 조회: `VersionHistoryPanel`을 React Query로 변환
+    - `getDocumentVersions`를 `useInfiniteQuery`로 무한 스크롤 페이지네이션 지원
+    - `getDocumentVersion`을 `useQuery`로 변환 (selectedId가 있을 때만 enabled)
+    - `restoreDocumentVersion`을 `useMutation`으로 변환
+    - `getProperties`를 `useQuery`로 변환 (태그 옵션용)
+  - 기타 단순 조회 API 마이그레이션
+    - `useTrash`: `getTrashedDocuments`를 `useQuery`로 변환
+    - `useTrash`: `restoreDocument`, `deleteDocumentPermanently`, `emptyTrash`를 `useMutation`으로 변환
+    - `useWorkspacePermissions`: 권한 조회를 `useQuery`로 변환
+    - `console.log`를 `logger.js`의 `createLogger`로 변경
+
+- **UX 개선: alert를 toast로 변경**
+  - `VersionHistoryPanel`: 문서 복구 성공/실패 메시지를 toast로 변경
+  - `DocumentSharePopover`: 권한 변경/제거 실패 메시지를 toast로 변경
+  - `AccountBasicForm`: 프로필 업데이트 및 비밀번호 변경 성공 메시지를 toast로 변경
+  - 모든 toast는 적절한 variant(success/destructive)를 사용하여 사용자 경험 개선
+
+- **마이그레이션 결과**
+  - 모든 주요 데이터 페칭 로직이 React Query로 전환 완료
+  - 코드 중복 제거 및 일관된 에러 처리 적용
+  - 자동 캐싱 및 리페칭으로 네트워크 요청 최적화
+  - 기존 API와 호환되도록 점진적 마이그레이션 방식 적용
+  - 관련 이슈: #79, #80, #81, #82, #83, #84, #85, #86

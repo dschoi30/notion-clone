@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as documentApi from '@/services/documentApi';
 import { createLogger } from '@/lib/logger';
 import { useWorkspace } from './WorkspaceContext';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 const DocumentContext = createContext();
 
@@ -21,6 +22,7 @@ export function DocumentProvider({ children }) {
   const [documentLoading, setDocumentLoading] = useState(false);
   const queryClient = useQueryClient();
   const { currentWorkspace } = useWorkspace();
+  const { handleError } = useErrorHandler();
   const lastSelectRef = React.useRef({ id: null, at: 0 });
 
   // React Query로 문서 목록 조회
@@ -33,7 +35,7 @@ export function DocumentProvider({ children }) {
     queryKey: ['documents', currentWorkspace?.id],
     queryFn: async () => {
       if (!currentWorkspace) return null;
-      
+  
       // 전체 목록 조회 (페이지네이션 없음)
       const data = await documentApi.getDocumentList(currentWorkspace.id);
       
@@ -57,6 +59,13 @@ export function DocumentProvider({ children }) {
     },
     enabled: !!currentWorkspace,
     staleTime: 1000 * 60 * 2, // 2분 - 문서 목록은 자주 변경되므로 짧게 설정
+    onError: (e) => {
+      rlog.error('문서 목록 조회 실패', e);
+      handleError(e, {
+        customMessage: '문서 목록을 불러오지 못했습니다.',
+        showToast: true
+      });
+    },
   });
 
   // React Query 데이터를 로컬 상태로 동기화
@@ -86,7 +95,7 @@ export function DocumentProvider({ children }) {
     
     // 페이지네이션 파라미터가 있으면 별도 처리 (추후 개선 가능)
     if (page !== null && size !== null) {
-      try {
+    try {
         const response = await documentApi.getDocumentList(currentWorkspace.id, page, size);
         
         // 백엔드에서 다른 워크스페이스 문서가 섞여서 올 경우를 대비한 필터링
@@ -139,10 +148,14 @@ export function DocumentProvider({ children }) {
       
       return newDocument;
     } catch (err) {
-      rlog.error('createDocument 에러', err);
+      rlog.error('문서 생성 실패', err);
+      handleError(err, {
+        customMessage: '문서 생성에 실패했습니다.',
+        showToast: true
+      });
       throw err;
     }
-  }, [currentWorkspace, queryClient]);
+  }, [currentWorkspace, queryClient, handleError]);
 
   const updateDocument = useCallback(async (id, documentData) => {
     if (!currentWorkspace) return;
@@ -171,10 +184,14 @@ export function DocumentProvider({ children }) {
       if (currentDocument?.id === id) setCurrentDocument(mergedUpdated);
       return mergedUpdated;
     } catch (err) {
-      rlog.error('updateDocument 에러', err);
+      rlog.error('문서 수정 실패', err);
+      handleError(err, {
+        customMessage: '문서 수정에 실패했습니다.',
+        showToast: true
+      });
       throw err;
     }
-  }, [currentWorkspace, currentDocument, queryClient]);
+  }, [currentWorkspace, currentDocument, queryClient, handleError]);
 
   const deleteDocument = useCallback(async (id) => {
     if (!currentWorkspace) return;
@@ -202,10 +219,14 @@ export function DocumentProvider({ children }) {
         setCurrentDocument(remainingDocs[0] || null);
       }
     } catch (err) {
-      rlog.error('deleteDocument 에러', err);
+      rlog.error('문서 삭제 실패', err);
+      handleError(err, {
+        customMessage: '문서 삭제에 실패했습니다.',
+        showToast: true
+      });
       throw err;
     }
-  }, [currentWorkspace, currentDocument, documents, queryClient]);
+  }, [currentWorkspace, currentDocument, documents, queryClient, handleError]);
 
   const selectDocument = useCallback(async (document, options = {}) => {
     if (!currentWorkspace || !document) return;
@@ -269,11 +290,11 @@ export function DocumentProvider({ children }) {
         return {
           ...oldData,
           documents: oldData.documents.map(doc => {
-            const newIndex = documentIds.indexOf(doc.id);
-            if (newIndex !== -1) {
-              return { ...doc, sortOrder: newIndex };
-            }
-            return doc;
+          const newIndex = documentIds.indexOf(doc.id);
+          if (newIndex !== -1) {
+            return { ...doc, sortOrder: newIndex };
+          }
+          return doc;
           }),
         };
       });

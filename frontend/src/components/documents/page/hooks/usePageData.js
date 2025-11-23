@@ -37,6 +37,13 @@ export function usePageData({ workspaceId, documentId, systemPropTypeMap }) {
     queryFn: () => getPropertyValuesByDocument(workspaceId, documentId),
     enabled: !!workspaceId && !!documentId,
     staleTime: 1000 * 60 * 1, // 1분 - 속성 값은 자주 변경됨
+    onError: (e) => {
+      log.error('속성 값 조회 실패', e);
+      handleError(e, {
+        customMessage: '속성 값을 불러오지 못했습니다.',
+        showToast: true
+      });
+    },
   });
 
   // 속성 값을 propertyId별 객체로 변환

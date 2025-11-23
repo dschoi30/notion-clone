@@ -73,6 +73,13 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     queryFn: () => getProperties(workspaceId, documentId),
     enabled: !!workspaceId && !!documentId,
     staleTime: 1000 * 60 * 2, // 2분
+    onError: (e) => {
+      log.error('속성 조회 실패', e);
+      handleError(e, {
+        customMessage: '속성 목록을 불러오지 못했습니다.',
+        showToast: true
+      });
+    },
   });
 
   const properties = propertiesData || [];
@@ -105,6 +112,13 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     initialPageParam: 0,
     enabled: !!workspaceId && !!documentId,
     staleTime: 1000 * 60 * 2, // 2분
+    onError: (e) => {
+      log.error('자식 문서 조회 실패', e);
+      handleError(e, {
+        customMessage: '문서 목록을 불러오지 못했습니다.',
+        showToast: true
+      });
+    },
   });
 
   // 모든 페이지의 children을 하나의 배열로 합치기
@@ -122,6 +136,13 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     queryFn: () => getPropertyValuesByChildDocuments(workspaceId, documentId),
     enabled: !!workspaceId && !!documentId && properties.length > 0 && allChildren.length > 0,
     staleTime: 1000 * 60 * 1, // 1분 - 속성 값은 자주 변경됨
+    onError: (e) => {
+      log.error('속성 값 조회 실패', e);
+      handleError(e, {
+        customMessage: '속성 값을 불러오지 못했습니다.',
+        showToast: true
+      });
+    },
   });
 
   // 속성 값을 documentId별로 그룹화
