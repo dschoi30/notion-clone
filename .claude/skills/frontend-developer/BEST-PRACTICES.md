@@ -41,31 +41,43 @@ export function Button({
 }
 ```
 
-### 3. 커스텀 훅으로 로직 캡슐화
+### 3. 커스텀 훅으로 로직 캡슐화 (React Query 사용)
 ```javascript
-// ✅ Good - 비즈니스 로직을 훅으로 분리
+// ✅ Good - React Query를 사용한 데이터 페칭
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { createLogger } from '@/lib/logger';
+import { useEffect } from 'react';
+
+const log = createLogger('useDocumentQuery');
+
 export function useDocumentQuery(documentId) {
-  const [document, setDocument] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { handleError } = useErrorHandler();
 
+  const {
+    data: document,
+    isLoading: loading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['document', documentId],
+    queryFn: () => api.getDocument(documentId),
+    enabled: !!documentId,
+    staleTime: 1000 * 60 * 2, // 2분
+  });
+
+  // 에러 처리 (React Query v5 권장 방식)
   useEffect(() => {
-    const fetchDocument = async () => {
-      try {
-        setLoading(true);
-        const data = await api.getDocument(documentId);
-        setDocument(data);
-      } catch (err) {
-        setError(err);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (error) {
+      log.error('문서 조회 실패', error);
+      handleError(error, {
+        customMessage: '문서를 불러오지 못했습니다.',
+        showToast: true
+      });
+    }
+  }, [error, handleError]);
 
-    fetchDocument();
-  }, [documentId]);
-
-  return { document, loading, error };
+  return { document, loading, error, refetch };
 }
 
 // 컴포넌트에서 사용
@@ -98,21 +110,68 @@ useEffect(() => {
 
 ## 상태 관리
 
-### 1. Context로 글로벌 상태 관리
+### 1. Context로 글로벌 상태 관리 (React Query 통합)
 ```javascript
-// ✅ Good - Context 패턴
+// ✅ Good - Context + React Query 패턴
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { createLogger } from '@/lib/logger';
+import { useEffect } from 'react';
+
+const log = createLogger('WorkspaceContext');
 const WorkspaceContext = createContext();
 
 export function WorkspaceProvider({ children }) {
-  const [workspace, setWorkspace] = useState(null);
-  const [members, setMembers] = useState([]);
+  const queryClient = useQueryClient();
+  const { handleError } = useErrorHandler();
+  const [currentWorkspace, setCurrentWorkspace] = useState(null);
 
-  const updateWorkspace = useCallback((updates) => {
-    setWorkspace(prev => ({ ...prev, ...updates }));
-  }, []);
+  // React Query로 워크스페이스 목록 조회
+  const {
+    data: workspaces = [],
+    isLoading: loading,
+    error: workspacesError,
+    refetch: refetchWorkspaces,
+  } = useQuery({
+    queryKey: ['workspaces'],
+    queryFn: () => workspaceApi.getAccessibleWorkspaces(),
+    staleTime: 1000 * 60 * 5, // 5분
+  });
+
+  // 에러 처리 (React Query v5 권장 방식)
+  useEffect(() => {
+    if (workspacesError) {
+      log.error('워크스페이스 목록 조회 실패', workspacesError);
+      handleError(workspacesError, {
+        customMessage: '워크스페이스 목록을 불러오지 못했습니다.',
+        showToast: true
+      });
+    }
+  }, [workspacesError, handleError]);
+
+  // 워크스페이스 생성 mutation
+  const createMutation = useMutation({
+    mutationFn: (workspaceData) => workspaceApi.createWorkspace(workspaceData),
+    onSuccess: (newWorkspace) => {
+      queryClient.setQueryData(['workspaces'], (old = []) => [...old, newWorkspace]);
+    },
+    onError: (e) => {
+      log.error('워크스페이스 생성 실패', e);
+      handleError(e, {
+        customMessage: '워크스페이스 생성에 실패했습니다.',
+        showToast: true
+      });
+    },
+  });
 
   return (
-    <WorkspaceContext.Provider value={{ workspace, members, updateWorkspace }}>
+    <WorkspaceContext.Provider value={{ 
+      workspaces, 
+      currentWorkspace, 
+      loading, 
+      createWorkspace: createMutation.mutateAsync,
+      refetchWorkspaces 
+    }}>
       {children}
     </WorkspaceContext.Provider>
   );
@@ -179,55 +238,177 @@ function SearchInput() {
 </div>
 ```
 
-## API 통신
+## API 통신 (React Query 사용)
 
-### 1. 에러 처리
+### 1. React Query를 사용한 데이터 페칭
 ```javascript
-// ✅ Good - 적절한 에러 처리
-async function fetchDocuments(workspaceId) {
-  try {
-    const response = await api.get(`/workspaces/${workspaceId}/documents`);
-    return response.data;
-  } catch (error) {
-    if (error.response?.status === 401) {
-      // 인증 만료 - 로그인 페이지로 리다이렉트
-      window.location.href = '/login';
-    }
-    throw new Error(`Failed to fetch documents: ${error.message}`);
-  }
-}
-```
+// ✅ Good - React Query로 데이터 조회
+import { useQuery } from '@tanstack/react-query';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { createLogger } from '@/lib/logger';
+import { useEffect } from 'react';
 
-### 2. 로딩 상태 관리
-```javascript
-// ✅ Good - 로딩, 에러, 데이터 상태 분리
-function DocumentList() {
-  const [documents, setDocuments] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+const log = createLogger('DocumentList');
 
+function DocumentList({ workspaceId }) {
+  const { handleError } = useErrorHandler();
+
+  const {
+    data: documents = [],
+    isLoading: loading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['documents', workspaceId],
+    queryFn: () => api.get(`/workspaces/${workspaceId}/documents`).then(res => res.data),
+    enabled: !!workspaceId,
+    staleTime: 1000 * 60 * 2, // 2분
+  });
+
+  // 에러 처리 (React Query v5 권장 방식)
   useEffect(() => {
-    const loadDocuments = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await fetchDocuments();
-        setDocuments(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadDocuments();
-  }, []);
+    if (error) {
+      log.error('문서 목록 조회 실패', error);
+      handleError(error, {
+        customMessage: '문서 목록을 불러오지 못했습니다.',
+        showToast: true
+      });
+    }
+  }, [error, handleError]);
 
   if (loading) return <Spinner />;
-  if (error) return <ErrorBanner message={error} />;
+  if (error) return <ErrorBanner message={error.message} />;
 
   return <div>{documents.map(doc => <DocumentCard key={doc.id} doc={doc} />)}</div>;
 }
+```
+
+### 2. Mutation을 사용한 데이터 변경
+```javascript
+// ✅ Good - React Query Mutation 사용
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('DocumentForm');
+
+function DocumentForm({ workspaceId }) {
+  const queryClient = useQueryClient();
+  const { handleError } = useErrorHandler();
+
+  const createMutation = useMutation({
+    mutationFn: (documentData) => 
+      api.post(`/workspaces/${workspaceId}/documents`, documentData).then(res => res.data),
+    onSuccess: (newDocument) => {
+      // 캐시 무효화하여 자동 리페칭
+      queryClient.invalidateQueries({ queryKey: ['documents', workspaceId] });
+      // 또는 낙관적 업데이트
+      queryClient.setQueryData(['documents', workspaceId], (old = []) => [...old, newDocument]);
+    },
+    onError: (e) => {
+      log.error('문서 생성 실패', e);
+      handleError(e, {
+        customMessage: '문서 생성에 실패했습니다.',
+        showToast: true
+      });
+    },
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    createMutation.mutate({ title: 'New Document' });
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <button type="submit" disabled={createMutation.isPending}>
+        {createMutation.isPending ? '생성 중...' : '생성'}
+      </button>
+    </form>
+  );
+}
+```
+
+### 3. 무한 스크롤 (useInfiniteQuery)
+```javascript
+// ✅ Good - 무한 스크롤 페이지네이션
+import { useInfiniteQuery } from '@tanstack/react-query';
+
+function DocumentList({ workspaceId }) {
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['documents', workspaceId],
+    queryFn: async ({ pageParam = 0 }) => {
+      const response = await api.get(`/workspaces/${workspaceId}/documents`, {
+        params: { page: pageParam, size: 20 }
+      });
+      return {
+        content: response.data.content,
+        page: response.data.number,
+        totalPages: response.data.totalPages,
+        hasMore: !response.data.last,
+      };
+    },
+    getNextPageParam: (lastPage) => {
+      if (!lastPage.hasMore) return undefined;
+      return lastPage.page + 1;
+    },
+    initialPageParam: 0,
+  });
+
+  const documents = useMemo(() => 
+    data?.pages.flatMap(page => page.content) || [], 
+    [data]
+  );
+
+  return (
+    <div>
+      {documents.map(doc => <DocumentCard key={doc.id} doc={doc} />)}
+      {hasNextPage && (
+        <button onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
+          {isFetchingNextPage ? '로딩 중...' : '더 보기'}
+        </button>
+      )}
+    </div>
+  );
+}
+```
+
+### 4. Optimistic Updates
+```javascript
+// ✅ Good - 낙관적 업데이트로 즉시 UI 반영
+const updateMutation = useMutation({
+  mutationFn: ({ id, data }) => api.put(`/documents/${id}`, data),
+  onMutate: async ({ id, data }) => {
+    // 진행 중인 쿼리 취소
+    await queryClient.cancelQueries({ queryKey: ['documents'] });
+    
+    // 이전 데이터 백업
+    const previous = queryClient.getQueryData(['documents']);
+    
+    // 낙관적 업데이트
+    queryClient.setQueryData(['documents'], (old = []) =>
+      old.map(doc => doc.id === id ? { ...doc, ...data } : doc)
+    );
+    
+    return { previous };
+  },
+  onError: (err, variables, context) => {
+    // 에러 시 이전 데이터로 복구
+    if (context?.previous) {
+      queryClient.setQueryData(['documents'], context.previous);
+    }
+  },
+  onSettled: () => {
+    // 최종적으로 서버 데이터와 동기화
+    queryClient.invalidateQueries({ queryKey: ['documents'] });
+  },
+});
 ```
 
 ## 성능 최적화

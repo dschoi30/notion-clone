@@ -28,14 +28,21 @@ allowed-tools: Read, Edit, Grep, Glob, Bash
 ### 4. 상태 관리
 - React Context를 활용한 전역 상태 관리
 - Zustand를 사용한 복잡한 상태 관리
+- React Query를 통한 서버 상태 관리
 - Custom Hooks로 도메인 로직 구현
 
 ### 5. 성능 최적화
 - 번들 사이즈 최적화
 - 렌더링 최적화 (useMemo, useCallback)
 - 이미지 최적화 및 Cloudinary 활용
+- React Query 캐싱을 통한 네트워크 요청 최적화
 
 ### 6. API 통신
+- React Query를 사용한 데이터 페칭 및 캐싱
+  - `useQuery`로 데이터 조회
+  - `useMutation`으로 데이터 변경
+  - `useInfiniteQuery`로 무한 스크롤 페이지네이션
+  - 자동 캐싱, 리페칭, 에러 처리
 - REST API 호출 및 에러 처리
 - WebSocket(STOMP) 실시간 통신
 - API 인터셉터 및 인증 처리
@@ -97,17 +104,43 @@ ErrorBoundary → AuthProvider → Router →
   NotificationProvider → WorkspaceProvider → DocumentProvider → MainLayout
 ```
 
-### 4. 커스텀 훅 패턴
+### 4. 커스텀 훅 패턴 (React Query 사용)
 ```javascript
-export function useDocuments() {
-  const { workspaceId } = useWorkspace();
-  const [documents, setDocuments] = useState([]);
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { createLogger } from '@/lib/logger';
+import { useEffect } from 'react';
 
+const log = createLogger('useDocuments');
+
+export function useDocuments(workspaceId) {
+  const queryClient = useQueryClient();
+  const { handleError } = useErrorHandler();
+
+  const {
+    data: documents = [],
+    isLoading: loading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['documents', workspaceId],
+    queryFn: () => documentApi.getDocuments(workspaceId),
+    enabled: !!workspaceId,
+    staleTime: 1000 * 60 * 2, // 2분
+  });
+
+  // 에러 처리 (React Query v5 권장 방식)
   useEffect(() => {
-    // 로직
-  }, [workspaceId]);
+    if (error) {
+      log.error('문서 목록 조회 실패', error);
+      handleError(error, {
+        customMessage: '문서 목록을 불러오지 못했습니다.',
+        showToast: true
+      });
+    }
+  }, [error, handleError]);
 
-  return { documents, loading, error };
+  return { documents, loading, error: error?.message || null, refetch };
 }
 ```
 

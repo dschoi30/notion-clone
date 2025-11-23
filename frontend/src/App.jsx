@@ -46,11 +46,11 @@ const App = () => {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <Router>
-          <AuthProvider>
-            <SentryWrappedAppContent />
-          </AuthProvider>
-        </Router>
+      <Router>
+        <AuthProvider>
+          <SentryWrappedAppContent />
+        </AuthProvider>
+      </Router>
         {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
       </QueryClientProvider>
     </ErrorBoundary>

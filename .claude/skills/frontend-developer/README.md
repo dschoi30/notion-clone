@@ -70,9 +70,15 @@ frontend-developer/
 ### 3. 상태 관리
 - React Context를 통한 전역 상태 관리
 - Zustand를 사용한 복잡한 상태 관리
+- React Query를 통한 서버 상태 관리
 - Custom Hooks로 비즈니스 로직 캡슐화
 
 ### 4. API 통신
+- **React Query**를 사용한 데이터 페칭 및 캐싱
+  - `useQuery`로 데이터 조회
+  - `useMutation`으로 데이터 변경
+  - `useInfiniteQuery`로 무한 스크롤 페이지네이션
+  - 자동 캐싱, 리페칭, 에러 처리
 - REST API 호출 및 에러 처리
 - WebSocket(STOMP) 실시간 통신
 - 로딩/에러 상태 관리
@@ -208,18 +214,59 @@ export function useContext() {
 }
 ```
 
-### 4. Custom Hook 패턴
+### 4. Custom Hook 패턴 (React Query 사용)
 ```javascript
+// ✅ Good - React Query 사용
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('useCustomHook');
+
 export function useCustomHook(param) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const { handleError } = useErrorHandler();
+  const queryClient = useQueryClient();
 
+  // 데이터 조회
+  const {
+    data,
+    isLoading: loading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['custom-data', param],
+    queryFn: () => api.getData(param),
+    enabled: !!param,
+    staleTime: 1000 * 60 * 5, // 5분
+  });
+
+  // 에러 처리 (React Query v5 권장 방식)
   useEffect(() => {
-    // 로직
-  }, [param]);
+    if (error) {
+      log.error('데이터 조회 실패', error);
+      handleError(error, {
+        customMessage: '데이터를 불러오지 못했습니다.',
+        showToast: true
+      });
+    }
+  }, [error, handleError]);
 
-  return { data, loading, error };
+  // 데이터 변경
+  const mutation = useMutation({
+    mutationFn: (newData) => api.updateData(param, newData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['custom-data', param] });
+    },
+    onError: (e) => {
+      log.error('데이터 업데이트 실패', e);
+      handleError(e, {
+        customMessage: '데이터 업데이트에 실패했습니다.',
+        showToast: true
+      });
+    },
+  });
+
+  return { data, loading, error, refetch, updateData: mutation.mutateAsync };
 }
 ```
 
@@ -238,6 +285,7 @@ export function useCustomHook(param) {
 
 ### 라이브러리 문서
 - [React 공식 문서](https://react.dev)
+- [React Query 공식 문서](https://tanstack.com/query/latest)
 - [Tailwind CSS 문서](https://tailwindcss.com)
 - [shadcn/ui 문서](https://ui.shadcn.com)
 - [TipTap 에디터 문서](https://tiptap.dev)

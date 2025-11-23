@@ -1,111 +1,156 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { createLogger } from '@/lib/logger';
 
 /**
- * 데이터 페칭을 담당하는 커스텀 훅
+ * React Query를 사용한 데이터 페칭 커스텀 훅
  *
- * @param {string} url - API 엔드포인트
+ * @param {string|number} id - 리소스 ID 또는 식별자
  * @param {Object} options - 추가 옵션
- * @param {boolean} options.skip - 요청 스킵 여부 (기본값: false)
- * @param {number} options.refetchInterval - 재요청 간격 (기본값: null)
+ * @param {boolean} options.enabled - 쿼리 활성화 여부 (기본값: true)
+ * @param {number} options.staleTime - 데이터 신선도 시간 (밀리초, 기본값: 5분)
  *
- * @returns {Object} { data, loading, error, refetch, reset }
+ * @returns {Object} { data, isLoading, error, refetch }
  *
  * @example
- * const { data: documents, loading, error, refetch } = useFetch('/api/documents');
+ * const { data: document, isLoading, error, refetch } = useDocumentQuery(documentId);
  */
-export function useFetch(url, options = {}) {
-  const { skip = false, refetchInterval = null } = options;
+export function useDocumentQuery(id, options = {}) {
+  const { enabled = true, staleTime = 1000 * 60 * 5 } = options;
+  const { handleError } = useErrorHandler();
+  const log = createLogger('useDocumentQuery');
 
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(!skip);
-  const [error, setError] = useState(null);
-  const abortControllerRef = useRef(null);
+  const {
+    data,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['document', id],
+    queryFn: () => documentApi.getDocument(id),
+    enabled: !!id && enabled,
+    staleTime,
+  });
 
-  // ========== Fetch Logic ==========
-  const fetchData = useCallback(async () => {
-    if (!url) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      // 이전 요청 취소
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-
-      // 새 AbortController 생성
-      abortControllerRef.current = new AbortController();
-
-      const response = await fetch(url, {
-        signal: abortControllerRef.current.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          // Authorization 헤더는 필요에 따라 추가
-          // Authorization: `Bearer ${token}`,
-        },
+  // 에러 처리 (React Query v5 권장 방식)
+  useEffect(() => {
+    if (error) {
+      log.error('문서 조회 실패', error);
+      handleError(error, {
+        customMessage: '문서를 불러오지 못했습니다.',
+        showToast: true
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      setData(result);
-    } catch (err) {
-      // AbortError는 무시 (요청 취소)
-      if (err.name !== 'AbortError') {
-        setError(err);
-        console.error(`Failed to fetch ${url}:`, err);
-      }
-    } finally {
-      setLoading(false);
     }
-  }, [url]);
-
-  // ========== Effects ==========
-  // 초기 데이터 로드
-  useEffect(() => {
-    if (skip) return;
-
-    fetchData();
-  }, [url, skip, fetchData]);
-
-  // 자동 재요청
-  useEffect(() => {
-    if (!refetchInterval || skip) return;
-
-    const interval = setInterval(fetchData, refetchInterval);
-
-    return () => clearInterval(interval);
-  }, [refetchInterval, skip, fetchData]);
-
-  // 언마운트 시 요청 취소
-  useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, []);
-
-  // ========== Handlers ==========
-  const refetch = useCallback(async () => {
-    await fetchData();
-  }, [fetchData]);
-
-  const reset = useCallback(() => {
-    setData(null);
-    setError(null);
-    setLoading(false);
-  }, []);
+  }, [error, handleError, log]);
 
   return {
     data,
-    loading,
-    error,
+    isLoading,
+    error: error?.message || null,
     refetch,
-    reset,
+  };
+}
+
+/**
+ * React Query를 사용한 데이터 변경 커스텀 훅
+ *
+ * @returns {Object} { mutate, mutateAsync, isPending, isError }
+ *
+ * @example
+ * const { mutate: createDocument, isPending } = useCreateDocument();
+ * createDocument({ title: 'New Document' });
+ */
+export function useCreateDocument() {
+  const queryClient = useQueryClient();
+  const { handleError } = useErrorHandler();
+  const log = createLogger('useCreateDocument');
+
+  const mutation = useMutation({
+    mutationFn: (documentData) => documentApi.createDocument(documentData),
+    onSuccess: (newDocument) => {
+      // 캐시 무효화하여 자동 리페칭
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      // 또는 낙관적 업데이트
+      // queryClient.setQueryData(['documents'], (old = []) => [...old, newDocument]);
+    },
+    onError: (e) => {
+      log.error('문서 생성 실패', e);
+      handleError(e, {
+        customMessage: '문서 생성에 실패했습니다.',
+        showToast: true
+      });
+    },
+  });
+
+  return {
+    mutate: mutation.mutate,
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+    isError: mutation.isError,
+  };
+}
+
+/**
+ * React Query를 사용한 무한 스크롤 페이지네이션 커스텀 훅
+ *
+ * @param {Object} options - 옵션
+ * @param {number} options.pageSize - 페이지 크기 (기본값: 20)
+ *
+ * @returns {Object} { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage }
+ *
+ * @example
+ * const { data, fetchNextPage, hasNextPage } = useInfiniteDocuments({ pageSize: 20 });
+ * const documents = data?.pages.flatMap(page => page.content) || [];
+ */
+export function useInfiniteDocuments(options = {}) {
+  const { pageSize = 20 } = options;
+  const { handleError } = useErrorHandler();
+  const log = createLogger('useInfiniteDocuments');
+
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    error,
+  } = useInfiniteQuery({
+    queryKey: ['documents', 'infinite'],
+    queryFn: async ({ pageParam = 0 }) => {
+      const response = await documentApi.getDocumentsPaged(pageParam, pageSize);
+      return {
+        content: response.content,
+        page: response.number,
+        totalPages: response.totalPages,
+        hasMore: !response.last,
+      };
+    },
+    getNextPageParam: (lastPage) => {
+      if (!lastPage.hasMore) return undefined;
+      return lastPage.page + 1;
+    },
+    initialPageParam: 0,
+    staleTime: 1000 * 60 * 2, // 2분
+  });
+
+  // 에러 처리
+  useEffect(() => {
+    if (error) {
+      log.error('문서 목록 조회 실패', error);
+      handleError(error, {
+        customMessage: '문서 목록을 불러오지 못했습니다.',
+        showToast: true
+      });
+    }
+  }, [error, handleError, log]);
+
+  return {
+    data,
+    isLoading,
+    fetchNextPage,
+    hasNextPage: hasNextPage ?? false,
+    isFetchingNextPage,
   };
 }
 
@@ -168,7 +213,7 @@ export function useForm(initialValues, onSubmit) {
         if (err.fieldErrors) {
           setErrors(err.fieldErrors);
         } else {
-          console.error('Form submission error:', err);
+          // 에러는 mutation의 onError에서 처리됨
         }
       } finally {
         setIsSubmitting(false);
@@ -230,7 +275,7 @@ export function useLocalStorage(key, initialValue) {
       const item = typeof window !== 'undefined' ? window.localStorage.getItem(key) : null;
       return item ? JSON.parse(item) : initialValue;
     } catch (error) {
-      console.error(`Error reading localStorage key "${key}":`, error);
+      // localStorage 읽기 에러는 조용히 처리
       return initialValue;
     }
   });
@@ -246,7 +291,7 @@ export function useLocalStorage(key, initialValue) {
           window.localStorage.setItem(key, JSON.stringify(valueToStore));
         }
       } catch (error) {
-        console.error(`Error writing to localStorage key "${key}":`, error);
+        // localStorage 쓰기 에러는 조용히 처리
       }
     },
     [key, storedValue]
