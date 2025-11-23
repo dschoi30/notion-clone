@@ -1,11 +1,13 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useCallback, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useShallow } from 'zustand/react/shallow';
 import * as workspaceApi from '@/services/workspaceApi';
-import { useEffect } from 'react';
 import { createLogger } from '@/lib/logger';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 const WorkspaceContext = createContext();
+const wlog = createLogger('WorkspaceContext');
 
 export function useWorkspace() {
   const context = useContext(WorkspaceContext);
@@ -16,12 +18,31 @@ export function useWorkspace() {
 }
 
 export function WorkspaceProvider({ children }) {
-  const [currentWorkspace, setCurrentWorkspace] = useState(null);
-  const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
-  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const queryClient = useQueryClient();
-  const wlog = createLogger('WorkspaceContext');
   const { handleError } = useErrorHandler();
+
+  // zustand store에서 클라이언트 상태 가져오기 (useShallow로 최적화)
+  const {
+    currentWorkspace,
+    isSettingsPanelOpen,
+    isSearchModalOpen,
+    selectWorkspace: selectWorkspaceStore,
+    setSettingsPanelOpen,
+    setSearchModalOpen,
+    updateCurrentWorkspace,
+    clearCurrentWorkspace
+  } = useWorkspaceStore(
+    useShallow((state) => ({
+      currentWorkspace: state.currentWorkspace,
+      isSettingsPanelOpen: state.isSettingsPanelOpen,
+      isSearchModalOpen: state.isSearchModalOpen,
+      selectWorkspace: state.selectWorkspace,
+      setSettingsPanelOpen: state.setSettingsPanelOpen,
+      setSearchModalOpen: state.setSearchModalOpen,
+      updateCurrentWorkspace: state.updateCurrentWorkspace,
+      clearCurrentWorkspace: state.clearCurrentWorkspace
+    }))
+  );
 
   // React Query로 워크스페이스 목록 조회
   const {
@@ -52,6 +73,31 @@ export function WorkspaceProvider({ children }) {
   // React Query 데이터를 로컬 변수로 동기화
   const workspaces = workspacesData || [];
   const error = workspacesError?.message || null;
+
+  // workspaces 목록이 로드되면 자동으로 currentWorkspace 설정
+  useEffect(() => {
+    const savedId = localStorage.getItem('selectedWorkspace');
+    wlog.info(`🏢 WorkspaceContext - savedId: ${savedId}, workspaces.length: ${workspaces.length}`);
+    wlog.info(`🏢 현재 workspaces:`, workspaces.map(ws => `${ws.id}(${ws.name})`).join(', '));
+    
+    if (workspaces.length > 0 && !currentWorkspace) {
+      if (savedId) {
+        const found = workspaces.find(ws => String(ws.id) === String(savedId));
+        wlog.info(`🔍 savedId ${savedId}로 찾은 워크스페이스:`, found ? `${found.id}(${found.name})` : 'null');
+        
+        if (found) {
+          wlog.info(`✅ 워크스페이스 설정: ${found.id}(${found.name})`);
+          selectWorkspaceStore(found);
+        } else {
+          wlog.info(`⚠️ 저장된 워크스페이스 못 찾음. 첫 번째 워크스페이스 사용: ${workspaces[0].id}(${workspaces[0].name})`);
+          selectWorkspaceStore(workspaces[0]);
+        }
+      } else {
+        wlog.info(`📝 저장된 워크스페이스 없음. 첫 번째 워크스페이스 사용: ${workspaces[0].id}(${workspaces[0].name})`);
+        selectWorkspaceStore(workspaces[0]);
+      }
+    }
+  }, [workspaces, currentWorkspace, selectWorkspaceStore]);
 
   // fetchWorkspaces 함수는 기존 API와 호환성을 위해 유지 (refetch로 동작)
   const fetchWorkspaces = useCallback(async () => {
@@ -91,8 +137,9 @@ export function WorkspaceProvider({ children }) {
         );
       });
       
+      // 현재 워크스페이스가 업데이트된 경우 zustand store도 업데이트
       if (currentWorkspace?.id === id) {
-        setCurrentWorkspace(updatedWorkspace);
+        updateCurrentWorkspace(updatedWorkspace);
       }
     } catch (err) {
       wlog.error('워크스페이스 수정 실패', err);
@@ -102,7 +149,7 @@ export function WorkspaceProvider({ children }) {
       });
       throw err;
     }
-  }, [currentWorkspace, queryClient, handleError]);
+  }, [currentWorkspace, queryClient, handleError, updateCurrentWorkspace]);
 
   const deleteWorkspace = useCallback(async (id) => {
     try {
@@ -114,9 +161,14 @@ export function WorkspaceProvider({ children }) {
         return oldData.filter(workspace => workspace.id !== id);
       });
       
+      // 현재 워크스페이스가 삭제된 경우 다른 워크스페이스로 변경
       if (currentWorkspace?.id === id) {
         const remaining = workspaces.filter(w => w.id !== id);
-        setCurrentWorkspace(remaining[0] || null);
+        if (remaining.length > 0) {
+          selectWorkspaceStore(remaining[0]);
+        } else {
+          clearCurrentWorkspace();
+        }
       }
     } catch (err) {
       wlog.error('워크스페이스 삭제 실패', err);
@@ -126,38 +178,18 @@ export function WorkspaceProvider({ children }) {
       });
       throw err;
     }
-  }, [currentWorkspace, workspaces, queryClient, handleError]);
+  }, [currentWorkspace, workspaces, queryClient, handleError, selectWorkspaceStore, clearCurrentWorkspace]);
 
+  // 기존 API와 호환성을 위한 selectWorkspace 래퍼
   const selectWorkspace = useCallback((workspace) => {
-    wlog.info(`🔄 워크스페이스 선택: ${workspace.id}(${workspace.name})`);
-    setCurrentWorkspace(workspace);
-    localStorage.setItem('selectedWorkspace', workspace.id);
-    wlog.info(`💾 localStorage 저장: selectedWorkspace = ${workspace.id}`);
-  }, []);
-
-  useEffect(() => {
-    const savedId = localStorage.getItem('selectedWorkspace');
-    wlog.info(`🏢 WorkspaceContext - savedId: ${savedId}, workspaces.length: ${workspaces.length}`);
-    wlog.info(`🏢 현재 workspaces:`, workspaces.map(ws => `${ws.id}(${ws.name})`).join(', '));
-    
-    if (workspaces.length > 0) {
-      if (savedId) {
-        const found = workspaces.find(ws =>  String(ws.id) === String(savedId));
-        wlog.info(`🔍 savedId ${savedId}로 찾은 워크스페이스:`, found ? `${found.id}(${found.name})` : 'null');
-        
-        if (found) {
-          wlog.info(`✅ 워크스페이스 설정: ${found.id}(${found.name})`);
-          setCurrentWorkspace(found);
-        } else {
-          wlog.info(`⚠️ 저장된 워크스페이스 못 찾음. 첫 번째 워크스페이스 사용: ${workspaces[0].id}(${workspaces[0].name})`);
-          setCurrentWorkspace(workspaces[0]);
-        }
-      } else {
-        wlog.info(`📝 저장된 워크스페이스 없음. 첫 번째 워크스페이스 사용: ${workspaces[0].id}(${workspaces[0].name})`);
-        setCurrentWorkspace(workspaces[0]);
-      }
+    selectWorkspaceStore(workspace);
+    // localStorage는 persist 미들웨어가 자동으로 처리하지만, 
+    // 기존 코드와의 호환성을 위해 명시적으로 저장
+    if (workspace?.id) {
+      localStorage.setItem('selectedWorkspace', workspace.id);
+      wlog.info(`💾 localStorage 저장: selectedWorkspace = ${workspace.id}`);
     }
-  }, [workspaces]); // currentWorkspace 의존성 제거하여 중복 설정 방지
+  }, [selectWorkspaceStore]);
 
   const value = {
     workspaces,
@@ -165,9 +197,9 @@ export function WorkspaceProvider({ children }) {
     loading,
     error,
     isSettingsPanelOpen,
-    setIsSettingsPanelOpen,
+    setIsSettingsPanelOpen: setSettingsPanelOpen,
     isSearchModalOpen,
-    setIsSearchModalOpen,
+    setIsSearchModalOpen: setSearchModalOpen,
     fetchWorkspaces,
     createWorkspace,
     updateWorkspace,
@@ -180,4 +212,4 @@ export function WorkspaceProvider({ children }) {
       {children}
     </WorkspaceContext.Provider>
   );
-} 
+}
