@@ -14,6 +14,37 @@ const clearTokens = () => {
   localStorage.removeItem('userId');
 };
 
+/**
+ * 사용자 데이터 정규화 (공통 로직)
+ * @param {Object} data - API 응답 데이터
+ * @returns {Object} 정규화된 사용자 데이터
+ */
+const normalizeUserData = (data) => ({
+  id: data.user.id,
+  email: data.user.email,
+  name: data.user.name,
+  profileImageUrl: data.user.profileImageUrl,
+  role: data.user.role
+});
+
+/**
+ * 인증 성공 후 공통 처리 로직
+ * @param {Object} userData - 정규화된 사용자 데이터
+ * @param {Function} set - Zustand set 함수
+ */
+const handleAuthSuccess = (userData, set) => {
+  set({ user: userData });
+  // persist 미들웨어가 자동으로 localStorage에 저장
+  // userId는 별도로 관리 필요 시 localStorage에 저장 (기존 로직 유지)
+  localStorage.setItem('userId', userData.id);
+  
+  // Sentry 사용자 컨텍스트 설정
+  setSentryUser(userData);
+  
+  // 다른 탭에 로그인 알림
+  authSync.notifyLogin(userData);
+};
+
 export const useAuthStore = create(
   devtools(
     persist(
@@ -37,22 +68,9 @@ export const useAuthStore = create(
           clearTokens();
           
           const data = await auth.login(email, password);
-          const userData = {
-            id: data.user.id,
-            email: data.user.email,
-            name: data.user.name,
-            profileImageUrl: data.user.profileImageUrl,
-            role: data.user.role
-          };
+          const userData = normalizeUserData(data);
           
-          set({ user: userData });
-          localStorage.setItem('userId', userData.id);
-          
-          // Sentry 사용자 컨텍스트 설정
-          setSentryUser(userData);
-          
-          // 다른 탭에 로그인 알림
-          authSync.notifyLogin(userData);
+          handleAuthSuccess(userData, set);
           
           return userData;
         } catch (err) {
@@ -80,22 +98,9 @@ export const useAuthStore = create(
           clearTokens();
           
           const data = await auth.register(email, password, name);
-          const userData = {
-            id: data.user.id,
-            email: data.user.email,
-            name: data.user.name,
-            profileImageUrl: data.user.profileImageUrl,
-            role: data.user.role
-          };
+          const userData = normalizeUserData(data);
           
-          set({ user: userData });
-          localStorage.setItem('userId', userData.id);
-          
-          // Sentry 사용자 컨텍스트 설정
-          setSentryUser(userData);
-          
-          // 다른 탭에 로그인 알림
-          authSync.notifyLogin(userData);
+          handleAuthSuccess(userData, set);
           
           return userData;
         } catch (err) {
@@ -121,22 +126,9 @@ export const useAuthStore = create(
           clearTokens();
           
           const data = await auth.loginWithGoogle(credential);
-          const userData = {
-            id: data.user.id,
-            email: data.user.email,
-            name: data.user.name,
-            profileImageUrl: data.user.profileImageUrl,
-            role: data.user.role
-          };
+          const userData = normalizeUserData(data);
           
-          set({ user: userData });
-          localStorage.setItem('userId', userData.id);
-          
-          // Sentry 사용자 컨텍스트 설정
-          setSentryUser(userData);
-          
-          // 다른 탭에 로그인 알림
-          authSync.notifyLogin(userData);
+          handleAuthSuccess(userData, set);
           
           return userData;
         } catch (err) {
@@ -177,7 +169,11 @@ export const useAuthStore = create(
           role: updatedUserData.role
         };
         set({ user: userData });
-        localStorage.setItem('user', JSON.stringify(userData));
+        // persist 미들웨어가 자동으로 localStorage에 저장
+        // userId는 별도로 관리 필요 시 localStorage에 저장
+        if (userData.id) {
+          localStorage.setItem('userId', userData.id);
+        }
         setSentryUser(userData);
       },
 

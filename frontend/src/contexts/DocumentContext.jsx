@@ -10,6 +10,42 @@ import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 const DocumentContext = createContext();
 
+/**
+ * 문서 업데이트 데이터 병합 함수
+ * 명확한 우선순위로 문서 데이터를 병합합니다.
+ * 
+ * 우선순위:
+ * 1. documentData (클라이언트 업데이트, isLocked 등 즉시 반영 필요)
+ * 2. updated (서버 응답)
+ * 3. currentDocument (기존 문서 데이터)
+ * 
+ * @param {Object} currentDocument - 현재 문서 데이터
+ * @param {Object} serverResponse - 서버 응답 데이터
+ * @param {Object} clientUpdate - 클라이언트 업데이트 데이터
+ * @returns {Object} 병합된 문서 데이터
+ * 
+ * Note: Fast refresh 경고는 무시 가능 (실제 기능에 영향 없음)
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+const mergeDocumentUpdate = (currentDocument, serverResponse, clientUpdate) => {
+  // Base: 현재 문서
+  const base = currentDocument || {};
+  
+  // 1단계: 서버 응답 적용
+  const withServerData = { ...base, ...serverResponse };
+  
+  // 2단계: 클라이언트 업데이트 적용 (isLocked 등 우선순위 높음)
+  const withClientData = { ...withServerData, ...clientUpdate };
+  
+  // 3단계: permissions는 서버 데이터 우선 (서버 데이터가 있으면 사용, 없으면 기존 데이터 유지)
+  return {
+    ...withClientData,
+    permissions: (Array.isArray(serverResponse?.permissions) && serverResponse.permissions.length > 0)
+      ? serverResponse.permissions
+      : (base.permissions || []),
+  };
+};
+
 export function useDocument() {
   const context = useContext(DocumentContext);
   if (!context) {
@@ -197,17 +233,11 @@ export function DocumentProvider({ children }) {
     try {
       const updated = await documentApi.updateDocument(currentWorkspace.id, id, documentData);
       
-      // 기존 currentDocument의 모든 필드를 보존하고, 업데이트된 필드만 덮어쓰기
-      // 우선순위: documentData > updated (백엔드 응답) > currentDocument
-      // documentData의 필드들(isLocked 등)을 명시적으로 우선 적용
-      const mergedUpdated = currentDocument?.id === id ? {
-        ...currentDocument,
-        ...updated, // 백엔드 응답 먼저 적용
-        ...documentData, // documentData의 필드들을 최종적으로 적용 (우선순위 높음)
-        permissions: (Array.isArray(updated?.permissions) && updated.permissions.length > 0)
-          ? updated.permissions
-          : (currentDocument.permissions || []),
-      } : { ...updated, ...documentData };
+      // 명확한 우선순위로 문서 데이터 병합
+      // 우선순위: documentData (클라이언트) > updated (서버) > currentDocument (기존)
+      const mergedUpdated = currentDocument?.id === id
+        ? mergeDocumentUpdate(currentDocument, updated, documentData)
+        : { ...updated, ...documentData };
       
       // React Query 캐시 업데이트
       queryClient.setQueryData(['documents', currentWorkspace.id], (oldData) => {
