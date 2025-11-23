@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
-import { shallow } from 'zustand/shallow';
+import { useShallow } from 'zustand/react/shallow';
 import { createLogger } from '@/lib/logger';
 import { authSync } from '@/utils/authSync';
 import { useToast } from '@/hooks/useToast';
@@ -26,7 +26,7 @@ export function AuthProvider({ children }) {
   const { toast } = useToast();
   const { handleError } = useErrorHandler();
   
-  // zustand store에서 상태와 액션을 한 번에 가져오기 (shallow 비교로 최적화)
+  // zustand store에서 상태와 액션을 한 번에 가져오기 (useShallow로 최적화)
   const {
     user,
     loading,
@@ -38,7 +38,7 @@ export function AuthProvider({ children }) {
     updateUser,
     clearError
   } = useAuthStore(
-    (state) => ({
+    useShallow((state) => ({
       user: state.user,
       loading: state.loading,
       error: state.error,
@@ -48,8 +48,7 @@ export function AuthProvider({ children }) {
       logout: state.logout,
       updateUser: state.updateUser,
       clearError: state.clearError
-    }),
-    shallow
+    }))
   );
 
   // 전역 Toast 함수 설정
