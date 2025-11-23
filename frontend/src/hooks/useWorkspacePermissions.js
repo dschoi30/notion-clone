@@ -39,7 +39,7 @@ export const useWorkspacePermissions = (workspaceId) => {
         data: permissionData,
         isLoading: loading,
         error: queryError,
-        refetch: reloadPermissions,
+        refetch,
     } = useQuery({
         queryKey: ['workspace-permissions', workspaceId, user?.id],
         queryFn: async () => {
@@ -162,10 +162,10 @@ export const useWorkspacePermissions = (workspaceId) => {
         ]);
     }, [hasAnyPermission]);
 
-    // 권한 로드
-    useEffect(() => {
-        loadPermissions();
-    }, [loadPermissions]);
+    // 기존 API와 호환성을 위한 reloadPermissions 함수
+    const reloadPermissions = useCallback(async () => {
+        await refetch();
+    }, [refetch]);
 
     return {
         permissions,
@@ -183,6 +183,6 @@ export const useWorkspacePermissions = (workspaceId) => {
         isWorkspaceOwner,
         isWorkspaceAdmin,
         WORKSPACE_PERMISSIONS,
-        reloadPermissions: loadPermissions
+        reloadPermissions
     };
 };
