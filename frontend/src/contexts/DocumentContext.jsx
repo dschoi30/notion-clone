@@ -1,6 +1,8 @@
 // src/contexts/DocumentContext.jsx
-import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useDocumentStore } from '@/stores/documentStore';
+import { useShallow } from 'zustand/react/shallow';
 import * as documentApi from '@/services/documentApi';
 import { createLogger } from '@/lib/logger';
 import { useWorkspace } from './WorkspaceContext';
@@ -18,12 +20,31 @@ export function useDocument() {
 
 export function DocumentProvider({ children }) {
   const rlog = createLogger('router');
-  const [currentDocument, setCurrentDocument] = useState(null);
-  const [documentLoading, setDocumentLoading] = useState(false);
   const queryClient = useQueryClient();
   const { currentWorkspace } = useWorkspace();
   const { handleError } = useErrorHandler();
   const lastSelectRef = React.useRef({ id: null, at: 0 });
+
+  // zustand store에서 클라이언트 상태 가져오기 (useShallow로 최적화)
+  const {
+    currentDocument,
+    documentLoading,
+    setCurrentDocument,
+    setDocumentLoading,
+    updateCurrentDocument,
+    clearCurrentDocument,
+    handleDocumentDeletion
+  } = useDocumentStore(
+    useShallow((state) => ({
+      currentDocument: state.currentDocument,
+      documentLoading: state.documentLoading,
+      setCurrentDocument: state.setCurrentDocument,
+      setDocumentLoading: state.setDocumentLoading,
+      updateCurrentDocument: state.updateCurrentDocument,
+      clearCurrentDocument: state.clearCurrentDocument,
+      handleDocumentDeletion: state.handleDocumentDeletion
+    }))
+  );
 
   // React Query로 문서 목록 조회
   const {
@@ -82,12 +103,12 @@ export function DocumentProvider({ children }) {
   // currentWorkspace 변경 시 즉시 상태 초기화
   useEffect(() => {
     // 즉시 모든 상태 초기화 (이전 워크스페이스 데이터 제거)
-    setCurrentDocument(null);
+    clearCurrentDocument();
     // React Query 캐시도 무효화
     if (currentWorkspace) {
       queryClient.invalidateQueries({ queryKey: ['documents', currentWorkspace.id] });
     }
-  }, [currentWorkspace, queryClient]);
+  }, [currentWorkspace, queryClient, clearCurrentDocument]);
 
   // fetchDocuments 함수는 기존 API와 호환성을 위해 유지 (refetch로 동작)
   const fetchDocuments = useCallback(async (page = null, size = null) => {
@@ -164,13 +185,15 @@ export function DocumentProvider({ children }) {
       const updated = await documentApi.updateDocument(currentWorkspace.id, id, documentData);
       
       // 기존 currentDocument의 모든 필드를 보존하고, 업데이트된 필드만 덮어쓰기
-      const mergedUpdated = {
-        ...(currentDocument?.id === id ? currentDocument : {}),
+      // documentData에 포함된 필드들도 명시적으로 포함 (백엔드 응답에 누락될 수 있음)
+      const mergedUpdated = currentDocument?.id === id ? {
+        ...currentDocument,
         ...updated,
+        ...documentData, // documentData의 필드들을 명시적으로 포함 (isLocked 등)
         permissions: (Array.isArray(updated?.permissions) && updated.permissions.length > 0)
           ? updated.permissions
-          : (currentDocument?.permissions || []),
-      };
+          : (currentDocument.permissions || []),
+      } : { ...updated, ...documentData };
       
       // React Query 캐시 업데이트
       queryClient.setQueryData(['documents', currentWorkspace.id], (oldData) => {
@@ -181,7 +204,11 @@ export function DocumentProvider({ children }) {
         };
       });
       
-      if (currentDocument?.id === id) setCurrentDocument(mergedUpdated);
+      // 현재 문서가 업데이트된 경우 zustand store도 업데이트
+      if (currentDocument?.id === id) {
+        updateCurrentDocument(mergedUpdated);
+      }
+      
       return mergedUpdated;
     } catch (err) {
       rlog.error('문서 수정 실패', err);
@@ -191,7 +218,7 @@ export function DocumentProvider({ children }) {
       });
       throw err;
     }
-  }, [currentWorkspace, currentDocument, queryClient, handleError]);
+  }, [currentWorkspace, currentDocument, queryClient, handleError, updateCurrentDocument]);
 
   const deleteDocument = useCallback(async (id) => {
     if (!currentWorkspace) return;
@@ -214,9 +241,10 @@ export function DocumentProvider({ children }) {
         };
       });
       
+      // 현재 문서가 삭제된 경우 다른 문서로 전환
       if (currentDocument?.id === id) {
         const remainingDocs = documents.filter(d => d.id !== id);
-        setCurrentDocument(remainingDocs[0] || null);
+        handleDocumentDeletion(id, remainingDocs);
       }
     } catch (err) {
       rlog.error('문서 삭제 실패', err);
@@ -226,7 +254,7 @@ export function DocumentProvider({ children }) {
       });
       throw err;
     }
-  }, [currentWorkspace, currentDocument, documents, queryClient, handleError]);
+  }, [currentWorkspace, currentDocument, documents, queryClient, handleError, handleDocumentDeletion]);
 
   const selectDocument = useCallback(async (document, options = {}) => {
     if (!currentWorkspace || !document) return;
@@ -269,15 +297,18 @@ export function DocumentProvider({ children }) {
       
       setCurrentDocument(fullDocument);
       lastSelectRef.current = { id: document.id, at: Date.now() };
-      localStorage.setItem(`lastDocumentId:${currentWorkspace.id}`, document.id);
     } catch (err) {
       rlog.error('Failed to fetch document', err, { documentId: document.id });
+      handleError(err, {
+        customMessage: '문서를 불러오지 못했습니다.',
+        showToast: true
+      });
       // 에러 발생 시 현재 문서를 유지 (예기치 않은 문서 전환 방지)
       throw err;
     } finally {
       setDocumentLoading(false);
     }
-  }, [currentWorkspace]);
+  }, [currentWorkspace, currentDocument, documentLoading, handleError, setCurrentDocument, setDocumentLoading]);
 
   const updateDocumentOrder = useCallback(async (documentIds) => {
     if (!currentWorkspace) return;
@@ -321,7 +352,7 @@ export function DocumentProvider({ children }) {
     } finally {
       if (!isSilent) setDocumentLoading(false);
     }
-  }, [currentWorkspace]);
+  }, [currentWorkspace, setCurrentDocument, setDocumentLoading]);
 
   // parentId 기반 하위 문서(서브페이지) 목록 조회
   const fetchChildDocuments = useCallback(async (parentId, options = {}) => {

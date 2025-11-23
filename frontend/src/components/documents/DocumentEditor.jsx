@@ -1,9 +1,11 @@
 // src/components/documents/DocumentEditor.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useDocument } from '@/contexts/DocumentContext';
+import { useDocumentStore } from '@/stores/documentStore';
+import { useShallow } from 'zustand/react/shallow';
 import useDocumentSocket from '@/hooks/useDocumentSocket';
 import useDocumentPresence from '@/hooks/useDocumentPresence';
 import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
@@ -24,7 +26,11 @@ const DocumentEditor = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentDocument, updateDocument, documentLoading, documents, selectDocument } = useDocument();
+  const { updateDocument, documentLoading, documents, selectDocument, fetchDocument } = useDocument();
+  // zustand store에서 currentDocument를 직접 구독하여 즉시 반영
+  const { currentDocument } = useDocumentStore(
+    useShallow((state) => ({ currentDocument: state.currentDocument }))
+  );
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
@@ -40,7 +46,10 @@ const DocumentEditor = () => {
   const shareButtonRef = useRef(null);
   const canWrite = hasWritePermission(currentDocument, user);
   // 잠금 상태 또는 권한이 없으면 읽기 전용
-  const isReadOnly = !canWrite || (currentDocument?.isLocked ?? false);
+  // useMemo로 감싸서 currentDocument?.isLocked 변경 시 즉시 재계산되도록 보장
+  const isReadOnly = useMemo(() => {
+    return !canWrite || (currentDocument?.isLocked ?? false);
+  }, [canWrite, currentDocument?.isLocked]);
   const viewers = useDocumentPresence(currentDocument?.id, user);
   const { properties, titleWidth } = useDocumentPropertiesStore(state => ({ properties: state.properties, titleWidth: state.titleWidth }));
   const SNAPSHOT_INTERVAL_MS = (import.meta.env && import.meta.env.MODE === 'development') ? 30 * 1000 : 10 * 60 * 1000;
@@ -304,6 +313,7 @@ const DocumentEditor = () => {
     try {
       const newLockState = !currentDocument.isLocked;
       // 잠금 상태만 업데이트할 때도 현재 title과 content를 함께 보내서 덮어쓰기 방지
+      // updateDocument에서 이미 updateCurrentDocument를 호출하여 zustand store가 업데이트됨
       await updateDocument(currentDocument.id, { 
         isLocked: newLockState,
         title: titleRef.current || currentDocument.title || '',
