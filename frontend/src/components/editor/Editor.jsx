@@ -317,6 +317,12 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
     }
   };
 
+  // editable prop 변경 시 에디터의 editable 상태 업데이트
+  useEffect(() => {
+    if (!editor) return;
+    editor.setEditable(editable);
+  }, [editor, editable]);
+
   useEffect(() => {
     // IME 조합 중에는 외부 content 동기화를 적용하지 않음
     if (!editor) return;
