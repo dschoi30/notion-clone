@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
 import { getDocumentVersions, getDocumentVersion, restoreDocumentVersion, getProperties } from '@/services/documentApi';
@@ -11,6 +12,7 @@ import { getColorObj } from '@/lib/colors';
 import UserBadge from '@/components/documents/shared/UserBadge';
 import { resolveUserDisplay } from '@/components/documents/shared/resolveUserDisplay';
 import { Z_INDEX } from '@/constants/zIndex';
+import { toast } from '@/hooks/useToast';
 
 function VersionProperties({ propertiesJson, valuesJson, tagOptionsByPropId }) {
   const props = useMemo(() => {
@@ -71,26 +73,113 @@ function VersionProperties({ propertiesJson, valuesJson, tagOptionsByPropId }) {
   );
 }
 
+const PAGE_SIZE = 20;
+
 function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
-  const [versions, setVersions] = useState([]);
-  const [selected, setSelected] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [restoring, setRestoring] = useState(false);
-  const [tagOptionsByPropId, setTagOptionsByPropId] = useState({});
+  const queryClient = useQueryClient();
   const log = createLogger('version');
-  const { fetchDocument, currentDocument, fetchDocuments, refreshAllChildDocuments } = useDocument();
+  const { fetchDocument, currentDocument, refreshAllChildDocuments } = useDocument();
   const { user } = useAuth();
 
   // 권한 체크: 읽기 권한만 있는 경우 복원 버튼 비활성화
   const canRestore = hasWritePermission(currentDocument, user);
 
-  const PAGE_SIZE = 20;
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const scrollContainerRef = useRef(null);
   const sentinelRef = useRef(null);
+
+  // React Query로 문서 버전 목록 조회 (무한 스크롤)
+  const {
+    data: versionsData,
+    isLoading: loading,
+    isFetchingNextPage: loadingMore,
+    hasNextPage: hasMore,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['document-versions', workspaceId, documentId],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await getDocumentVersions(workspaceId, documentId, { page: pageParam, size: PAGE_SIZE });
+      return {
+        versions: res?.content || [],
+        page: res?.number ?? pageParam,
+        totalPages: res?.totalPages || 0,
+        hasMore: res ? !res.last : (res?.content || []).length === PAGE_SIZE,
+      };
+    },
+    getNextPageParam: (lastPage) => {
+      if (!lastPage.hasMore) return undefined;
+      return lastPage.page + 1;
+    },
+    initialPageParam: 0,
+    enabled: !!workspaceId && !!documentId,
+    staleTime: 1000 * 60 * 2, // 2분
+  });
+
+  // 모든 버전을 하나의 배열로 합치기
+  const versions = useMemo(() => {
+    if (!versionsData?.pages) return [];
+    return versionsData.pages.flatMap((page) => page.versions);
+  }, [versionsData]);
+
+  // 선택된 버전 상세 조회
+  const {
+    data: selected,
+    isLoading: selectedLoading,
+  } = useQuery({
+    queryKey: ['document-version', workspaceId, documentId, selectedId],
+    queryFn: () => getDocumentVersion(workspaceId, documentId, selectedId),
+    enabled: !!workspaceId && !!documentId && !!selectedId,
+    staleTime: 1000 * 60 * 5, // 5분
+  });
+
+  // 속성 조회 (태그 옵션용)
+  const {
+    data: propertiesData,
+  } = useQuery({
+    queryKey: ['version-properties', workspaceId, documentId],
+    queryFn: () => getProperties(workspaceId, documentId),
+    enabled: !!workspaceId && !!documentId && !!selectedId,
+    staleTime: 1000 * 60 * 5, // 5분
+  });
+
+  // 태그 옵션 맵 생성
+  const tagOptionsByPropId = useMemo(() => {
+    if (!propertiesData) return {};
+    const map = {};
+    (propertiesData || []).forEach((p) => {
+      if (p?.id) map[p.id] = p.tagOptions || [];
+    });
+    return map;
+  }, [propertiesData]);
+
+  // 버전 복원 mutation
+  const restoreMutation = useMutation({
+    mutationFn: (versionId) => restoreDocumentVersion(workspaceId, documentId, versionId),
+    onSuccess: async () => {
+      log.info('restore success');
+      // 현재 문서 정보 새로고침
+      await fetchDocument(documentId);
+      // 사이드바의 문서 목록과 자식 문서들도 새로고침하여 변경사항 반영
+      await refreshAllChildDocuments();
+      // 버전 목록도 새로고침
+      queryClient.invalidateQueries({ queryKey: ['document-versions', workspaceId, documentId] });
+      toast({
+        title: '복구 완료',
+        description: '복구가 완료되었습니다.',
+        variant: 'success',
+      });
+    },
+    onError: (e) => {
+      log.error('restore failed', e);
+      toast({
+        title: '복구 실패',
+        description: '복구에 실패했습니다. 권한 또는 네트워크 상태를 확인해 주세요.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const restoring = restoreMutation.isPending;
 
   // Disable background scroll while open
   useEffect(() => {
@@ -103,52 +192,12 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
 
   // Reset when dependencies change
   useEffect(() => {
-    setVersions([]);
-    setSelected(null);
     setSelectedId(null);
-    setPage(0);
-    setHasMore(true);
   }, [workspaceId, documentId]);
 
-  const loadPage = async (pageIndex) => {
-    if (loading || loadingMore) return;
-    if (pageIndex > 0) setLoadingMore(true); else setLoading(true);
-    try {
-      const res = await getDocumentVersions(workspaceId, documentId, { page: pageIndex, size: PAGE_SIZE });
-      const items = res?.content || [];
-      setVersions(prev => {
-        if (pageIndex === 0) return items;
-        const seen = new Set(prev.map(i => i.id));
-        const merged = prev.concat(items.filter(i => !seen.has(i.id)));
-        return merged;
-      });
-      setPage(res?.number ?? pageIndex);
-      setHasMore(res ? !res.last : items.length === PAGE_SIZE);
-    } finally {
-      if (pageIndex > 0) setLoadingMore(false); else setLoading(false);
-    }
-  };
-
-  // Initial load
-  useEffect(() => {
-    if (!workspaceId || !documentId) return;
-    loadPage(0);
-  }, [workspaceId, documentId]);
-
-  const handleSelect = async (versionId) => {
-    log.debug('fetch detail', versionId);
-    const detail = await getDocumentVersion(workspaceId, documentId, versionId);
-    setSelected(detail);
+  const handleSelect = (versionId) => {
+    log.debug('select version', versionId);
     setSelectedId(versionId);
-    try {
-      const props = await getProperties(workspaceId, documentId);
-      const map = {};
-      (props || []).forEach((p) => { if (p?.id) map[p.id] = p.tagOptions || []; });
-      setTagOptionsByPropId(map);
-    } catch (e) {
-      log.error('failed to load properties for tag labels', e);
-      setTagOptionsByPropId({});
-    }
   };
 
   // Auto-select newest after first page loaded
@@ -156,33 +205,16 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
     if (!selectedId && versions && versions.length > 0) {
       const newest = versions[0];
       if (newest?.id) {
-        handleSelect(newest.id);
+        setSelectedId(newest.id);
       }
     }
   }, [versions, selectedId]);
 
-  const handleRestore = async () => {
+  const handleRestore = () => {
     if (!selected) return;
     if (!window.confirm('현재 내용을 선택한 버전으로 복구합니다. 계속하시겠습니까?')) return;
-    try {
-      setRestoring(true);
-      log.debug('restore start', selected.id);
-      await restoreDocumentVersion(workspaceId, documentId, selected.id);
-      log.info('restore success');
-      
-      // 현재 문서 정보 새로고침
-      await fetchDocument(documentId);
-      
-      // 사이드바의 문서 목록과 자식 문서들도 새로고침하여 변경사항 반영
-      await refreshAllChildDocuments();
-      
-      alert('복구가 완료되었습니다.');
-    } catch (e) {
-      log.error('restore failed', e);
-      alert('복구에 실패했습니다. 권한 또는 네트워크 상태를 확인해 주세요.');
-    } finally {
-      setRestoring(false);
-    }
+    log.debug('restore start', selected.id);
+    restoreMutation.mutate(selected.id);
   };
 
   // Infinite scroll via IntersectionObserver (reduces re-rendering from scroll events)
@@ -194,12 +226,12 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
     const observer = new IntersectionObserver((entries) => {
       const [entry] = entries;
       if (entry.isIntersecting) {
-        loadPage(page + 1);
+        fetchNextPage();
       }
     }, { root, rootMargin: '0px', threshold: 0.1 });
     observer.observe(target);
     return () => observer.disconnect();
-  }, [hasMore, loadingMore, loading, page]);
+  }, [hasMore, loadingMore, loading, fetchNextPage]);
   
   return (
     <div 
