@@ -317,6 +317,14 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
     }
   };
 
+  // editable prop 변경 시 에디터의 editable 상태 업데이트
+  // TipTap은 prop 변경을 자동으로 감지하지만, 명시적으로 setEditable을 호출하여
+  // 문서 잠금/해제 등 즉시 반영이 필요한 경우를 보장합니다.
+  useEffect(() => {
+    if (!editor) return;
+    editor.setEditable(editable);
+  }, [editor, editable]);
+
   useEffect(() => {
     // IME 조합 중에는 외부 content 동기화를 적용하지 않음
     if (!editor) return;
