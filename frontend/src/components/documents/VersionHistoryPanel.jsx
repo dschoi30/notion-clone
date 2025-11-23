@@ -13,6 +13,7 @@ import UserBadge from '@/components/documents/shared/UserBadge';
 import { resolveUserDisplay } from '@/components/documents/shared/resolveUserDisplay';
 import { Z_INDEX } from '@/constants/zIndex';
 import { toast } from '@/hooks/useToast';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 function VersionProperties({ propertiesJson, valuesJson, tagOptionsByPropId }) {
   const props = useMemo(() => {
@@ -79,6 +80,7 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
   const [selectedId, setSelectedId] = useState(null);
   const queryClient = useQueryClient();
   const log = createLogger('version');
+  const { handleError } = useErrorHandler();
   const { fetchDocument, currentDocument, refreshAllChildDocuments } = useDocument();
   const { user } = useAuth();
 
@@ -113,6 +115,13 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
     initialPageParam: 0,
     enabled: !!workspaceId && !!documentId,
     staleTime: 1000 * 60 * 2, // 2분
+    onError: (e) => {
+      log.error('문서 버전 목록 조회 실패', e);
+      handleError(e, {
+        customMessage: '문서 버전 목록을 불러오지 못했습니다.',
+        showToast: true
+      });
+    },
   });
 
   // 모든 버전을 하나의 배열로 합치기
@@ -130,6 +139,13 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
     queryFn: () => getDocumentVersion(workspaceId, documentId, selectedId),
     enabled: !!workspaceId && !!documentId && !!selectedId,
     staleTime: 1000 * 60 * 5, // 5분
+    onError: (e) => {
+      log.error('문서 버전 상세 조회 실패', e);
+      handleError(e, {
+        customMessage: '문서 버전 상세 정보를 불러오지 못했습니다.',
+        showToast: true
+      });
+    },
   });
 
   // 속성 조회 (태그 옵션용)
@@ -170,11 +186,10 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
       });
     },
     onError: (e) => {
-      log.error('restore failed', e);
-      toast({
-        title: '복구 실패',
-        description: '복구에 실패했습니다. 권한 또는 네트워크 상태를 확인해 주세요.',
-        variant: 'destructive',
+      log.error('문서 복구 실패', e);
+      handleError(e, {
+        customMessage: '복구에 실패했습니다. 권한 또는 네트워크 상태를 확인해 주세요.',
+        showToast: true
       });
     },
   });

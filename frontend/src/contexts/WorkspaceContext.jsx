@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as workspaceApi from '@/services/workspaceApi';
 import { useEffect } from 'react';
 import { createLogger } from '@/lib/logger';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 const WorkspaceContext = createContext();
 
@@ -20,6 +21,7 @@ export function WorkspaceProvider({ children }) {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const queryClient = useQueryClient();
   const wlog = createLogger('WorkspaceContext');
+  const { handleError } = useErrorHandler();
 
   // React Query로 워크스페이스 목록 조회
   const {
@@ -38,6 +40,13 @@ export function WorkspaceProvider({ children }) {
       return filtered;
     },
     staleTime: 1000 * 60 * 5, // 5분 - 워크스페이스는 자주 변경되지 않음
+    onError: (e) => {
+      wlog.error('워크스페이스 목록 조회 실패', e);
+      handleError(e, {
+        customMessage: '워크스페이스 목록을 불러오지 못했습니다.',
+        showToast: true
+      });
+    },
   });
 
   // React Query 데이터를 로컬 변수로 동기화
@@ -61,10 +70,14 @@ export function WorkspaceProvider({ children }) {
       
       return newWorkspace;
     } catch (err) {
-      wlog.error('createWorkspace 에러', err);
+      wlog.error('워크스페이스 생성 실패', err);
+      handleError(err, {
+        customMessage: '워크스페이스 생성에 실패했습니다.',
+        showToast: true
+      });
       throw err;
     }
-  }, [queryClient]);
+  }, [queryClient, handleError]);
 
   const updateWorkspace = useCallback(async (id, workspaceData) => {
     try {
@@ -82,10 +95,14 @@ export function WorkspaceProvider({ children }) {
         setCurrentWorkspace(updatedWorkspace);
       }
     } catch (err) {
-      wlog.error('updateWorkspace 에러', err);
+      wlog.error('워크스페이스 수정 실패', err);
+      handleError(err, {
+        customMessage: '워크스페이스 수정에 실패했습니다.',
+        showToast: true
+      });
       throw err;
     }
-  }, [currentWorkspace, queryClient]);
+  }, [currentWorkspace, queryClient, handleError]);
 
   const deleteWorkspace = useCallback(async (id) => {
     try {
@@ -102,10 +119,14 @@ export function WorkspaceProvider({ children }) {
         setCurrentWorkspace(remaining[0] || null);
       }
     } catch (err) {
-      wlog.error('deleteWorkspace 에러', err);
+      wlog.error('워크스페이스 삭제 실패', err);
+      handleError(err, {
+        customMessage: '워크스페이스 삭제에 실패했습니다.',
+        showToast: true
+      });
       throw err;
     }
-  }, [currentWorkspace, workspaces, queryClient]);
+  }, [currentWorkspace, workspaces, queryClient, handleError]);
 
   const selectWorkspace = useCallback((workspace) => {
     wlog.info(`🔄 워크스페이스 선택: ${workspace.id}(${workspace.name})`);

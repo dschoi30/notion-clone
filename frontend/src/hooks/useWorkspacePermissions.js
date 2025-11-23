@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useWorkspace } from '../contexts/WorkspaceContext';
 import api from '../services/api';
 import { createLogger } from '@/lib/logger';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 const log = createLogger('useWorkspacePermissions');
 
@@ -14,6 +15,7 @@ const log = createLogger('useWorkspacePermissions');
 export const useWorkspacePermissions = (workspaceId) => {
     const { user } = useAuth();
     const { currentWorkspace } = useWorkspace();
+    const { handleError } = useErrorHandler();
 
     // 권한 상수 정의 (백엔드 WorkspacePermissionType.java와 일치)
     const WORKSPACE_PERMISSIONS = useMemo(() => ({
@@ -70,8 +72,12 @@ export const useWorkspacePermissions = (workspaceId) => {
         },
         enabled: !!user && !!workspaceId,
         staleTime: 1000 * 60 * 5, // 5분 - 권한은 자주 변경되지 않음
-        onError: (err) => {
-            log.error('권한 로드 실패', err);
+        onError: (e) => {
+            log.error('권한 로드 실패', e);
+            handleError(e, {
+                customMessage: '권한 정보를 불러오지 못했습니다.',
+                showToast: true
+            });
         },
     });
 

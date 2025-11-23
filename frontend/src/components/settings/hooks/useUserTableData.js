@@ -2,12 +2,14 @@ import { useState, useCallback, useMemo } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { getUsersPaged } from '@/services/userApi';
 import { createLogger } from '@/lib/logger';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 const log = createLogger('useUserTableData');
 
 export function useUserTableData() {
   const [sortField, setSortField] = useState('id');
   const [sortDir, setSortDir] = useState('asc');
+  const { handleError } = useErrorHandler();
 
   // React Query useInfiniteQuery로 무한 스크롤 페이지네이션 구현
   const {
@@ -50,6 +52,13 @@ export function useUserTableData() {
     },
     initialPageParam: 0,
     staleTime: 1000 * 60 * 2, // 2분
+    onError: (e) => {
+      log.error('사용자 목록 조회 실패', e);
+      handleError(e, {
+        customMessage: '사용자 목록을 불러오지 못했습니다.',
+        showToast: true
+      });
+    },
   });
 
   // 모든 페이지의 rows를 하나의 배열로 합치기
