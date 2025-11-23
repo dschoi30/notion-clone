@@ -1331,3 +1331,10 @@
   - 자동 캐싱 및 리페칭으로 네트워크 요청 최적화
   - 기존 API와 호환되도록 점진적 마이그레이션 방식 적용
   - 관련 이슈: #79, #80, #81, #82, #83, #84, #85, #86
+
+## 2025-11-23 (메모리 누수 수정: useErrorHandler)
+- **VersionHistoryPanel useEffect 의존성 배열 메모리 누수 문제 해결**
+  - 문제: `useErrorHandler`의 `handleError`가 `toast`에 의존하여 매 렌더링마다 재생성되고, 이를 의존성 배열에 포함한 `useEffect`가 불필요하게 재실행됨
+  - 해결: `useErrorHandler`에서 모듈 레벨의 `toast` 함수를 직접 import하여 사용하도록 수정
+  - `handleError`의 의존성 배열에서 `toast` 제거하여 안정적인 함수 참조 보장
+  - 영향: `VersionHistoryPanel`의 여러 `useEffect`에서 `handleError`를 의존성 배열에 포함해도 불필요한 재실행 방지, 메모리 누수 해결

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useToast } from './useToast';
+import { toast } from './useToast';
 import { getErrorMessageFromError } from '@/lib/errorUtils';
 import { createLogger } from '@/lib/logger';
 
@@ -7,7 +7,6 @@ const log = createLogger('useErrorHandler');
 
 export const useErrorHandler = () => {
   const [error, setError] = useState(null);
-  const { toast } = useToast();
 
   const handleError = useCallback((error, options = {}) => {
     const {
@@ -36,7 +35,7 @@ export const useErrorHandler = () => {
         variant: "destructive",
       });
     }
-  }, [toast]);
+  }, []);
 
   const clearError = useCallback(() => {
     setError(null);
