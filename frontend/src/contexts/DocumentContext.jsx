@@ -1,8 +1,10 @@
 // src/contexts/DocumentContext.jsx
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as documentApi from '@/services/documentApi';
 import { createLogger } from '@/lib/logger';
 import { useWorkspace } from './WorkspaceContext';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 const DocumentContext = createContext();
 
@@ -16,52 +18,91 @@ export function useDocument() {
 
 export function DocumentProvider({ children }) {
   const rlog = createLogger('router');
-  const [documents, setDocuments] = useState([]);
   const [currentDocument, setCurrentDocument] = useState(null);
-  const [documentsLoading, setDocumentsLoading] = useState(false);
   const [documentLoading, setDocumentLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
+  const { currentWorkspace } = useWorkspace();
+  const { handleError } = useErrorHandler();
+  const lastSelectRef = React.useRef({ id: null, at: 0 });
+
+  // React Query로 문서 목록 조회
+  const {
+    data: documentsData,
+    isLoading: documentsLoading,
+    error: documentsError,
+    refetch: refetchDocuments,
+  } = useQuery({
+    queryKey: ['documents', currentWorkspace?.id],
+    queryFn: async () => {
+      if (!currentWorkspace) return null;
   
-  // 페이지네이션 상태
-  const [pagination, setPagination] = useState({
+      // 전체 목록 조회 (페이지네이션 없음)
+      const data = await documentApi.getDocumentList(currentWorkspace.id);
+      
+      // 백엔드에서 다른 워크스페이스 문서가 섞여서 올 경우를 대비한 필터링
+      const currentWorkspaceId = String(currentWorkspace.id);
+      const filteredData = data.filter(doc => {
+        const docWorkspaceId = doc.workspaceId || doc.workspace?.id;
+        return !docWorkspaceId || String(docWorkspaceId) === currentWorkspaceId;
+      });
+      
+      return {
+        documents: filteredData,
+        pagination: {
+          page: 0,
+          size: filteredData.length,
+          totalPages: 1,
+          totalElements: filteredData.length,
+          hasNext: false,
+        },
+      };
+    },
+    enabled: !!currentWorkspace,
+    staleTime: 1000 * 60 * 2, // 2분 - 문서 목록은 자주 변경되므로 짧게 설정
+  });
+
+  // 에러 처리 (React Query v5 권장 방식)
+  useEffect(() => {
+    if (documentsError) {
+      rlog.error('문서 목록 조회 실패', documentsError);
+      handleError(documentsError, {
+        customMessage: '문서 목록을 불러오지 못했습니다.',
+        showToast: true
+      });
+    }
+  }, [documentsError, handleError]);
+
+  // React Query 데이터를 로컬 상태로 동기화
+  const documents = documentsData?.documents || [];
+  const pagination = documentsData?.pagination || {
     page: 0,
     size: 20,
     totalPages: 0,
     totalElements: 0,
-    hasNext: false
-  });
-  const { currentWorkspace } = useWorkspace();
-  const lastSelectRef = React.useRef({ id: null, at: 0 });
+    hasNext: false,
+  };
+  const error = documentsError?.message || null;
 
-  // currentWorkspace 변경 시 즉시 상태 초기화 후 문서 목록 fetch
+  // currentWorkspace 변경 시 즉시 상태 초기화
   useEffect(() => {
-    // 즉시 모든 상태 초기화 (이전 워크스페이스 데이터 제거)
-    setDocuments([]);
-    setCurrentDocument(null);
-    setError(null);
+    if (currentWorkspace) {
+      // 이전 워크스페이스의 진행 중인 요청 취소
+      queryClient.cancelQueries({ queryKey: ['documents'] });
+      // 즉시 모든 상태 초기화 (이전 워크스페이스 데이터 제거)
+      setCurrentDocument(null);
+      // React Query 캐시도 무효화
+      queryClient.invalidateQueries({ queryKey: ['documents', currentWorkspace.id] });
+    }
+  }, [currentWorkspace, queryClient]);
 
-    if (currentWorkspace) fetchDocuments();
-  }, [currentWorkspace]);
-
+  // fetchDocuments 함수는 기존 API와 호환성을 위해 유지 (refetch로 동작)
   const fetchDocuments = useCallback(async (page = null, size = null) => {
     if (!currentWorkspace) return;
     
+    // 페이지네이션 파라미터가 있으면 별도 처리 (추후 개선 가능)
+    if (page !== null && size !== null) {
     try {
-      setDocumentsLoading(true);
-      setError(null);
-      
-      // 페이지네이션 파라미터가 있으면 페이지네이션 API 사용
-      if (page !== null && size !== null) {
         const response = await documentApi.getDocumentList(currentWorkspace.id, page, size);
-        
-        // 페이지네이션 정보 업데이트
-        setPagination({
-          page: response.number,
-          size: response.size,
-          totalPages: response.totalPages,
-          totalElements: response.totalElements,
-          hasNext: !response.last
-        });
         
         // 백엔드에서 다른 워크스페이스 문서가 섞여서 올 경우를 대비한 필터링
         const currentWorkspaceId = String(currentWorkspace.id);
@@ -70,68 +111,68 @@ export function DocumentProvider({ children }) {
           return !docWorkspaceId || String(docWorkspaceId) === currentWorkspaceId;
         });
         
-        setDocuments(filteredData);
-      } else {
-        // 페이지네이션 파라미터가 없으면 전체 목록 조회
-        const data = await documentApi.getDocumentList(currentWorkspace.id);
-        
-        // 백엔드에서 다른 워크스페이스 문서가 섞여서 올 경우를 대비한 필터링
-        const currentWorkspaceId = String(currentWorkspace.id);
-        const filteredData = data.filter(doc => {
-          const docWorkspaceId = doc.workspaceId || doc.workspace?.id;
-          return !docWorkspaceId || String(docWorkspaceId) === currentWorkspaceId;
+        // React Query 캐시 업데이트
+        queryClient.setQueryData(['documents', currentWorkspace.id], {
+          documents: filteredData,
+          pagination: {
+            page: response.number,
+            size: response.size,
+            totalPages: response.totalPages,
+            totalElements: response.totalElements,
+            hasNext: !response.last,
+          },
         });
-        
-        setDocuments(filteredData);
-        
-        // 전체 목록의 경우 페이지네이션 정보 초기화
-        setPagination({
-          page: 0,
-          size: filteredData.length,
-          totalPages: 1,
-          totalElements: filteredData.length,
-          hasNext: false
+      } catch (err) {
+        rlog.error('문서 목록 조회 실패 (페이지네이션)', err);
+        handleError(err, {
+          customMessage: '문서 목록을 불러오지 못했습니다.',
+          showToast: true
         });
+        throw err;
       }
-    } catch (err) {
-      console.error(`❌ fetchDocuments 에러:`, err);
-      
-      
-      setError(err.message);
-    } finally {
-      setDocumentsLoading(false);
+    } else {
+      // 전체 목록 조회는 React Query refetch 사용
+      await refetchDocuments();
     }
-  }, [currentWorkspace]);
+  }, [currentWorkspace, queryClient, refetchDocuments]);
 
   const createDocument = useCallback(async (documentData, options = {}) => {
     if (!currentWorkspace) return;
 
     try {
-      // 테이블뷰에서 호출하는 경우 로딩 상태를 변경하지 않음
-      if (!options.silent) {
-        setDocumentsLoading(true);
-      }
-      setError(null);
       const newDocument = await documentApi.createDocument(currentWorkspace.id, documentData);
-      setDocuments(prev => [...prev, newDocument]);
+      
+      // React Query 캐시에 새 문서 추가
+      queryClient.setQueryData(['documents', currentWorkspace.id], (oldData) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          documents: [...oldData.documents, newDocument],
+          pagination: {
+            ...oldData.pagination,
+            totalElements: oldData.pagination.totalElements + 1,
+            size: oldData.documents.length + 1,
+          },
+        };
+      });
+      
       return newDocument;
     } catch (err) {
-      
-      setError(err.message);
+      rlog.error('문서 생성 실패', err);
+      handleError(err, {
+        customMessage: '문서 생성에 실패했습니다.',
+        showToast: true
+      });
       throw err;
-    } finally {
-      if (!options.silent) {
-        setDocumentsLoading(false);
-      }
     }
-  }, [currentWorkspace]);
+  }, [currentWorkspace, queryClient, handleError]);
 
   const updateDocument = useCallback(async (id, documentData) => {
     if (!currentWorkspace) return;
 
     try {
-      setError(null);
       const updated = await documentApi.updateDocument(currentWorkspace.id, id, documentData);
+      
       // 기존 currentDocument의 모든 필드를 보존하고, 업데이트된 필드만 덮어쓰기
       const mergedUpdated = {
         ...(currentDocument?.id === id ? currentDocument : {}),
@@ -140,36 +181,62 @@ export function DocumentProvider({ children }) {
           ? updated.permissions
           : (currentDocument?.permissions || []),
       };
-      // 서버 응답을 신뢰하여 감사필드(updatedAt/updatedBy 등) 포함 반영
-      setDocuments(prev => prev.map(doc => (doc.id === id ? { ...doc, ...mergedUpdated } : doc)));
+      
+      // React Query 캐시 업데이트
+      queryClient.setQueryData(['documents', currentWorkspace.id], (oldData) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          documents: oldData.documents.map(doc => (doc.id === id ? { ...doc, ...mergedUpdated } : doc)),
+        };
+      });
+      
       if (currentDocument?.id === id) setCurrentDocument(mergedUpdated);
       return mergedUpdated;
     } catch (err) {
-      
-      setError(err.message);
+      rlog.error('문서 수정 실패', err);
+      handleError(err, {
+        customMessage: '문서 수정에 실패했습니다.',
+        showToast: true
+      });
       throw err;
     }
-  }, [currentWorkspace, currentDocument]);
+  }, [currentWorkspace, currentDocument, queryClient, handleError]);
 
   const deleteDocument = useCallback(async (id) => {
     if (!currentWorkspace) return;
 
     try {
-      setDocumentsLoading(true);
-      setError(null);
       await documentApi.deleteDocument(currentWorkspace.id, id);
-      setDocuments(prev => prev.filter(doc => doc.id !== id));
+      
+      // React Query 캐시에서 문서 제거
+      queryClient.setQueryData(['documents', currentWorkspace.id], (oldData) => {
+        if (!oldData) return oldData;
+        const filtered = oldData.documents.filter(doc => doc.id !== id);
+        return {
+          ...oldData,
+          documents: filtered,
+          pagination: {
+            ...oldData.pagination,
+            totalElements: oldData.pagination.totalElements - 1,
+            size: filtered.length,
+          },
+        };
+      });
+      
       if (currentDocument?.id === id) {
-        setCurrentDocument(documents.find(d => d.id !== id) || null);
+        const remainingDocs = documents.filter(d => d.id !== id);
+        setCurrentDocument(remainingDocs[0] || null);
       }
     } catch (err) {
-      
-      setError(err.message);
+      rlog.error('문서 삭제 실패', err);
+      handleError(err, {
+        customMessage: '문서 삭제에 실패했습니다.',
+        showToast: true
+      });
       throw err;
-    } finally {
-      setDocumentsLoading(false);
     }
-  }, [currentWorkspace, currentDocument, documents]);
+  }, [currentWorkspace, currentDocument, documents, queryClient, handleError]);
 
   const selectDocument = useCallback(async (document, options = {}) => {
     if (!currentWorkspace || !document) return;
@@ -197,13 +264,16 @@ export function DocumentProvider({ children }) {
     } catch {}
     try {
       setDocumentLoading(true);
-      setError(null);
       rlog.info('selectDocument', { id: document.id, ws: currentWorkspace?.id, src: options.source });
       const fullDocument = await documentApi.getDocument(currentWorkspace.id, document.id);
       
       // 조회된 문서가 현재 워크스페이스에 속하는지 검증
       if (fullDocument.workspaceId && String(fullDocument.workspaceId) !== String(currentWorkspace.id)) {
-        console.error(`문서 ${document.id}는 다른 워크스페이스(${fullDocument.workspaceId})에 속합니다. 현재 워크스페이스: ${currentWorkspace.id}`);
+        rlog.error('문서가 다른 워크스페이스에 속함', {
+          documentId: document.id,
+          documentWorkspaceId: fullDocument.workspaceId,
+          currentWorkspaceId: currentWorkspace.id,
+        });
         throw new Error(`문서가 현재 워크스페이스에 속하지 않습니다.`);
       }
       
@@ -211,35 +281,46 @@ export function DocumentProvider({ children }) {
       lastSelectRef.current = { id: document.id, at: Date.now() };
       localStorage.setItem(`lastDocumentId:${currentWorkspace.id}`, document.id);
     } catch (err) {
-      
-      setError(err.message);
-      console.error('Failed to fetch document:', err);
+      rlog.error('문서 선택 실패', err, { documentId: document.id });
+      handleError(err, {
+        customMessage: '문서를 불러오지 못했습니다.',
+        showToast: true
+      });
       // 에러 발생 시 현재 문서를 유지 (예기치 않은 문서 전환 방지)
+      throw err;
     } finally {
       setDocumentLoading(false);
     }
-  }, [currentWorkspace]);
+  }, [currentWorkspace, handleError]);
 
   const updateDocumentOrder = useCallback(async (documentIds) => {
     if (!currentWorkspace) return;
     try {
       await documentApi.updateDocumentOrder(currentWorkspace.id, documentIds);
-      // 로컬 상태를 직접 업데이트하여 화면 깜빡임 방지
-      setDocuments(prev => {
-        return prev.map(doc => {
-          // documentIds에 포함된 문서들만 sortOrder 업데이트
+      
+      // React Query 캐시 업데이트 - sortOrder 업데이트
+      queryClient.setQueryData(['documents', currentWorkspace.id], (oldData) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          documents: oldData.documents.map(doc => {
           const newIndex = documentIds.indexOf(doc.id);
           if (newIndex !== -1) {
             return { ...doc, sortOrder: newIndex };
           }
           return doc;
-        });
+          }),
+        };
       });
     } catch (err) {
-      setError(err.message);
+      rlog.error('문서 순서 업데이트 실패', err);
+      handleError(err, {
+        customMessage: '문서 순서 업데이트에 실패했습니다.',
+        showToast: true
+      });
       throw err;
     }
-  }, [currentWorkspace]);
+  }, [currentWorkspace, queryClient, handleError]);
 
   // 단일 문서 정보 갱신용 fetchDocument 함수 (silent 옵션 지원)
   const fetchDocument = useCallback(async (documentId, options = {}) => {
@@ -248,15 +329,13 @@ export function DocumentProvider({ children }) {
     const apply = options && options.apply !== false; // default true
     try {
       if (!isSilent) setDocumentLoading(true);
-      setError(null);
       const fullDocument = await documentApi.getDocument(currentWorkspace.id, documentId);
       rlog.info('fetchDocument', { id: documentId, silent: isSilent, apply });
       if (apply) setCurrentDocument(fullDocument);
       return fullDocument;
     } catch (err) {
-      
-      setError(err.message);
-      console.error('Failed to fetch document:', err);
+      rlog.error('Failed to fetch document', err, { documentId });
+      throw err;
     } finally {
       if (!isSilent) setDocumentLoading(false);
     }
@@ -266,26 +345,17 @@ export function DocumentProvider({ children }) {
   const fetchChildDocuments = useCallback(async (parentId, options = {}) => {
     if (!currentWorkspace) return [];
     try {
-      // 사이드바에서 호출하는 경우 로딩 상태를 변경하지 않음
-      if (!options.silent) {
-        setDocumentsLoading(true);
-      }
-      setError(null);
       const data = await documentApi.getChildDocuments(currentWorkspace.id, parentId);
       return data;
     } catch (err) {
       // 403 에러는 API 인터셉터에서 처리하므로 여기서는 조용히 종료
       if (err.response?.status === 403) {
-        console.warn('403 Forbidden - API 인터셉터에서 처리됨');
+        rlog.warn('403 Forbidden - API 인터셉터에서 처리됨', { parentId });
         return []; // 에러 상태 설정하지 않고 조용히 종료
       }
       
-      setError(err.message);
+      rlog.error('fetchChildDocuments 에러', err, { parentId });
       return [];
-    } finally {
-      if (!options.silent) {
-        setDocumentsLoading(false);
-      }
     }
   }, [currentWorkspace]);
 
@@ -293,16 +363,13 @@ export function DocumentProvider({ children }) {
   const refreshAllChildDocuments = useCallback(async () => {
     if (!currentWorkspace) return;
     try {
-      setError(null);
-      // 모든 문서를 다시 가져와서 자식 문서 정보도 최신화
-      const allDocuments = await documentApi.getDocuments(currentWorkspace.id);
-      setDocuments(allDocuments);
+      // React Query 캐시 무효화하여 자동 리페칭
+      await queryClient.invalidateQueries({ queryKey: ['documents', currentWorkspace.id] });
     } catch (err) {
-      
-      setError(err.message);
-      console.error('Failed to refresh child documents:', err);
+      rlog.error('Failed to refresh child documents', err);
+      throw err;
     }
-  }, [currentWorkspace]);
+  }, [currentWorkspace, queryClient]);
 
   // Context value 메모이제이션으로 불필요한 리렌더링 방지
   const value = useMemo(() => ({

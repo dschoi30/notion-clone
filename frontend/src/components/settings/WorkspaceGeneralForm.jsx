@@ -88,8 +88,11 @@ export default function WorkspaceGeneralForm() {
       setLoading(true);
       setError('');
       await updateWorkspace(currentWorkspace.id, { name: name.trim(), iconUrl });
-      // 성공 메시지는 추후 toast로 대체
-      alert('워크스페이스 설정이 저장되었습니다.');
+      toast({
+        title: '설정 저장',
+        description: '워크스페이스 설정이 저장되었습니다.',
+        variant: 'success',
+      });
     } catch (err) {
       console.error('워크스페이스 업데이트 실패:', err);
       setError('저장에 실패했습니다. 다시 시도해주세요.');
