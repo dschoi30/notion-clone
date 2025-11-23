@@ -13,7 +13,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import SearchSlideInput from '@/components/documents/table/SearchSlideInput';
 import SortDropdown from '@/components/documents/table/SortDropdown';
 import SortManager from '@/components/documents/table/SortManager';
-import UserActionPopover from './UserActionPopover';
 import BulkUserActionPopover from './BulkUserActionPopover';
 import { Z_INDEX } from '@/constants/zIndex';
 import { Loader2 } from 'lucide-react';
@@ -67,8 +66,6 @@ const UserManagementPanel = () => {
     fetchNextPage,
     fetchTableData,
     error,
-    sortField,
-    sortDir,
     updateSortParams,
   } = useUserTableData();
 
@@ -98,7 +95,6 @@ const UserManagementPanel = () => {
     removeSort,
     clearAllSorts,
     sortedRows,
-    hasActiveSorts,
     getSortedDocumentIds
   } = useUserTableSort(filterFilteredRows, updateSortParams);
 
@@ -249,12 +245,6 @@ const UserManagementPanel = () => {
       setSelectedUserIds(new Set(visibleRows.map(row => row.id)));
     }
   }, [visibleRows, selectedUserIds.size]);
-
-  // 액션 완료 후 처리
-  const handleActionComplete = useCallback(() => {
-    setSelectedUserIds(new Set());
-    fetchTableData();
-  }, [fetchTableData]);
 
   // 컬럼 너비 (기본값 - 체크박스 컬럼 포함)
   const colWidths = useMemo(() => {

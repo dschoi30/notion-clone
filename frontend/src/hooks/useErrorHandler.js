@@ -1,6 +1,9 @@
 import { useState, useCallback } from 'react';
 import { useToast } from './useToast';
 import { getErrorMessageFromError } from '@/lib/errorUtils';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('useErrorHandler');
 
 export const useErrorHandler = () => {
   const [error, setError] = useState(null);
@@ -14,7 +17,7 @@ export const useErrorHandler = () => {
       onError = null
     } = options;
 
-    console.error('Error handled:', error);
+    log.error('Error handled', error);
 
     // 에러 상태 설정
     setError(error);
@@ -57,7 +60,7 @@ export const createErrorHandler = (errorType) => {
   const handlers = {
     // 403 에러 처리
     forbidden: (error, context) => {
-      console.warn('403 Forbidden:', error);
+      log.warn('403 Forbidden', error);
       return {
         message: '접근 권한이 없습니다. 관리자에게 문의하거나 다른 문서를 확인해주세요.',
         action: '권한 확인',
@@ -67,7 +70,7 @@ export const createErrorHandler = (errorType) => {
 
     // 500 에러 처리
     serverError: (error, context) => {
-      console.error('500 Server Error:', error);
+      log.error('500 Server Error', error);
       return {
         message: '서버에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.',
         action: '다시 시도',
@@ -77,7 +80,7 @@ export const createErrorHandler = (errorType) => {
 
     // 네트워크 에러 처리
     networkError: (error, context) => {
-      console.error('Network Error:', error);
+      log.error('Network Error', error);
       return {
         message: '네트워크 연결을 확인해주세요.',
         action: '연결 확인',
@@ -87,7 +90,7 @@ export const createErrorHandler = (errorType) => {
 
     // 기본 에러 처리
     default: (error, context) => {
-      console.error('Default Error:', error);
+      log.error('Default Error', error);
       return {
         message: '예상치 못한 오류가 발생했습니다.',
         action: '다시 시도',
