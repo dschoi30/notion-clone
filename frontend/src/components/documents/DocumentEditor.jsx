@@ -4,7 +4,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useDocument } from '@/contexts/DocumentContext';
-import { useDocumentStore } from '@/stores/documentStore';
+import { useUIStore } from '@/stores/uiStore';
 import { useShallow } from 'zustand/react/shallow';
 import useDocumentSocket from '@/hooks/useDocumentSocket';
 import useDocumentPresence from '@/hooks/useDocumentPresence';
@@ -26,11 +26,8 @@ const DocumentEditor = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { updateDocument, documentLoading, documents, selectDocument, fetchDocument } = useDocument();
-  // zustand store에서 currentDocument를 직접 구독하여 즉시 반영
-  const { currentDocument } = useDocumentStore(
-    useShallow((state) => ({ currentDocument: state.currentDocument }))
-  );
+  // useDocument()에서 currentDocument를 가져와서 단일 진실 공급원(Single Source of Truth) 유지
+  const { currentDocument, updateDocument, documentLoading, documents, selectDocument } = useDocument();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
@@ -41,8 +38,13 @@ const DocumentEditor = () => {
   const editorRef = useRef(null);
   const pageViewRef = useRef(null);
 
-  // 공유 팝오버 상태
-  const [showShareModal, setShowShareModal] = useState(false);
+  // 공유 팝오버 상태 (zustand store에서 관리)
+  const { showShareModal, setShowShareModal } = useUIStore(
+    useShallow((state) => ({
+      showShareModal: state.showShareModal,
+      setShowShareModal: state.setShowShareModal
+    }))
+  );
   const shareButtonRef = useRef(null);
   const canWrite = hasWritePermission(currentDocument, user);
   // 잠금 상태 또는 권한이 없으면 읽기 전용

@@ -97,6 +97,7 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
     isFetchingNextPage: loadingMore,
     hasNextPage: hasMore,
     fetchNextPage,
+    error: versionsQueryError,
   } = useInfiniteQuery({
     queryKey: ['document-versions', workspaceId, documentId],
     queryFn: async ({ pageParam = 0 }) => {
@@ -115,14 +116,18 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
     initialPageParam: 0,
     enabled: !!workspaceId && !!documentId,
     staleTime: 1000 * 60 * 2, // 2분
-    onError: (e) => {
-      log.error('문서 버전 목록 조회 실패', e);
-      handleError(e, {
+  });
+
+  // 에러 처리 (React Query v5 권장 방식)
+  useEffect(() => {
+    if (versionsQueryError) {
+      log.error('문서 버전 목록 조회 실패', versionsQueryError);
+      handleError(versionsQueryError, {
         customMessage: '문서 버전 목록을 불러오지 못했습니다.',
         showToast: true
       });
-    },
-  });
+    }
+  }, [versionsQueryError, handleError]);
 
   // 모든 버전을 하나의 배열로 합치기
   const versions = useMemo(() => {
@@ -134,29 +139,53 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
   const {
     data: selected,
     isLoading: selectedLoading,
+    error: selectedError,
   } = useQuery({
     queryKey: ['document-version', workspaceId, documentId, selectedId],
     queryFn: () => getDocumentVersion(workspaceId, documentId, selectedId),
     enabled: !!workspaceId && !!documentId && !!selectedId,
     staleTime: 1000 * 60 * 5, // 5분
-    onError: (e) => {
-      log.error('문서 버전 상세 조회 실패', e);
-      handleError(e, {
+  });
+
+  // 에러 처리 (React Query v5 권장 방식)
+  useEffect(() => {
+    if (selectedError) {
+      log.error('문서 버전 상세 조회 실패', selectedError);
+      handleError(selectedError, {
         customMessage: '문서 버전 상세 정보를 불러오지 못했습니다.',
         showToast: true
       });
-    },
-  });
+    }
+  }, [selectedError, handleError]);
 
   // 속성 조회 (태그 옵션용)
   const {
     data: propertiesData,
+    error: propertiesError,
   } = useQuery({
     queryKey: ['version-properties', workspaceId, documentId],
     queryFn: () => getProperties(workspaceId, documentId),
     enabled: !!workspaceId && !!documentId && !!selectedId,
     staleTime: 1000 * 60 * 5, // 5분
   });
+
+  // 에러 처리 (React Query v5 권장 방식)
+  useEffect(() => {
+    if (selectedError) {
+      log.error('문서 버전 상세 조회 실패', selectedError);
+      handleError(selectedError, {
+        customMessage: '문서 버전 상세 정보를 불러오지 못했습니다.',
+        showToast: true
+      });
+    }
+    if (propertiesError) {
+      log.error('속성 조회 실패 (버전 히스토리)', propertiesError);
+      handleError(propertiesError, {
+        customMessage: '속성 정보를 불러오지 못했습니다.',
+        showToast: true
+      });
+    }
+  }, [selectedError, propertiesError, handleError]);
 
   // 태그 옵션 맵 생성
   const tagOptionsByPropId = useMemo(() => {

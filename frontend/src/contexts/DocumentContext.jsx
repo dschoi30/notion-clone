@@ -10,6 +10,42 @@ import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 const DocumentContext = createContext();
 
+/**
+ * 문서 업데이트 데이터 병합 함수
+ * 명확한 우선순위로 문서 데이터를 병합합니다.
+ * 
+ * 우선순위:
+ * 1. documentData (클라이언트 업데이트, isLocked 등 즉시 반영 필요)
+ * 2. updated (서버 응답)
+ * 3. currentDocument (기존 문서 데이터)
+ * 
+ * @param {Object} currentDocument - 현재 문서 데이터
+ * @param {Object} serverResponse - 서버 응답 데이터
+ * @param {Object} clientUpdate - 클라이언트 업데이트 데이터
+ * @returns {Object} 병합된 문서 데이터
+ * 
+ * Note: Fast refresh 경고는 무시 가능 (실제 기능에 영향 없음)
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+const mergeDocumentUpdate = (currentDocument, serverResponse, clientUpdate) => {
+  // Base: 현재 문서
+  const base = currentDocument || {};
+  
+  // 1단계: 서버 응답 적용
+  const withServerData = { ...base, ...serverResponse };
+  
+  // 2단계: 클라이언트 업데이트 적용 (isLocked 등 우선순위 높음)
+  const withClientData = { ...withServerData, ...clientUpdate };
+  
+  // 3단계: permissions는 서버 데이터 우선 (서버 데이터가 있으면 사용, 없으면 기존 데이터 유지)
+  return {
+    ...withClientData,
+    permissions: (Array.isArray(serverResponse?.permissions) && serverResponse.permissions.length > 0)
+      ? serverResponse.permissions
+      : (base.permissions || []),
+  };
+};
+
 export function useDocument() {
   const context = useContext(DocumentContext);
   if (!context) {
@@ -80,14 +116,18 @@ export function DocumentProvider({ children }) {
     },
     enabled: !!currentWorkspace,
     staleTime: 1000 * 60 * 2, // 2분 - 문서 목록은 자주 변경되므로 짧게 설정
-    onError: (e) => {
-      rlog.error('문서 목록 조회 실패', e);
-      handleError(e, {
+  });
+
+  // 에러 처리 (React Query v5 권장 방식)
+  useEffect(() => {
+    if (documentsError) {
+      rlog.error('문서 목록 조회 실패', documentsError);
+      handleError(documentsError, {
         customMessage: '문서 목록을 불러오지 못했습니다.',
         showToast: true
       });
-    },
-  });
+    }
+  }, [documentsError, handleError]);
 
   // React Query 데이터를 로컬 상태로 동기화
   const documents = documentsData?.documents || [];
@@ -209,7 +249,11 @@ export function DocumentProvider({ children }) {
           },
         });
       } catch (err) {
-        rlog.error('fetchDocuments 에러', err);
+        rlog.error('문서 목록 조회 실패 (페이지네이션)', err);
+        handleError(err, {
+          customMessage: '문서 목록을 불러오지 못했습니다.',
+          showToast: true
+        });
         throw err;
       }
     } else {
@@ -255,16 +299,11 @@ export function DocumentProvider({ children }) {
     try {
       const updated = await documentApi.updateDocument(currentWorkspace.id, id, documentData);
       
-      // 기존 currentDocument의 모든 필드를 보존하고, 업데이트된 필드만 덮어쓰기
-      // documentData에 포함된 필드들도 명시적으로 포함 (백엔드 응답에 누락될 수 있음)
-      const mergedUpdated = currentDocument?.id === id ? {
-        ...currentDocument,
-        ...updated,
-        ...documentData, // documentData의 필드들을 명시적으로 포함 (isLocked 등)
-        permissions: (Array.isArray(updated?.permissions) && updated.permissions.length > 0)
-          ? updated.permissions
-          : (currentDocument.permissions || []),
-      } : { ...updated, ...documentData };
+      // 명확한 우선순위로 문서 데이터 병합
+      // 우선순위: documentData (클라이언트) > updated (서버) > currentDocument (기존)
+      const mergedUpdated = currentDocument?.id === id
+        ? mergeDocumentUpdate(currentDocument, updated, documentData)
+        : { ...updated, ...documentData };
       
       // React Query 캐시 업데이트
       queryClient.setQueryData(['documents', currentWorkspace.id], (oldData) => {
@@ -444,10 +483,14 @@ export function DocumentProvider({ children }) {
         };
       });
     } catch (err) {
-      rlog.error('updateDocumentOrder 에러', err);
+      rlog.error('문서 순서 업데이트 실패', err);
+      handleError(err, {
+        customMessage: '문서 순서 업데이트에 실패했습니다.',
+        showToast: true
+      });
       throw err;
     }
-  }, [currentWorkspace, queryClient]);
+  }, [currentWorkspace, queryClient, handleError]);
 
   // 단일 문서 정보 갱신용 fetchDocument 함수 (silent 옵션 지원)
   const fetchDocument = useCallback(async (documentId, options = {}) => {

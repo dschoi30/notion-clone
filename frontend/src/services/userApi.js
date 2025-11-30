@@ -1,4 +1,7 @@
 import api from './api';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('userApi');
 
 // 사용자 프로필 조회
 export const getProfile = async () => {
@@ -6,7 +9,7 @@ export const getProfile = async () => {
     const response = await api.get('/api/users/profile');
     return response.data;
   } catch (error) {
-    console.error('프로필 조회 실패:', error);
+    log.error('프로필 조회 실패', error);
     throw error;
   }
 };
@@ -17,7 +20,7 @@ export const updateProfile = async (profileData) => {
     const response = await api.put('/api/users/profile', profileData);
     return response.data;
   } catch (error) {
-    console.error('프로필 수정 실패:', error);
+    log.error('프로필 수정 실패', error);
     throw error;
   }
 };
@@ -28,7 +31,7 @@ export const changePassword = async (passwordData) => {
     const response = await api.put('/api/users/change-password', passwordData);
     return response.data;
   } catch (error) {
-    console.error('비밀번호 변경 실패:', error);
+    log.error('비밀번호 변경 실패', error);
     throw error;
   }
 };
@@ -46,7 +49,7 @@ export const uploadProfileImage = async (file) => {
     });
     return response.data;
   } catch (error) {
-    console.error('프로필 이미지 업로드 실패:', error);
+    log.error('프로필 이미지 업로드 실패', error);
     throw error;
   }
 };
@@ -60,7 +63,7 @@ export const getUsersPaged = async (page = 0, size = 50, sortField = 'id', sortD
     });
     return response.data;
   } catch (error) {
-    console.error('사용자 목록 조회 실패:', error);
+    log.error('사용자 목록 조회 실패', error);
     throw error;
   }
 };
@@ -75,7 +78,7 @@ export const updateUserRole = async (userId, newRole) => {
     });
     return response.data;
   } catch (error) {
-    console.error(`사용자 ${userId} 역할 변경 실패:`, error);
+    log.error(`사용자 ${userId} 역할 변경 실패`, error);
     throw error;
   }
 };
@@ -86,7 +89,7 @@ export const resetUserPassword = async (userId) => {
     const response = await api.post(`/api/admin/users/${userId}/reset-password`);
     return response.data;
   } catch (error) {
-    console.error(`사용자 ${userId} 비밀번호 재설정 실패:`, error);
+    log.error(`사용자 ${userId} 비밀번호 재설정 실패`, error);
     throw error;
   }
 };
@@ -99,7 +102,7 @@ export const toggleUserStatus = async (userId, isActive) => {
     });
     return response.data;
   } catch (error) {
-    console.error(`사용자 ${userId} 상태 변경 실패:`, error);
+    log.error(`사용자 ${userId} 상태 변경 실패`, error);
     throw error;
   }
 };
@@ -110,7 +113,7 @@ export const deleteUser = async (userId) => {
     const response = await api.delete(`/api/admin/users/${userId}`);
     return response.data;
   } catch (error) {
-    console.error(`사용자 ${userId} 삭제 실패:`, error);
+    log.error(`사용자 ${userId} 삭제 실패`, error);
     throw error;
   }
 };

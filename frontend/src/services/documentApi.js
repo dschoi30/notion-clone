@@ -1,5 +1,8 @@
 // src/services/documentApi.js
 import api from './api';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('documentApi');
 
 // 문서 목록 조회 (전체 데이터)
 export async function getDocuments(workspaceId) {
@@ -79,12 +82,13 @@ export async function fetchImageViaProxy(imageUrl) {
       } else {
           // JSON이 아니면 텍스트로 읽기 (HTML 내용 등)
           const errorText = await response.text();
-          console.error("Non-JSON error response:", errorText); // 로그 기록
+          log.error('Non-JSON error response', { errorText, status: response.status, url: proxyUrl });
           // 간단한 메시지 표시 또는 HTML 내용을 기반으로 추론
           errorMsg = '서버로부터 예상치 못한 응답(HTML 등)을 받았습니다.';
       }
     } catch (parseError) {
-      console.error("Error parsing error response:", parseError);
+      log.error('Error parsing error response', parseError);
+      // 파싱 에러는 무시 (이미 errorMsg가 설정됨)
     }
     throw new Error(errorMsg);
   }

@@ -1,34 +1,40 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, devtools } from 'zustand/middleware';
 import { createLogger } from '@/lib/logger';
 
 const rlog = createLogger('documentStore');
 
 export const useDocumentStore = create(
-  persist(
-    (set, get) => ({
+  devtools(
+    persist(
+      (set, get) => ({
       // 클라이언트 상태
       currentDocument: null,
       documentLoading: false,
 
-      // 액션: 현재 문서 설정
+      /**
+       * 현재 문서 설정
+       * @param {Object|null} document - 설정할 문서 객체 (null이면 초기화)
+       */
       setCurrentDocument: (document) => {
         set({ currentDocument: document });
-        // localStorage는 persist 미들웨어가 자동으로 처리
-        if (document?.id) {
-          const workspaceId = document.workspaceId;
-          if (workspaceId) {
-            localStorage.setItem(`lastDocumentId:${workspaceId}`, document.id);
-          }
-        }
+        // persist 미들웨어가 자동으로 localStorage에 저장
+        // lastDocumentId는 DocumentContext의 selectDocument에서 별도로 관리 (워크스페이스별 저장 필요)
       },
 
-      // 액션: 문서 로딩 상태 설정
+      /**
+       * 문서 로딩 상태 설정
+       * @param {boolean} loading - 로딩 상태
+       */
       setDocumentLoading: (loading) => {
         set({ documentLoading: loading });
       },
 
-      // 액션: 현재 문서 업데이트 (문서 수정 시 사용)
+      /**
+       * 현재 문서 업데이트 (문서 수정 시 사용)
+       * 기존 필드를 보존하고 업데이트된 필드만 덮어쓰기
+       * @param {Object} updatedDocument - 업데이트할 문서 데이터
+       */
       updateCurrentDocument: (updatedDocument) => {
         const current = get().currentDocument;
         if (current?.id === updatedDocument?.id) {
@@ -46,12 +52,18 @@ export const useDocumentStore = create(
         }
       },
 
-      // 액션: 현재 문서 초기화 (워크스페이스 변경 시 사용)
+      /**
+       * 현재 문서 초기화 (워크스페이스 변경 시 사용)
+       */
       clearCurrentDocument: () => {
         set({ currentDocument: null });
       },
 
-      // 액션: 문서 삭제 시 처리 (다른 문서로 전환)
+      /**
+       * 문서 삭제 시 처리 (다른 문서로 전환)
+       * @param {number} deletedId - 삭제된 문서 ID
+       * @param {Array} remainingDocuments - 남은 문서 목록
+       */
       handleDocumentDeletion: (deletedId, remainingDocuments) => {
         const current = get().currentDocument;
         if (current?.id === deletedId) {
@@ -60,12 +72,14 @@ export const useDocumentStore = create(
         }
       },
     }),
-    {
-      name: 'document-storage',
-      partialize: (state) => ({ 
-        currentDocument: state.currentDocument 
-      }), // currentDocument만 persist
-    }
+      {
+        name: 'document-storage',
+        partialize: (state) => ({ 
+          currentDocument: state.currentDocument 
+        }), // currentDocument만 persist
+      }
+    ),
+    { name: 'DocumentStore' }
   )
 );
 

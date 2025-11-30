@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { getUsersPaged } from '@/services/userApi';
 import { createLogger } from '@/lib/logger';
@@ -52,14 +52,18 @@ export function useUserTableData() {
     },
     initialPageParam: 0,
     staleTime: 1000 * 60 * 2, // 2분
-    onError: (e) => {
-      log.error('사용자 목록 조회 실패', e);
-      handleError(e, {
+  });
+
+  // 에러 처리 (React Query v5 권장 방식)
+  useEffect(() => {
+    if (error) {
+      log.error('사용자 목록 조회 실패', error);
+      handleError(error, {
         customMessage: '사용자 목록을 불러오지 못했습니다.',
         showToast: true
       });
-    },
-  });
+    }
+  }, [error, handleError]);
 
   // 모든 페이지의 rows를 하나의 배열로 합치기
   const rows = useMemo(() => {

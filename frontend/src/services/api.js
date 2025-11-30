@@ -85,7 +85,10 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error('Request interceptor error:', error);
+    // Request interceptor 에러는 드물지만 발생 시 로깅
+    if (typeof window !== 'undefined' && window.Sentry) {
+      window.Sentry.captureException(error);
+    }
     return Promise.reject(error);
   }
 );
@@ -96,7 +99,7 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
-    console.error('Response error:', error.response);
+    // Response error는 이미 alog로 처리되므로 여기서는 제거
     
     // 401 Unauthorized - 토큰 만료 또는 인증 실패
     if (error.response?.status === 401) {
@@ -119,7 +122,6 @@ api.interceptors.response.use(
     // 백엔드에서 이미 로그를 남기므로, 프론트엔드에서는 로그만 남기고
     // Grafana Loki + Promtail을 통해 백엔드 로그를 수집하는 것을 권장합니다.
     if (error.response?.status >= 500) {
-      console.error('Server Error:', error.response.status, error.response.data);
       alog.error('서버 에러 발생', {
         status: error.response.status,
         url: error.config?.url,
@@ -143,7 +145,7 @@ api.interceptors.response.use(
             },
           });
         } catch (sentryError) {
-          console.error('Sentry capture failed:', sentryError);
+          // Sentry capture 실패는 무시 (무한 루프 방지)
         }
       }
     }
