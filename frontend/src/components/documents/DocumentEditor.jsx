@@ -134,7 +134,51 @@ const DocumentEditor = () => {
   // idSlug가 바뀔 때마다 해당 id의 문서를 선택
   useEffect(() => {
     if (!docId || !currentWorkspace) return;
+    
+    // 워크스페이스 변경 시 현재 문서의 워크스페이스 ID 확인
+    if (currentDocument && currentDocument.workspaceId) {
+      const docWorkspaceId = String(currentDocument.workspaceId);
+      const currentWorkspaceId = String(currentWorkspace.id);
+      if (docWorkspaceId !== currentWorkspaceId) {
+        rlog.warn('idSlug select blocked: 문서가 다른 워크스페이스에 속함', {
+          docId,
+          docWorkspaceId,
+          currentWorkspaceId,
+        });
+        // 다른 워크스페이스 문서면 홈으로 리다이렉트
+        navigate('/', { replace: true });
+        return;
+      }
+    }
+    
     const found = documents.find(doc => String(doc.id) === String(docId));
+    
+    // 문서 목록에 있는 경우, 해당 문서의 워크스페이스 ID 확인
+    if (found && found.workspaceId) {
+      const docWorkspaceId = String(found.workspaceId);
+      const currentWorkspaceId = String(currentWorkspace.id);
+      if (docWorkspaceId !== currentWorkspaceId) {
+        rlog.warn('idSlug select blocked: 문서가 다른 워크스페이스에 속함', {
+          docId,
+          docWorkspaceId,
+          currentWorkspaceId,
+        });
+        navigate('/', { replace: true });
+        return;
+      }
+    }
+    
+    // 문서 목록에 없고, 워크스페이스가 변경된 직후인 경우 홈으로 리다이렉트
+    // (자식 문서 등 접근 가능한 경우를 위해 완전히 차단하지는 않음)
+    if (!found && documents.length > 0) {
+      // 문서 목록이 로드되었는데 해당 문서가 없으면 다른 워크스페이스 문서일 가능성이 높음
+      // 하지만 자식 문서 등 접근 가능한 경우도 있으므로, selectDocument 내부에서 검증하도록 함
+      rlog.warn('idSlug select: 문서 목록에 없음 (자식 문서 등 접근 가능한 경우 허용)', {
+        docId,
+        workspaceId: currentWorkspace.id,
+      });
+    }
+    
     const needsSelect = !currentDocument || String(currentDocument.id) !== String(docId);
     const reason = needsSelect ? (found ? 'found' : 'byId') : 'noop';
     rlog.info('idSlug select check', { docId, currentId: currentDocument?.id, reason });
@@ -149,7 +193,7 @@ const DocumentEditor = () => {
       selectDocument(found ? found : { id: Number(docId) }, { source: 'idSlugEffect' }); // 문서 목록에 없더라도(부모 권한으로 접근 가능한 자식 등) 단건 조회로 진입 허용
     }
       
-  }, [docId, documents, currentWorkspace, currentDocument]);
+  }, [docId, documents, currentWorkspace, currentDocument, navigate, selectDocument, location.pathname]);
 
   // 경로 계산 유틸: 목록에 없더라도 currentDocument로 최소 1단계 표시
   function getDocumentPath(documentId, documentList) {

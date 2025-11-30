@@ -107,8 +107,14 @@ api.interceptors.response.use(
     }
     
     // 403 Forbidden - 권한 없음 (토큰은 유효하지만 접근 권한이 없는 경우)
+    // 인증 실패가 아닌 권한 부족이므로, 각 컴포넌트에서 적절히 처리하도록 에러만 전달
+    // 특정 엔드포인트(예: 워크스페이스 접근)에서 권한이 없는 것은 정상적인 상황일 수 있음
     if (error.response?.status === 403) {
-      handleAuthFailure(error, 'SESSION_INVALID');
+      alog.debug('403 Forbidden - 권한 없음:', {
+        url: error.config?.url,
+        method: error.config?.method,
+      });
+      // 에러를 그대로 전달하여 각 컴포넌트에서 처리하도록 함
       return Promise.reject(error);
     }
     
