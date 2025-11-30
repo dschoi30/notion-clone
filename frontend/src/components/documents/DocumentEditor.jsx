@@ -232,6 +232,10 @@ const DocumentEditor = () => {
 
   // 자동 저장 트리거 함수
   const triggerAutoSave = () => {
+    // 권한이 없으면 자동 저장하지 않음
+    if (!canWrite || isReadOnly) {
+      return;
+    }
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => {
       handleSave();
@@ -267,6 +271,18 @@ const DocumentEditor = () => {
 
   const handleSave = async () => {
     if (!currentDocument) return;
+    
+    // 권한 체크: 쓰기 권한이 없으면 저장하지 않음
+    if (!canWrite || isReadOnly) {
+      rlog.warn('문서 저장 실패: 권한 없음', { 
+        documentId: currentDocument.id, 
+        canWrite, 
+        isReadOnly 
+      });
+      setSaveStatus('error');
+      return;
+    }
+    
     try {
       setSaveStatus('saving');
       rlog.info('updateDocument(save)', { id: currentDocument.id });
@@ -278,6 +294,13 @@ const DocumentEditor = () => {
     } catch (error) {
       console.error('문서 저장 실패:', error);
       setSaveStatus('error');
+      // 403 에러인 경우 추가 로깅
+      if (error?.response?.status === 403) {
+        rlog.error('문서 저장 실패: 권한 없음 (403)', { 
+          documentId: currentDocument.id,
+          error: error.message 
+        });
+      }
     }
   };
 

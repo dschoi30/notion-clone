@@ -322,8 +322,15 @@ export function DocumentProvider({ children }) {
       return mergedUpdated;
     } catch (err) {
       rlog.error('문서 수정 실패', err);
+      
+      // 403 에러인 경우 더 구체적인 메시지 제공
+      let customMessage = '문서 수정에 실패했습니다.';
+      if (err?.response?.status === 403) {
+        customMessage = '이 문서를 수정할 권한이 없습니다.';
+      }
+      
       handleError(err, {
-        customMessage: '문서 수정에 실패했습니다.',
+        customMessage,
         showToast: true
       });
       throw err;
