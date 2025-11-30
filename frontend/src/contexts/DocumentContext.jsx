@@ -140,20 +140,86 @@ export function DocumentProvider({ children }) {
   };
   const error = documentsError?.message || null;
 
-  // currentWorkspace 변경 시 즉시 상태 초기화
+  // currentWorkspace 변경 시 즉시 상태 초기화 및 최근 문서 로드
+  const prevWorkspaceIdRef = React.useRef(null);
+  const autoSelectRef = React.useRef(false);
+  const selectDocumentRef = React.useRef(null);
+  
   useEffect(() => {
-    // 즉시 모든 상태 초기화 (이전 워크스페이스 데이터 제거)
-    clearCurrentDocument();
-    // React Query 캐시도 무효화
-    if (currentWorkspace) {
-      // 이전 워크스페이스의 진행 중인 요청 취소
-      queryClient.cancelQueries({ queryKey: ['documents'] });
+    const currentWorkspaceId = currentWorkspace?.id;
+    const prevWorkspaceId = prevWorkspaceIdRef.current;
+    
+    // 워크스페이스가 변경된 경우
+    if (currentWorkspaceId && prevWorkspaceId !== currentWorkspaceId) {
       // 즉시 모든 상태 초기화 (이전 워크스페이스 데이터 제거)
-      setCurrentDocument(null);
+      clearCurrentDocument();
       // React Query 캐시도 무효화
-      queryClient.invalidateQueries({ queryKey: ['documents', currentWorkspace.id] });
+      queryClient.invalidateQueries({ queryKey: ['documents', currentWorkspaceId] });
+      // 자동 선택 플래그 리셋
+      autoSelectRef.current = false;
+      prevWorkspaceIdRef.current = currentWorkspaceId;
     }
   }, [currentWorkspace, queryClient, clearCurrentDocument]);
+
+  // 워크스페이스 변경 후 문서 목록이 로드되면 최근 문서 자동 선택
+  useEffect(() => {
+    if (!currentWorkspace || documents.length === 0 || currentDocument || documentLoading) {
+      // 문서가 로드 중이거나 이미 선택된 문서가 있으면 스킵
+      if (currentDocument) {
+        autoSelectRef.current = false; // 리셋
+      }
+      return;
+    }
+    
+    // selectDocument가 아직 정의되지 않았으면 스킵
+    if (!selectDocumentRef.current) return;
+    
+    // 이미 자동 선택이 진행 중이면 스킵
+    if (autoSelectRef.current) return;
+    
+    autoSelectRef.current = true;
+    
+    // 로컬 스토리지에서 해당 워크스페이스의 최근 문서 ID 조회
+    const lastDocumentId = localStorage.getItem(`lastDocumentId:${currentWorkspace.id}`);
+    if (!lastDocumentId) {
+      // 최근 문서가 없으면 첫 번째 문서 선택
+      if (documents[0]) {
+        rlog.info('워크스페이스 변경: 첫 번째 문서 자동 선택', { 
+          workspaceId: currentWorkspace.id, 
+          documentId: documents[0].id 
+        });
+        selectDocumentRef.current(documents[0], { source: 'workspaceChange' }).catch(() => {
+          autoSelectRef.current = false; // 실패 시 리셋
+        });
+      }
+      return;
+    }
+    
+    // 최근 문서 찾기
+    const lastDoc = documents.find(doc => String(doc.id) === String(lastDocumentId));
+    if (lastDoc) {
+      rlog.info('워크스페이스 변경: 최근 문서 자동 선택', { 
+        workspaceId: currentWorkspace.id, 
+        documentId: lastDoc.id 
+      });
+      selectDocumentRef.current(lastDoc, { source: 'workspaceChange' }).catch(() => {
+        autoSelectRef.current = false; // 실패 시 리셋
+      });
+    } else {
+      // 최근 문서가 목록에 없으면 첫 번째 문서 선택
+      if (documents[0]) {
+        rlog.info('워크스페이스 변경: 최근 문서 없음, 첫 번째 문서 선택', { 
+          workspaceId: currentWorkspace.id, 
+          documentId: documents[0].id 
+        });
+        selectDocumentRef.current(documents[0], { source: 'workspaceChange' }).catch(() => {
+          autoSelectRef.current = false; // 실패 시 리셋
+        });
+      }
+      // 유효하지 않은 최근 문서 ID 제거
+      localStorage.removeItem(`lastDocumentId:${currentWorkspace.id}`);
+    }
+  }, [currentWorkspace, documents, currentDocument, documentLoading]);
 
   // fetchDocuments 함수는 기존 API와 호환성을 위해 유지 (refetch로 동작)
   const fetchDocuments = useCallback(async (page = null, size = null) => {
@@ -324,6 +390,37 @@ export function DocumentProvider({ children }) {
         return;
       }
     } catch {}
+    
+    // 문서 객체에 워크스페이스 ID가 있으면 미리 검증
+    if (document.workspaceId && String(document.workspaceId) !== String(currentWorkspace.id)) {
+      rlog.warn('selectDocument blocked: 문서가 다른 워크스페이스에 속함', {
+        documentId: document.id,
+        documentWorkspaceId: document.workspaceId,
+        currentWorkspaceId: currentWorkspace.id,
+        src: options.source,
+      });
+      // 조용히 실패 (에러를 던지지 않음)
+      return;
+    }
+    
+    // 문서 객체에 workspaceId가 없으면 문서 목록에서 확인
+    if (!document.workspaceId) {
+      const foundInList = documents.find(doc => String(doc.id) === String(document.id));
+      if (foundInList) {
+        // 문서 목록에 있으면 해당 문서의 workspaceId로 검증
+        if (foundInList.workspaceId && String(foundInList.workspaceId) !== String(currentWorkspace.id)) {
+          rlog.warn('selectDocument blocked: 문서 목록에서 확인한 결과 다른 워크스페이스에 속함', {
+            documentId: document.id,
+            documentWorkspaceId: foundInList.workspaceId,
+            currentWorkspaceId: currentWorkspace.id,
+            src: options.source,
+          });
+          return;
+        }
+      }
+      // 문서 목록에 없으면 API 호출 후 검증 (자식 문서 등 접근 가능한 경우)
+    }
+    
     try {
       setDocumentLoading(true);
       rlog.info('selectDocument', { id: document.id, ws: currentWorkspace?.id, src: options.source });
@@ -331,18 +428,25 @@ export function DocumentProvider({ children }) {
       
       // 조회된 문서가 현재 워크스페이스에 속하는지 검증
       if (fullDocument.workspaceId && String(fullDocument.workspaceId) !== String(currentWorkspace.id)) {
-        rlog.error('문서가 다른 워크스페이스에 속함', {
+        rlog.warn('문서가 다른 워크스페이스에 속함 (API 조회 후 확인)', {
           documentId: document.id,
           documentWorkspaceId: fullDocument.workspaceId,
           currentWorkspaceId: currentWorkspace.id,
+          src: options.source,
         });
-        throw new Error(`문서가 현재 워크스페이스에 속하지 않습니다.`);
+        // 조용히 실패 (에러를 던지지 않음) - DocumentEditor에서 이미 처리함
+        return;
       }
       
       setCurrentDocument(fullDocument);
       lastSelectRef.current = { id: document.id, at: Date.now() };
     } catch (err) {
       rlog.error('문서 선택 실패', err, { documentId: document.id });
+      // 워크스페이스 불일치 에러는 조용히 처리 (이미 DocumentEditor에서 리다이렉트 처리)
+      if (err.message && err.message.includes('워크스페이스에 속하지 않습니다')) {
+        rlog.warn('selectDocument: 워크스페이스 불일치로 인한 조용한 실패', { documentId: document.id });
+        return;
+      }
       handleError(err, {
         customMessage: '문서를 불러오지 못했습니다.',
         showToast: true
@@ -352,7 +456,12 @@ export function DocumentProvider({ children }) {
     } finally {
       setDocumentLoading(false);
     }
-  }, [currentWorkspace, currentDocument, documentLoading, handleError, setCurrentDocument, setDocumentLoading]);
+  }, [currentWorkspace, currentDocument, documentLoading, documents, handleError, setCurrentDocument, setDocumentLoading]);
+
+  // selectDocument를 ref에 저장하여 useEffect에서 사용 가능하도록 함
+  useEffect(() => {
+    selectDocumentRef.current = selectDocument;
+  }, [selectDocument]);
 
   const updateDocumentOrder = useCallback(async (documentIds) => {
     if (!currentWorkspace) return;
