@@ -48,6 +48,13 @@ const DummyDataTestPanel = ({ workspaceId }) => {
         const tableDocs = await getTableDocuments(workspaceId);
         setTableDocs(Array.isArray(tableDocs) ? tableDocs : []);
       } catch (e) {
+        // 403 Forbidden은 권한이 없는 정상적인 상황이므로 조용히 처리
+        if (e.response?.status === 403) {
+          console.debug('워크스페이스 접근 권한이 없습니다. 테이블 문서 목록을 조회할 수 없습니다.');
+          setTableDocs([]);
+          return;
+        }
+        // 다른 에러는 로그에 기록
         console.error('테이블 문서 목록 로드 실패:', e);
         setTableDocs([]);
       }
