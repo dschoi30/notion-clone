@@ -6,6 +6,7 @@ import com.example.notionclone.domain.permission.entity.PermissionStatus;
 import com.example.notionclone.domain.permission.entity.PermissionType;
 import com.example.notionclone.domain.permission.repository.PermissionRepository;
 import com.example.notionclone.domain.user.entity.User;
+import com.example.notionclone.domain.user.entity.UserRole;
 import com.example.notionclone.domain.workspace.entity.WorkspacePermission;
 import com.example.notionclone.domain.workspace.entity.WorkspacePermissionType;
 import com.example.notionclone.domain.workspace.entity.WorkspaceRole;
@@ -32,9 +33,14 @@ public class UnifiedPermissionService {
 
     /**
      * 문서 접근 권한 검증 (통합)
-     * 우선순위: 문서 소유자 > 문서별 권한 > 워크스페이스 역할 > 부모 문서 권한
+     * 우선순위: SUPER_ADMIN > 문서 소유자 > 문서별 권한 > 워크스페이스 역할 > 부모 문서 권한
      */
     public boolean hasDocumentAccess(User user, Document document, DocumentAccessLevel requiredLevel) {
+        // 0. SUPER_ADMIN은 모든 문서에 대한 모든 권한을 가짐
+        if (user.getRole() == UserRole.SUPER_ADMIN) {
+            return true;
+        }
+        
         // 1. 문서 소유자인지 확인
         if (document.getUser().getId().equals(user.getId())) {
             return true; // 소유자는 모든 권한
@@ -72,6 +78,11 @@ public class UnifiedPermissionService {
      * 워크스페이스 권한 검증
      */
     public boolean hasWorkspacePermission(User user, Long workspaceId, WorkspacePermissionType permission) {
+        // SUPER_ADMIN은 모든 워크스페이스에 대한 모든 권한을 가짐
+        if (user.getRole() == UserRole.SUPER_ADMIN) {
+            return true;
+        }
+        
         Optional<WorkspacePermission> workspacePermission = workspacePermissionRepository
                 .findByUserAndWorkspaceId(user, workspaceId);
         
