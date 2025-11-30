@@ -1350,7 +1350,7 @@
   - `frontend/src/components/documents/DocumentEditor.jsx`
 - **관련 이슈**: #92
 
-## 2025-11-17 (에러 처리 시스템 개선 및 권한 체크 강화)
+## 2025-11-17
 - **NotificationContext useEffect import 누락 수정**
   - `NotificationContext.jsx`에서 `useEffect`를 사용하지만 import하지 않아 발생한 ReferenceError 수정
   - React hooks import에 `useEffect` 추가
@@ -1360,14 +1360,5 @@
     - 403 에러 발생 시 상세 로깅 추가
   - `DocumentContext.jsx`: 403 에러에 대한 구체적인 에러 메시지 제공
     - "이 문서를 수정할 권한이 없습니다." 메시지 표시
-- **에러 처리 시스템 통일**
-  - `useErrorHandler.js`: `getToastMessageFromError` 함수 사용으로 통일
-    - `customMessage` 옵션 제거하여 중앙화된 에러 메시지 관리
-    - 모든 에러 메시지는 `errorUtils.js`의 함수를 통해 일관되게 처리
-  - `DocumentContext.jsx`: 모든 `customMessage` 제거 (6곳)
-    - 에러 처리는 `useErrorHandler`의 표준 로직 사용
-    - HTTP 상태 코드별 자동 메시지 표시
 - **영향**: 
   - 권한이 없는 사용자의 불필요한 API 호출 방지
-  - 일관된 에러 메시지 제공으로 사용자 경험 개선
-  - 에러 처리 로직 중앙화로 유지보수성 향상
