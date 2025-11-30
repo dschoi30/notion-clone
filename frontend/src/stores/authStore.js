@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, devtools } from 'zustand/middleware';
 import * as auth from '@/services/auth';
 import { createLogger } from '@/lib/logger';
 import { authSync } from '@/utils/authSync';
@@ -14,15 +14,52 @@ const clearTokens = () => {
   localStorage.removeItem('userId');
 };
 
+/**
+ * 사용자 데이터 정규화 (공통 로직)
+ * @param {Object} data - API 응답 데이터
+ * @returns {Object} 정규화된 사용자 데이터
+ */
+const normalizeUserData = (data) => ({
+  id: data.user.id,
+  email: data.user.email,
+  name: data.user.name,
+  profileImageUrl: data.user.profileImageUrl,
+  role: data.user.role
+});
+
+/**
+ * 인증 성공 후 공통 처리 로직
+ * @param {Object} userData - 정규화된 사용자 데이터
+ * @param {Function} set - Zustand set 함수
+ */
+const handleAuthSuccess = (userData, set) => {
+  set({ user: userData });
+  // persist 미들웨어가 자동으로 localStorage에 저장
+  // userId는 별도로 관리 필요 시 localStorage에 저장 (기존 로직 유지)
+  localStorage.setItem('userId', userData.id);
+  
+  // Sentry 사용자 컨텍스트 설정
+  setSentryUser(userData);
+  
+  // 다른 탭에 로그인 알림
+  authSync.notifyLogin(userData);
+};
+
 export const useAuthStore = create(
-  persist(
-    (set, get) => ({
+  devtools(
+    persist(
+      (set, get) => ({
       // 상태
       user: null,
       loading: false,
       error: null,
 
-      // 액션: 로그인
+      /**
+       * 이메일과 비밀번호로 로그인
+       * @param {string} email - 사용자 이메일
+       * @param {string} password - 사용자 비밀번호
+       * @returns {Promise<Object>} 사용자 데이터
+       */
       login: async (email, password) => {
         try {
           set({ loading: true, error: null });
@@ -31,22 +68,9 @@ export const useAuthStore = create(
           clearTokens();
           
           const data = await auth.login(email, password);
-          const userData = {
-            id: data.user.id,
-            email: data.user.email,
-            name: data.user.name,
-            profileImageUrl: data.user.profileImageUrl,
-            role: data.user.role
-          };
+          const userData = normalizeUserData(data);
           
-          set({ user: userData });
-          localStorage.setItem('userId', userData.id);
-          
-          // Sentry 사용자 컨텍스트 설정
-          setSentryUser(userData);
-          
-          // 다른 탭에 로그인 알림
-          authSync.notifyLogin(userData);
+          handleAuthSuccess(userData, set);
           
           return userData;
         } catch (err) {
@@ -59,7 +83,13 @@ export const useAuthStore = create(
         }
       },
 
-      // 액션: 회원가입
+      /**
+       * 새 사용자 회원가입
+       * @param {string} email - 사용자 이메일
+       * @param {string} password - 사용자 비밀번호
+       * @param {string} name - 사용자 이름
+       * @returns {Promise<Object>} 사용자 데이터
+       */
       register: async (email, password, name) => {
         try {
           set({ loading: true, error: null });
@@ -68,22 +98,9 @@ export const useAuthStore = create(
           clearTokens();
           
           const data = await auth.register(email, password, name);
-          const userData = {
-            id: data.user.id,
-            email: data.user.email,
-            name: data.user.name,
-            profileImageUrl: data.user.profileImageUrl,
-            role: data.user.role
-          };
+          const userData = normalizeUserData(data);
           
-          set({ user: userData });
-          localStorage.setItem('userId', userData.id);
-          
-          // Sentry 사용자 컨텍스트 설정
-          setSentryUser(userData);
-          
-          // 다른 탭에 로그인 알림
-          authSync.notifyLogin(userData);
+          handleAuthSuccess(userData, set);
           
           return userData;
         } catch (err) {
@@ -96,7 +113,11 @@ export const useAuthStore = create(
         }
       },
 
-      // 액션: 구글 로그인
+      /**
+       * Google OAuth를 통한 로그인
+       * @param {string} credential - Google OAuth credential
+       * @returns {Promise<Object>} 사용자 데이터
+       */
       loginWithGoogle: async (credential) => {
         try {
           set({ loading: true, error: null });
@@ -105,22 +126,9 @@ export const useAuthStore = create(
           clearTokens();
           
           const data = await auth.loginWithGoogle(credential);
-          const userData = {
-            id: data.user.id,
-            email: data.user.email,
-            name: data.user.name,
-            profileImageUrl: data.user.profileImageUrl,
-            role: data.user.role
-          };
+          const userData = normalizeUserData(data);
           
-          set({ user: userData });
-          localStorage.setItem('userId', userData.id);
-          
-          // Sentry 사용자 컨텍스트 설정
-          setSentryUser(userData);
-          
-          // 다른 탭에 로그인 알림
-          authSync.notifyLogin(userData);
+          handleAuthSuccess(userData, set);
           
           return userData;
         } catch (err) {
@@ -133,7 +141,10 @@ export const useAuthStore = create(
         }
       },
 
-      // 액션: 로그아웃
+      /**
+       * 사용자 로그아웃
+       * 토큰 제거 및 상태 초기화
+       */
       logout: () => {
         auth.logout();
         set({ user: null });
@@ -144,7 +155,10 @@ export const useAuthStore = create(
         authSync.notifyLogout('MANUAL_LOGOUT');
       },
 
-      // 액션: 사용자 정보 업데이트
+      /**
+       * 현재 사용자 정보 업데이트
+       * @param {Object} updatedUserData - 업데이트할 사용자 데이터
+       */
       updateUser: (updatedUserData) => {
         const currentUser = get().user;
         const userData = {
@@ -155,35 +169,36 @@ export const useAuthStore = create(
           role: updatedUserData.role
         };
         set({ user: userData });
-        localStorage.setItem('user', JSON.stringify(userData));
+        // persist 미들웨어가 자동으로 localStorage에 저장
+        // userId는 별도로 관리 필요 시 localStorage에 저장
+        if (userData.id) {
+          localStorage.setItem('userId', userData.id);
+        }
         setSentryUser(userData);
       },
 
-      // 액션: 에러 초기화
+      /**
+       * 에러 상태 초기화
+       */
       clearError: () => set({ error: null }),
-    }),
-    {
-      name: 'auth-storage',
-      partialize: (state) => ({ user: state.user }), // user만 persist
-    }
+      }),
+      {
+        name: 'auth-storage',
+        partialize: (state) => ({ user: state.user }), // user만 persist
+        // persist 복원 완료 후 Sentry 사용자 컨텍스트 설정
+        onRehydrateStorage: () => (state) => {
+          if (state?.user) {
+            setSentryUser(state.user);
+          }
+        },
+      }
+    ),
+    { name: 'AuthStore' }
   )
 );
 
-// 초기화: persist 미들웨어가 자동으로 localStorage에서 복원하므로
-// store가 생성된 후 user가 있으면 Sentry 설정
+// store 변경 감지하여 Sentry 동기화 (persist 복원 후에도 동작)
 if (typeof window !== 'undefined') {
-  // store가 생성된 직후에 한 번만 확인
-  const checkAndSetSentry = () => {
-    const state = useAuthStore.getState();
-    if (state.user) {
-      setSentryUser(state.user);
-    }
-  };
-  
-  // 약간의 지연 후 확인 (persist 미들웨어가 복원할 시간 필요)
-  setTimeout(checkAndSetSentry, 0);
-  
-  // store 변경 감지하여 Sentry 동기화
   useAuthStore.subscribe(
     (state) => state.user,
     (user) => {

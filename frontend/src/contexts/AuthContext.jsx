@@ -83,8 +83,13 @@ export function AuthProvider({ children }) {
         showToast: true
       });
       
-      // 에러 처리 후 에러 상태 초기화
-      clearError();
+      // 에러 처리 완료 후 다음 렌더링 사이클에서 에러 상태 초기화
+      // (에러 처리 로직이 완전히 실행된 후 clear)
+      const timeoutId = setTimeout(() => {
+        clearError();
+      }, 0);
+      
+      return () => clearTimeout(timeoutId);
     }
   }, [error, handleError, clearError]);
 
