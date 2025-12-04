@@ -72,7 +72,6 @@ export default function GoogleAuth() {
           { 
             theme: 'outline', 
             size: 'large', 
-            width: '100%',
             text: 'continue_with',
             shape: 'rectangular',
             locale: 'ko'
@@ -95,6 +94,12 @@ export default function GoogleAuth() {
   }, [handleGoogleLogin]);
 
   return (
-    <div ref={buttonContainerRef} id="googleButton" className="flex justify-center"></div>
+    <div ref={buttonContainerRef} id="googleButton" className="w-full flex justify-center">
+      <style>{`
+        #googleButton > div {
+          width: 100% !important;
+        }
+      `}</style>
+    </div>
   );
 }
