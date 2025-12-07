@@ -7,6 +7,7 @@ import * as documentApi from '@/services/documentApi';
 import { createLogger } from '@/lib/logger';
 import { useWorkspace } from './WorkspaceContext';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { useAuth } from './AuthContext';
 
 const DocumentContext = createContext();
 
@@ -58,6 +59,7 @@ export function DocumentProvider({ children }) {
   const rlog = createLogger('router');
   const queryClient = useQueryClient();
   const { currentWorkspace } = useWorkspace();
+  const { user } = useAuth();
   const { handleError } = useErrorHandler();
   const lastSelectRef = React.useRef({ id: null, at: 0 });
 
@@ -179,8 +181,9 @@ export function DocumentProvider({ children }) {
     
     autoSelectRef.current = true;
     
-    // 로컬 스토리지에서 해당 워크스페이스의 최근 문서 ID 조회
-    const lastDocumentId = localStorage.getItem(`lastDocumentId:${currentWorkspace.id}`);
+    // 로컬 스토리지에서 해당 사용자 및 워크스페이스의 최근 문서 ID 조회
+    const storageKey = user?.id ? `lastDocumentId:${user.id}:${currentWorkspace.id}` : null;
+    const lastDocumentId = storageKey ? localStorage.getItem(storageKey) : null;
     if (!lastDocumentId) {
       // 최근 문서가 없으면 첫 번째 문서 선택
       if (documents[0]) {
@@ -217,9 +220,11 @@ export function DocumentProvider({ children }) {
         });
       }
       // 유효하지 않은 최근 문서 ID 제거
-      localStorage.removeItem(`lastDocumentId:${currentWorkspace.id}`);
+      if (storageKey) {
+        localStorage.removeItem(storageKey);
+      }
     }
-  }, [currentWorkspace, documents, currentDocument, documentLoading]);
+  }, [currentWorkspace, documents, currentDocument, documentLoading, user]);
 
   // fetchDocuments 함수는 기존 API와 호환성을 위해 유지 (refetch로 동작)
   const fetchDocuments = useCallback(async (page = null, size = null) => {
@@ -447,6 +452,13 @@ export function DocumentProvider({ children }) {
       
       setCurrentDocument(fullDocument);
       lastSelectRef.current = { id: document.id, at: Date.now() };
+      
+      // 사용자별 마지막 문서 ID 저장 (lastDocumentId:${userId}:${workspaceId})
+      if (user?.id && currentWorkspace?.id) {
+        const storageKey = `lastDocumentId:${user.id}:${currentWorkspace.id}`;
+        localStorage.setItem(storageKey, String(document.id));
+        rlog.info('마지막 문서 저장', { userId: user.id, workspaceId: currentWorkspace.id, documentId: document.id });
+      }
     } catch (err) {
       rlog.error('문서 선택 실패', err, { documentId: document.id });
       // 워크스페이스 불일치 에러는 조용히 처리 (이미 DocumentEditor에서 리다이렉트 처리)
