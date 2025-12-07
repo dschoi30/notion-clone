@@ -397,6 +397,10 @@ const DocumentEditor = () => {
     return <div className="p-4 text-sm">선택된 문서가 없습니다.</div>;
   }
 
+  if (!currentWorkspace) {
+    return <div className="p-4 text-sm">워크스페이스를 불러오는 중...</div>;
+  }
+
   if (documentLoading) {
     return <div className="p-4 text-sm">문서 불러오는 중...</div>;
   }
