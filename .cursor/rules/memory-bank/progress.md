@@ -1362,3 +1362,44 @@
     - "이 문서를 수정할 권한이 없습니다." 메시지 표시
 - **영향**: 
   - 권한이 없는 사용자의 불필요한 API 호출 방지
+
+## 2025-11-18
+- **로그아웃 시 워크스페이스 상태 초기화 버그 수정**
+  - 문제: 기존 유저 로그아웃 후 다른 유저로 로그인 시 이전 유저의 워크스페이스가 workspacelist에 표시되는 문제
+  - 해결:
+    - `authStore.js`의 `logout()` 함수에 워크스페이스 관련 상태 초기화 로직 추가
+      - 워크스페이스 store의 persist storage 제거 (`workspace-storage`)
+      - `selectedWorkspace` localStorage 항목 제거
+      - 워크스페이스별 문서 관련 localStorage 항목 제거 (`lastDocumentId:*` 패턴)
+      - React Query 캐시 전체 초기화 (`queryClient.clear()`)
+    - `authSync.js`의 `handleAutoLogout()` 및 `handleLoginSuccess()` 함수에도 동일한 초기화 로직 추가
+      - 다른 탭에서 로그아웃/로그인 발생 시에도 워크스페이스 상태가 올바르게 초기화되도록 보장
+  - **수정 파일**:
+    - `frontend/src/stores/authStore.js`
+    - `frontend/src/utils/authSync.js`
+  - **영향**: 
+    - 로그아웃 후 다른 유저로 로그인 시 이전 유저의 워크스페이스가 표시되지 않음
+    - 브라우저 탭 간 인증 상태 동기화 시에도 워크스페이스 상태가 올바르게 초기화됨
+
+## 2025-11-18 (추가)
+- **사용자별 마지막 페이지 저장 및 복원 기능 구현**
+  - 문제: 로그아웃 후 재로그인 시 마지막에 봤던 페이지를 보게 하고 싶음
+  - 해결:
+    - `DocumentContext.jsx`의 `selectDocument` 함수에서 사용자별 마지막 문서 ID 저장
+      - 저장 형식: `lastDocumentId:${userId}:${workspaceId}`
+      - 문서 선택 시 자동으로 저장됨
+    - `AppRouter.jsx`에서 사용자별 마지막 문서 ID 조회 및 리다이렉트
+      - 로그인 후 `/` 경로 접근 시 저장된 마지막 문서로 자동 이동
+      - URL 검증 실패 시에도 마지막 문서로 리다이렉트
+    - 로그아웃 시 현재 사용자의 `lastDocumentId`만 삭제하도록 수정
+      - `authStore.js`와 `authSync.js`의 `clearWorkspaceData` 함수에 `userId` 파라미터 추가
+      - 로그아웃 시 `lastDocumentId:${userId}:*` 패턴만 삭제하여 다른 사용자의 데이터 보존
+  - **수정 파일**:
+    - `frontend/src/contexts/DocumentContext.jsx`
+    - `frontend/src/components/layout/AppRouter.jsx`
+    - `frontend/src/stores/authStore.js`
+    - `frontend/src/utils/authSync.js`
+  - **영향**: 
+    - 사용자별로 마지막에 본 문서가 저장되어 재로그인 시 해당 문서로 자동 이동
+    - 여러 사용자가 같은 브라우저를 사용해도 각자의 마지막 페이지가 유지됨
+    - 로그아웃 시 현재 사용자의 데이터만 삭제되어 다른 사용자 데이터 보존
