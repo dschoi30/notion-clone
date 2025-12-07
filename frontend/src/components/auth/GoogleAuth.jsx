@@ -8,6 +8,7 @@ export default function GoogleAuth() {
   const { loginWithGoogle } = useAuth();
   const isInitialized = useRef(false);
   const buttonContainerRef = useRef(null);
+  const containerWidthRef = useRef(null);
 
   const handleGoogleLogin = useCallback(async (response) => {
     try {
@@ -58,6 +59,11 @@ export default function GoogleAuth() {
           buttonContainerRef.current.innerHTML = '';
         }
 
+        // 컨테이너의 실제 픽셀 너비 계산
+        const containerWidth = buttonContainerRef.current.getBoundingClientRect().width;
+        const buttonWidth = Math.max(containerWidth || 400, 200);
+        containerWidthRef.current = buttonWidth;
+
         window.google.accounts.id.initialize({
           client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
           callback: handleGoogleLogin,
@@ -74,32 +80,76 @@ export default function GoogleAuth() {
             size: 'large', 
             text: 'continue_with',
             shape: 'rectangular',
-            locale: 'ko'
+            locale: 'ko',
+            width: Math.floor(buttonWidth) // 정수 픽셀 값으로 전달
           }
         );
 
         isInitialized.current = true;
+
+        // 초기화 완료 후 ResizeObserver 설정
+        setupResizeObserver();
       } catch (error) {
         console.error('Google Auth 초기화 실패:', error);
       }
     }
 
+    function setupResizeObserver() {
+      if (!buttonContainerRef.current) {
+        return;
+      }
+
+      const resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const newWidth = entry.contentRect.width;
+          const currentWidth = containerWidthRef.current;
+
+          // 너비가 10px 이상 변경되었을 때만 재렌더링 (성능 최적화)
+          if (currentWidth && Math.abs(newWidth - currentWidth) > 10) {
+            // 버튼 재렌더링
+            const existingButton = buttonContainerRef.current.querySelector('div[role="button"]');
+            if (existingButton && window.google?.accounts?.id) {
+              buttonContainerRef.current.innerHTML = '';
+              const buttonWidth = Math.max(newWidth || 400, 200);
+              window.google.accounts.id.renderButton(
+                buttonContainerRef.current,
+                { 
+                  theme: 'outline', 
+                  size: 'large', 
+                  text: 'continue_with',
+                  shape: 'rectangular',
+                  locale: 'ko',
+                  width: Math.floor(buttonWidth)
+                }
+              );
+              containerWidthRef.current = buttonWidth;
+            }
+          }
+        }
+      });
+
+      resizeObserver.observe(buttonContainerRef.current);
+
+      // cleanup 함수를 ref에 저장하여 나중에 호출할 수 있도록 함
+      buttonContainerRef.current._resizeObserver = resizeObserver;
+    }
+
     return () => {
       // 컴포넌트 언마운트 시 정리
       if (buttonContainerRef.current) {
+        // ResizeObserver 정리
+        if (buttonContainerRef.current._resizeObserver) {
+          buttonContainerRef.current._resizeObserver.disconnect();
+          delete buttonContainerRef.current._resizeObserver;
+        }
         buttonContainerRef.current.innerHTML = '';
       }
       isInitialized.current = false;
     };
   }, [handleGoogleLogin]);
-
+  
   return (
     <div ref={buttonContainerRef} id="googleButton" className="w-full flex justify-center">
-      <style>{`
-        #googleButton > div {
-          width: 100% !important;
-        }
-      `}</style>
     </div>
   );
 }
