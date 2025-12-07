@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useDocument } from '@/contexts/DocumentContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { createLogger } from '@/lib/logger';
 import { slugify } from '@/lib/utils';
 import DocumentEditor from '@/components/documents/DocumentEditor';
@@ -12,6 +13,7 @@ const rlog = createLogger('AppRouter');
 const AppRouter = () => {
   const { documents, documentsLoading, currentDocument } = useDocument();
   const { currentWorkspace, loading: workspaceLoading } = useWorkspace();
+  const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -36,7 +38,9 @@ const AppRouter = () => {
       return null;
     }
     
-    const lastId = localStorage.getItem(`lastDocumentId:${currentWorkspace.id}`);
+    // 사용자별 마지막 문서 ID 조회
+    const storageKey = user?.id ? `lastDocumentId:${user.id}:${currentWorkspace.id}` : null;
+    const lastId = storageKey ? localStorage.getItem(storageKey) : null;
     let doc = null;
     
     if (lastId) doc = documents.find(d => String(d.id) === String(lastId));
@@ -62,13 +66,15 @@ const AppRouter = () => {
         
         rlog.warn('url doc not in workspace, redirecting', { currentUrlDocId, workspaceId: currentWorkspace.id });
         
-        const lastId = localStorage.getItem(`lastDocumentId:${currentWorkspace.id}`);
+        // 사용자별 마지막 문서 ID 조회
+        const storageKey = user?.id ? `lastDocumentId:${user.id}:${currentWorkspace.id}` : null;
+        const lastId = storageKey ? localStorage.getItem(storageKey) : null;
         let targetDoc = null;
         
         if (lastId) {
           targetDoc = documents.find(d => String(d.id) === String(lastId));
-          if (!targetDoc) {
-            localStorage.removeItem(`lastDocumentId:${currentWorkspace.id}`);
+          if (!targetDoc && storageKey) {
+            localStorage.removeItem(storageKey);
           }
         }
         
@@ -81,13 +87,15 @@ const AppRouter = () => {
         }
       }
     } else if (location.pathname === '/') {
-      const lastId = localStorage.getItem(`lastDocumentId:${currentWorkspace.id}`);
+      // 사용자별 마지막 문서 ID 조회
+      const storageKey = user?.id ? `lastDocumentId:${user.id}:${currentWorkspace.id}` : null;
+      const lastId = storageKey ? localStorage.getItem(storageKey) : null;
       let targetDoc = null;
       
       if (lastId) {
         targetDoc = documents.find(d => String(d.id) === String(lastId));
-        if (!targetDoc) {
-          localStorage.removeItem(`lastDocumentId:${currentWorkspace.id}`);
+        if (!targetDoc && storageKey) {
+          localStorage.removeItem(storageKey);
         }
       }
       
@@ -99,7 +107,7 @@ const AppRouter = () => {
         navigateToCorrectDocument(targetDoc);
       }
     }
-  }, [currentWorkspace, documents, workspaceLoading, documentsLoading, currentDocument]);
+  }, [currentWorkspace, documents, workspaceLoading, documentsLoading, currentDocument, user]);
 
   const defaultPath = getDefaultDocPath();
 
