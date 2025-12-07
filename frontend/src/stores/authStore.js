@@ -4,6 +4,7 @@ import * as auth from '@/services/auth';
 import { createLogger } from '@/lib/logger';
 import { authSync } from '@/utils/authSync';
 import { setSentryUser } from '@/lib/sentry';
+import { queryClient } from '@/lib/queryClient';
 
 const alog = createLogger('authStore');
 
@@ -12,6 +13,32 @@ const clearTokens = () => {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('user');
   localStorage.removeItem('userId');
+};
+
+// 워크스페이스 관련 상태 초기화 함수
+const clearWorkspaceData = (userId = null) => {
+  // 워크스페이스 store의 persist storage 제거
+  localStorage.removeItem('workspace-storage');
+  // selectedWorkspace 제거
+  localStorage.removeItem('selectedWorkspace');
+  // 워크스페이스별 문서 관련 localStorage 항목들 제거
+  // 사용자별로 저장된 lastDocumentId:${userId}:${workspaceId} 패턴만 제거
+  if (userId) {
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith(`lastDocumentId:${userId}:`)) {
+        localStorage.removeItem(key);
+      }
+    });
+  } else {
+    // userId가 없으면 모든 lastDocumentId 패턴 제거 (기존 동작 유지)
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('lastDocumentId:')) {
+        localStorage.removeItem(key);
+      }
+    });
+  }
+  // React Query 캐시 초기화
+  queryClient.clear();
 };
 
 /**
@@ -146,13 +173,17 @@ export const useAuthStore = create(
        * 토큰 제거 및 상태 초기화
        */
       logout: () => {
+        const currentUserId = get().user?.id;
+        // 워크스페이스 관련 상태 초기화 (auth.logout() 전에 실행, 현재 사용자 ID 전달)
+        clearWorkspaceData(currentUserId);
+        
         auth.logout();
         set({ user: null });
         clearTokens();
         setSentryUser(null);
         
         // 다른 탭에 로그아웃 알림
-        authSync.notifyLogout('MANUAL_LOGOUT');
+        authSync.notifyLogout('MANUAL_LOGOUT', currentUserId);
       },
 
       /**
