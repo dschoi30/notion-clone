@@ -71,7 +71,7 @@ class AuthSync {
     alog.info('authSync handleAutoLogout:', { reason, userId, currentUserId });
     
     // userId가 있고, currentUserId가 있고, 둘이 다른 경우에만 무시
-    if (userId && currentUserId && userId !== currentUserId) {
+    if (userId && currentUserId && userId.toString() !== currentUserId) {
       // 다른 사용자의 세션 무효화이므로 현재 사용자는 영향받지 않음
       alog.info('다른 사용자의 세션 무효화 - 현재 사용자에게 영향 없음');
       return;
