@@ -475,7 +475,7 @@ export function DocumentProvider({ children }) {
     } finally {
       setDocumentLoading(false);
     }
-  }, [currentWorkspace, currentDocument, documentLoading, documents, handleError, setCurrentDocument, setDocumentLoading]);
+  }, [currentWorkspace, currentDocument, documentLoading, documents, handleError, setCurrentDocument, setDocumentLoading, user]);
 
   // selectDocument를 ref에 저장하여 useEffect에서 사용 가능하도록 함
   useEffect(() => {
