@@ -124,7 +124,7 @@ export function NotificationProvider({ children }) {
       const previous = queryClient.getQueryData(['notifications']);
       
       queryClient.setQueryData(['notifications'], (old = []) =>
-        old.map(n => n.id === id ? { ...n, isRead: true } : n)
+        old.map(n => n.id === id ? { ...n, status: 'READ' } : n)
       );
       
       return { previous };
