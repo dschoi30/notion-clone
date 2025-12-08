@@ -101,7 +101,7 @@ const Tooltip = ({ children, content, side = "top", className, delayDuration = 7
   }
 
   return (
-    <div className="inline-block relative">
+    <div className="relative">
       <div
         ref={triggerRef}
         onMouseEnter={handleMouseEnter}

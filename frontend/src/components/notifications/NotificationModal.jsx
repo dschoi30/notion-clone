@@ -136,7 +136,7 @@ export default function NotificationModal({ open, onClose }) {
                     
                     {/* 읽음 처리 아이콘 (호버 시 표시, absolute positioning) */}
                     {isUnread && isHovered && (
-                      <Tooltip content="읽음으로 표시" side="top">
+                      <Tooltip content="읽음으로 표시" side="bottom">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -150,7 +150,7 @@ export default function NotificationModal({ open, onClose }) {
                       </Tooltip>
                     )}
                     
-                    {n.type === 'INVITE' && n.status === 'UNREAD' && (
+                    {n.type === 'INVITE' && (n.status === 'UNREAD' || n.status === 'READ') && (
                       <div className="flex gap-2 mt-3 ml-11">
                         <Button size="sm" onClick={() => acceptNotification(n.id)}>수락</Button>
                         <Button size="sm" variant="outline" onClick={() => rejectNotification(n.id)}>거절</Button>
