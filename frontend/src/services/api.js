@@ -3,6 +3,7 @@ import axios from 'axios';
 import { authSync } from '@/utils/authSync';
 import { getToastMessageFromError } from '@/lib/errorUtils';
 import { createLogger } from '@/lib/logger';
+import { queryClient } from '@/lib/queryClient';
 const alog = createLogger('api');
 
 // Toast 메시지를 위한 전역 함수
@@ -14,7 +15,17 @@ export const setGlobalToast = (toastFn) => {
 
 // 토큰 제거 공통 함수
 const clearTokens = () => {
+  // 토큰 제거 전에 모든 쿼리를 즉시 취소하여 무한 호출 방지
+  try {
+    queryClient.cancelQueries();
+    queryClient.clear(); // 모든 쿼리 캐시 제거
+    alog.debug('토큰 제거 전 React Query 쿼리 취소 및 캐시 제거 완료');
+  } catch (err) {
+    alog.warn('React Query 쿼리 취소 실패', err);
+  }
+  
   localStorage.removeItem('accessToken');
+  localStorage.removeItem('auth-storage');
   localStorage.removeItem('user');
   localStorage.removeItem('userId');
 };
@@ -31,7 +42,7 @@ const handleAuthFailure = (error, reason = 'TOKEN_EXPIRED') => {
   // authSync.notifyLogout(reason, currentUserId);
   alog.debug(`${error.response?.status} 에러 - authSync 알림 비활성화`);
   
-  // 토큰 제거
+  // 토큰 제거 (내부에서 쿼리 취소도 처리됨)
   clearTokens();
   
   // Toast 메시지 표시
