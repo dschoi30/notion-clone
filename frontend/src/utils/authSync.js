@@ -84,6 +84,7 @@ class AuthSync {
     
     // 현재 사용자의 세션 무효화인 경우에만 로그아웃 처리
     localStorage.removeItem('accessToken');
+    localStorage.removeItem('auth-storage');
     localStorage.removeItem('user');
     localStorage.removeItem('userId');
 
@@ -109,6 +110,7 @@ class AuthSync {
       clearWorkspaceData(currentUserId);
       
       localStorage.removeItem('accessToken');
+      localStorage.removeItem('auth-storage');
       localStorage.removeItem('user');
       localStorage.removeItem('userId');
       

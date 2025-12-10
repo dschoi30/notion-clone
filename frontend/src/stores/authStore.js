@@ -11,6 +11,7 @@ const alog = createLogger('authStore');
 // 기존 토큰 제거 공통 함수
 const clearTokens = () => {
   localStorage.removeItem('accessToken');
+  localStorage.removeItem('auth-storage');
   localStorage.removeItem('user');
   localStorage.removeItem('userId');
 };

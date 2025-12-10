@@ -1403,3 +1403,54 @@
     - 사용자별로 마지막에 본 문서가 저장되어 재로그인 시 해당 문서로 자동 이동
     - 여러 사용자가 같은 브라우저를 사용해도 각자의 마지막 페이지가 유지됨
     - 로그아웃 시 현재 사용자의 데이터만 삭제되어 다른 사용자 데이터 보존
+
+## 2024-12-XX: 401 에러 시 API 무한 호출 문제 수정
+
+### 문제
+- 401 Unauthorized 에러 발생 시 React Query가 계속해서 API를 재호출하는 무한 루프 문제 발생
+- `refetchOnWindowFocus`와 `refetchOnReconnect`가 활성화되어 있어 401 에러 후에도 계속 재시도됨
+
+### 해결 방법
+1. **queryClient.js 수정**
+   - 401 에러 발생 시 `refetchOnWindowFocus`와 `refetchOnReconnect`를 비활성화하도록 함수형 옵션 추가
+   - `retry` 함수에서 401 에러는 즉시 재시도 중단하도록 명시
+   - `QueryCache.onError`에서 401 에러 발생 시 해당 쿼리 제거
+
+2. **api.js 수정**
+   - `handleAuthFailure` 함수에서 401 에러 발생 시 React Query의 모든 쿼리를 취소하고 캐시를 제거
+   - `queryClient`를 import하여 `cancelQueries()`와 `clear()` 호출
+
+3. **WorkspaceContext.jsx 수정**
+   - `useQuery`에 `enabled` 옵션 추가: 토큰이 있을 때만 쿼리 실행
+   - `retry` 옵션 추가: 401 에러 발생 시 즉시 재시도 중단
+
+### 수정된 파일
+- `frontend/src/lib/queryClient.js`
+- `frontend/src/services/api.js`
+- `frontend/src/contexts/WorkspaceContext.jsx`
+- `frontend/src/contexts/DocumentContext.jsx`
+- `frontend/src/contexts/NotificationContext.jsx`
+
+### 추가 수정 사항 (2차)
+- **DocumentContext.jsx**: `enabled` 옵션에 토큰 체크 추가, `retry` 옵션 추가
+- **NotificationContext.jsx**: `enabled` 옵션 추가 (토큰 체크), `retry` 옵션 추가
+- **queryClient.js**: `refetchOnWindowFocus`와 `refetchOnReconnect`에서 토큰이 없으면 리페칭하지 않도록 수정
+- **api.js**: `clearTokens` 함수에서 토큰 제거 전에 모든 쿼리를 즉시 취소하도록 수정
+
+### 영향
+- 401 에러 발생 시 즉시 재시도가 중단되어 무한 루프 방지
+- 토큰이 없는 상태에서는 모든 쿼리가 실행되지 않아 불필요한 API 호출 완전 차단
+- 사용자 경험 개선: 불필요한 API 호출 감소 및 에러 메시지 중복 표시 방지
+- 리다이렉트 전에 모든 쿼리가 취소되어 깔끔한 로그아웃 처리
+- 포커스 복귀나 네트워크 재연결 시에도 토큰이 없으면 자동 리페칭하지 않음
+
+## 2024-12-XX: 세션 만료 시 auth-storage 삭제 일관성 개선
+- **문제**: 세션 만료 시 `auth-storage` 삭제가 일부 경로에서 누락됨
+- **해결**:
+  - `authSync.js`의 `handleAutoLogout()` 함수에 `auth-storage` 제거 추가
+  - `authSync.js`의 `handleLoginSuccess()` 함수에 `auth-storage` 제거 추가
+  - `authStore.js`의 `clearTokens()` 함수에 `auth-storage` 제거 추가
+- **영향**: 
+  - 모든 로그아웃/세션 만료 경로에서 `auth-storage`가 일관되게 제거됨
+  - Zustand persist 스토리지와 인증 상태의 완전한 동기화 보장
+  - 세션 만료 시 인증 상태가 완전히 초기화되어 보안 강화
