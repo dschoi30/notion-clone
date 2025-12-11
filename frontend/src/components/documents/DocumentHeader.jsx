@@ -3,10 +3,13 @@ import { useUIStore } from '@/stores/uiStore';
 import { useShallow } from 'zustand/react/shallow';
 import UserBadge from '@/components/documents/shared/UserBadge';
 import { Button } from '@/components/ui/button';
+import { Tooltip } from '@/components/ui/tooltip';
 import VersionHistoryPanel from './VersionHistoryPanel';
 import DocumentSharePopover from './DocumentSharePopover';
 import { Z_INDEX } from '@/constants/zIndex';
 import { Lock, Unlock } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { hasWritePermission } from '@/utils/permissionUtils';
 
 export default function DocumentHeader({
   title,
@@ -31,11 +34,15 @@ export default function DocumentHeader({
       setShowVersionHistory: state.setShowVersionHistory
     }))
   );
+  const { user } = useAuth();
   const handleCloseVersions = useCallback(() => setShowVersionHistory(false), [setShowVersionHistory]);
   const isTableView = currentDocument?.viewType === 'TABLE';
   const paddingClasses = isTableView
     ? 'px-20'
     : 'px-6 sm:px-8 md:px-[10vw] lg:px-[14vw] xl:px-[18vw]';
+  
+  // 잠금 버튼 권한 체크
+  const canLockDocument = currentDocument && user ? hasWritePermission(currentDocument, user) : false;
   
   return (
     <div className="flex flex-col w-full">
@@ -51,7 +58,7 @@ export default function DocumentHeader({
         />
         {/* 문서 경로/공유/저장 상태/권한자 이니셜 영역을 fixed로 분리 */}
         <div 
-          className="flex fixed top-0 left-64 right-0 items-center justify-between px-4 py-2 bg-white backdrop-blur-sm"
+          className="flex fixed top-0 left-64 right-0 items-center justify-between px-4 py-2 bg-white"
           style={{ zIndex: Z_INDEX.FIXED }}
         >
           {/* 경로 표시 및 잠금 버튼 - 왼쪽 끝 */}
@@ -70,24 +77,30 @@ export default function DocumentHeader({
             )}
             {/* 잠금 버튼 */}
             {currentDocument && onLockToggle && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-sm text-gray-700 flex items-center gap-1"
-                onClick={onLockToggle}
+              <Tooltip 
+                content={!canLockDocument ? "문서를 잠금/해제할 권한이 없습니다" : null}
+                side="bottom"
               >
-                {currentDocument.isLocked ? (
-                  <>
-                    <Unlock className="w-4 h-4" />
-                    <span>잠금 해제</span>
-                  </>
-                ) : (
-                  <>
-                    <Lock className="w-4 h-4" />
-                    <span>잠금</span>
-                  </>
-                )}
-              </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-sm text-gray-700 flex items-center gap-1"
+                  onClick={onLockToggle}
+                  disabled={!canLockDocument}
+                >
+                  {currentDocument.isLocked ? (
+                    <>
+                      <Unlock className="w-4 h-4" />
+                      <span>잠금 해제</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-4 h-4" />
+                      <span>잠금</span>
+                    </>
+                  )}
+                </Button>
+              </Tooltip>
             )}
           </div>
           {/* 오른쪽 끝 요소들 */}
@@ -100,7 +113,7 @@ export default function DocumentHeader({
                 const uniqueKey = `${p.userId}-${p.email || ''}-${idx}`;
                 return (
                   <div key={uniqueKey} className={isPresent ? 'opacity-100' : 'opacity-40'}>
-                    <UserBadge name={p.name} email={p.email} profileImageUrl={p.profileImageUrl} size={32} showLabel={false} xOffset={-256} />
+                    <UserBadge name={p.name} email={p.email} profileImageUrl={p.profileImageUrl} size={32} showLabel={false} />
                   </div>
                 );
               })}
