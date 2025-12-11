@@ -52,7 +52,7 @@ const Tooltip = ({ children, content, side = "top", className, delayDuration = 7
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current)
     }
-    // setIsVisible(false)
+    setIsVisible(false)
   }, [])
 
   useEffect(() => {
