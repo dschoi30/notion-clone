@@ -1,20 +1,19 @@
-import * as React from "react"
+import React, { useState, useRef, useCallback, useEffect } from "react"
 import { cn } from "@/lib/utils"
 
 const Tooltip = ({ children, content, side = "top", className, delayDuration = 700, xOffset = 0, ...props }) => {
-  const [isVisible, setIsVisible] = React.useState(false)
-  const [position, setPosition] = React.useState({ x: 0, y: 0 })
-  const timeoutRef = React.useRef(null)
-  const triggerRef = React.useRef(null)
+  const [isVisible, setIsVisible] = useState(false)
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const timeoutRef = useRef(null)
+  const triggerRef = useRef(null)
 
-  const showTooltip = React.useCallback(() => {
+  const showTooltip = useCallback(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current)
     }
     timeoutRef.current = setTimeout(() => {
       if (triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect()
-        
         let x, y
         const offset = 8 // 툴팁과 요소 사이의 간격
         
@@ -49,14 +48,14 @@ const Tooltip = ({ children, content, side = "top", className, delayDuration = 7
     }, delayDuration)
   }, [delayDuration, side, xOffset])
 
-  const hideTooltip = React.useCallback(() => {
+  const hideTooltip = useCallback(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current)
     }
-    setIsVisible(false)
+    // setIsVisible(false)
   }, [])
 
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
@@ -64,11 +63,11 @@ const Tooltip = ({ children, content, side = "top", className, delayDuration = 7
     }
   }, [])
 
-  const handleMouseEnter = React.useCallback(() => {
+  const handleMouseEnter = useCallback(() => {
     showTooltip()
   }, [showTooltip])
 
-  const handleMouseLeave = React.useCallback(() => {
+  const handleMouseLeave = useCallback(() => {
     hideTooltip()
   }, [hideTooltip])
 
@@ -101,16 +100,15 @@ const Tooltip = ({ children, content, side = "top", className, delayDuration = 7
   }
 
   return (
-    <div className="relative">
+    <div className="inline-block relative">
       <div
         ref={triggerRef}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className="cursor-default"
+        className="inline-block w-100 h-100"
       >
         {children}
       </div>
-      
       {isVisible && (
         <div
           className={cn(

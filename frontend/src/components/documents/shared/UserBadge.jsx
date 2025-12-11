@@ -21,45 +21,52 @@ export default function UserBadge({ name, email, profileImageUrl, size = 20, sho
   const dimension = typeof size === 'number' ? `${size}px` : size;
   
   // 툴팁 내용 생성
-  const getTooltipContent = () => {
+  const tooltipContent = React.useMemo(() => {
     if (!name && !email) return null;
     if (name && email) {
       return (
         <>
           <div className="font-medium">{name}</div>
-          <div className="text-xs opacity-90">{email}</div>
+          <div className="text-xs opacity-90 mt-0.5">{email}</div>
         </>
       );
     }
-    return name || email;
-  };
-
-  const tooltipContent = getTooltipContent();
+    return <div>{name || email}</div>;
+  }, [name, email]);
+  
+  const badgeContent = (
+    <span className="inline-flex items-center gap-2 min-h-[20px] max-w-full overflow-hidden">
+      {profileImageUrl ? (
+        <img
+          src={profileImageUrl}
+          alt={name || email || 'user'}
+          style={{ width: dimension, height: dimension, borderRadius: '9999px', objectFit: 'cover' }}
+        />
+      ) : (
+        <span
+          aria-hidden
+          className="inline-flex justify-center items-center text-base font-bold text-white bg-blue-700 rounded-full opacity-60 select-none"
+          style={{ width: dimension, height: dimension, fontSize: '0.75rem' }}
+        >
+          {initials}
+        </span>
+      )}
+      {showLabel && (
+        <span className="text-sm text-gray-900 truncate">
+          {name || email || ''}
+        </span>
+      )}
+    </span>
+  );
+  
+  // 툴팁이 없으면 그냥 뱃지만 표시
+  if (!tooltipContent) {
+    return badgeContent;
+  }
   
   return (
     <Tooltip content={tooltipContent} side="bottom" xOffset={xOffset}>
-      <span className="inline-flex items-center gap-2 min-h-[20px] max-w-full overflow-hidden">
-        {profileImageUrl ? (
-          <img
-            src={profileImageUrl}
-            alt={name || email || 'user'}
-            style={{ width: dimension, height: dimension, borderRadius: '9999px', objectFit: 'cover' }}
-          />
-        ) : (
-          <span
-            aria-hidden
-            className="inline-flex justify-center items-center text-base font-bold text-white bg-blue-700 rounded-full opacity-60 select-none"
-            style={{ width: dimension, height: dimension, fontSize: '0.75rem' }}
-          >
-            {initials}
-          </span>
-        )}
-        {showLabel && (
-          <span className="text-sm text-gray-900 truncate">
-            {name || email || ''}
-          </span>
-        )}
-      </span>
+      {badgeContent}
     </Tooltip>
   );
 }
