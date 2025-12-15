@@ -1454,3 +1454,23 @@
   - 모든 로그아웃/세션 만료 경로에서 `auth-storage`가 일관되게 제거됨
   - Zustand persist 스토리지와 인증 상태의 완전한 동기화 보장
   - 세션 만료 시 인증 상태가 완전히 초기화되어 보안 강화
+
+## 2025-01-XX: TypeScript 점진적 도입 가이드 작성
+- **목적**: JavaScript 프로젝트를 TypeScript로 점진적으로 마이그레이션하기 위한 상세 가이드 작성
+- **작성 내용**:
+  - `docs/typescript-migration-guide.md` 생성
+  - 6단계 마이그레이션 계획 수립
+    - Phase 1: TypeScript 환경 설정
+    - Phase 2: 타입 정의 파일 생성
+    - Phase 3: 유틸리티 및 서비스 파일 마이그레이션
+    - Phase 4: 훅 및 컨텍스트 마이그레이션
+    - Phase 5: 컴포넌트 마이그레이션
+    - Phase 6: 타입 엄격도 강화
+  - TypeScript 기본 개념 및 학습 자료 포함
+  - 실전 마이그레이션 예제 제공 (utils, API, 컴포넌트, 훅 등)
+  - 베스트 프랙티스 및 문제 해결 가이드 포함
+  - 단계별 체크리스트 제공
+- **다음 단계**:
+  - [ ] Phase 1 실행: TypeScript 설치 및 tsconfig.json 설정
+  - [ ] Phase 2 실행: 공통 타입 정의 파일 생성
+  - [ ] 점진적 마이그레이션 시작
