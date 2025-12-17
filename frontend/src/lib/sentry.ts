@@ -1,11 +1,23 @@
-// src/lib/sentry.js
+// src/lib/sentry.ts
 import * as Sentry from '@sentry/react';
+import type { User } from '@/types';
+
+interface SentryContext {
+  tags?: Record<string, string>;
+  extra?: Record<string, unknown>;
+}
+
+interface SentryMessageOptions {
+  level?: 'info' | 'warning' | 'error';
+  tags?: Record<string, string>;
+  extra?: Record<string, unknown>;
+}
 
 /**
  * Sentry 초기화
  * 환경 변수에서 DSN을 가져와서 초기화합니다.
  */
-export function initSentry() {
+export function initSentry(): void {
   const environment = import.meta.env.MODE || 'dev';
   // 릴리즈 버전: 환경 변수 또는 package.json 버전 사용
   const release = import.meta.env.VITE_APP_VERSION || 'unknown';
@@ -26,7 +38,7 @@ export function initSentry() {
     console.log(`Sentry 초기화됨 (DSN: ${maskedDsn})`);
   }
 
-  const sentryOptions = {
+  const sentryOptions: Sentry.BrowserOptions = {
     dsn,
     environment,
     release,
@@ -74,49 +86,49 @@ export function initSentry() {
 
 /**
  * 사용자 컨텍스트 설정
- * @param {object} user - 사용자 정보 { id, email, username 등 }
+ * @param user - 사용자 정보 { id, email, username 등 }
  */
-export function setSentryUser(user) {
+export function setSentryUser(user: User | null): void {
   if (!user) {
     Sentry.setUser(null);
     return;
   }
 
   Sentry.setUser({
-    id: user.id?.toString(),
+    id: user.id.toString(),
     email: user.email,
-    username: user.username || user.name,
+    username: user.name,
   });
 }
 
 /**
  * 커스텀 태그 설정
- * @param {string} key - 태그 키
- * @param {string} value - 태그 값
+ * @param key - 태그 키
+ * @param value - 태그 값
  */
-export function setSentryTag(key, value) {
+export function setSentryTag(key: string, value: string): void {
   Sentry.setTag(key, value);
 }
 
 /**
  * 커스텀 컨텍스트 설정
- * @param {string} key - 컨텍스트 키
- * @param {object} context - 컨텍스트 데이터
+ * @param key - 컨텍스트 키
+ * @param context - 컨텍스트 데이터
  */
-export function setSentryContext(key, context) {
+export function setSentryContext(key: string, context: Record<string, unknown>): void {
   Sentry.setContext(key, context);
 }
 
 /**
  * 수동으로 에러 캡처
- * @param {Error} error - 에러 객체
- * @param {object} context - 추가 컨텍스트 { tags, extra 등 }
+ * @param error - 에러 객체
+ * @param context - 추가 컨텍스트 { tags, extra 등 }
  */
-export function captureException(error, context = {}) {
+export function captureException(error: unknown, context: SentryContext = {}): void {
   Sentry.withScope((scope) => {
     if (context.tags) {
       Object.keys(context.tags).forEach(key => {
-        scope.setTag(key, context.tags[key]);
+        scope.setTag(key, context.tags![key]);
       });
     }
     if (context.extra) {
@@ -128,11 +140,15 @@ export function captureException(error, context = {}) {
 
 /**
  * 커스텀 메시지 캡처
- * @param {string} message - 메시지
- * @param {string|object} levelOrOptions - 로그 레벨 (info, warning, error) 또는 옵션 객체
- * @param {object} options - 옵션 객체 (level이 문자열인 경우)
+ * @param message - 메시지
+ * @param levelOrOptions - 로그 레벨 (info, warning, error) 또는 옵션 객체
+ * @param options - 옵션 객체 (level이 문자열인 경우)
  */
-export function captureMessage(message, levelOrOptions = 'info', options = {}) {
+export function captureMessage(
+  message: string,
+  levelOrOptions: 'info' | 'warning' | 'error' | SentryMessageOptions = 'info',
+  options: SentryMessageOptions = {}
+): void {
   if (typeof levelOrOptions === 'object') {
     // 두 번째 인자가 옵션 객체인 경우
     const opts = levelOrOptions;
@@ -142,7 +158,7 @@ export function captureMessage(message, levelOrOptions = 'info', options = {}) {
       }
       if (opts.tags) {
         Object.keys(opts.tags).forEach(key => {
-          scope.setTag(key, opts.tags[key]);
+          scope.setTag(key, opts.tags![key]);
         });
       }
       if (opts.extra) {
@@ -155,4 +171,3 @@ export function captureMessage(message, levelOrOptions = 'info', options = {}) {
     Sentry.captureMessage(message, levelOrOptions);
   }
 }
-

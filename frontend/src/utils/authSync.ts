@@ -1,11 +1,20 @@
-// utils/authSync.js
+// utils/authSync.ts
 // 브라우저 탭 간 인증 상태 동기화를 위한 유틸리티
 import { createLogger } from '@/lib/logger';
 import { queryClient } from '@/lib/queryClient';
+import type { User } from '@/types';
+
 const alog = createLogger('authSync');
 
+interface AuthSyncMessage {
+  type: 'LOGOUT_REQUIRED' | 'LOGIN_SUCCESS';
+  reason?: string;
+  userId?: string | number | null;
+  user?: User;
+}
+
 // 워크스페이스 관련 상태 초기화 함수
-const clearWorkspaceData = (userId = null) => {
+const clearWorkspaceData = (userId: string | number | null = null): void => {
   // 워크스페이스 store의 persist storage 제거
   localStorage.removeItem('workspace-storage');
   // selectedWorkspace 제거
@@ -31,40 +40,44 @@ const clearWorkspaceData = (userId = null) => {
 };
 
 class AuthSync {
+  private channel: BroadcastChannel;
+
   constructor() {
     this.channel = new BroadcastChannel('auth-sync');
     this.setupListeners();
   }
   
-  setupListeners() {
-    this.channel.addEventListener('message', (event) => {
+  private setupListeners(): void {
+    this.channel.addEventListener('message', (event: MessageEvent<AuthSyncMessage>) => {
         switch (event.data.type) {
           case 'LOGOUT_REQUIRED':
             this.handleAutoLogout(event.data.reason, event.data.userId);
             break;
           case 'LOGIN_SUCCESS':
-            this.handleLoginSuccess(event.data.user);
+            if (event.data.user) {
+              this.handleLoginSuccess(event.data.user);
+            }
             break;
         }
     });
   }
   
-  notifyLogout(reason, userId = null) {
+  notifyLogout(reason: string, userId: string | number | null = null): void {
     this.channel.postMessage({
       type: 'LOGOUT_REQUIRED',
       reason: reason,
       userId: userId
-    });
+    } as AuthSyncMessage);
   }
   
-  notifyLogin(user) {
+  notifyLogin(user: User): void {
     this.channel.postMessage({
       type: 'LOGIN_SUCCESS',
       user: user
-    });
+    } as AuthSyncMessage);
   }
   
-  handleAutoLogout(reason, userId) {
+  private handleAutoLogout(reason: string | undefined, userId: string | number | null | undefined): void {
     // 현재 로그인한 사용자와 다른 사용자의 세션 무효화인지 확인
     const currentUserId = localStorage.getItem('userId');
     
@@ -98,7 +111,7 @@ class AuthSync {
     window.location.href = '/login';
   }
   
-  handleLoginSuccess(user) {
+  private handleLoginSuccess(user: User): void {
     // 다른 탭에서 로그인 성공 시 현재 탭도 동기화
     const currentUserId = localStorage.getItem('userId');
     
@@ -128,7 +141,7 @@ class AuthSync {
     }
   }
   
-  destroy() {
+  destroy(): void {
     this.channel.close();
   }
 }

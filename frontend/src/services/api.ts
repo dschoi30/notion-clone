@@ -1,20 +1,21 @@
-// services/api.js
-import axios from 'axios';
-import { authSync } from '@/utils/authSync';
-import { getToastMessageFromError } from '@/lib/errorUtils';
+// services/api.ts
+import axios, { type AxiosError, type InternalAxiosRequestConfig, type AxiosResponse } from 'axios';
+import { getToastMessageFromError, type ToastMessage } from '@/lib/errorUtils';
 import { createLogger } from '@/lib/logger';
 import { queryClient } from '@/lib/queryClient';
+
 const alog = createLogger('api');
 
 // Toast 메시지를 위한 전역 함수
-let globalToast = null;
+type ToastFunction = (message: ToastMessage) => void;
+let globalToast: ToastFunction | null = null;
 
-export const setGlobalToast = (toastFn) => {
+export const setGlobalToast = (toastFn: ToastFunction): void => {
   globalToast = toastFn;
 };
 
 // 토큰 제거 공통 함수
-const clearTokens = () => {
+const clearTokens = (): void => {
   // 토큰 제거 전에 모든 쿼리를 즉시 취소하여 무한 호출 방지
   try {
     queryClient.cancelQueries();
@@ -31,7 +32,7 @@ const clearTokens = () => {
 };
 
 // 인증 실패 공통 처리 함수
-const handleAuthFailure = (error, reason = 'TOKEN_EXPIRED') => {
+const handleAuthFailure = (error: AxiosError, reason: string = 'TOKEN_EXPIRED'): void => {
   alog.info(`${error.response?.status} 에러 발생 - ${reason} 처리 시작`);
   
   // 현재 사용자 ID 저장
@@ -64,7 +65,7 @@ const handleAuthFailure = (error, reason = 'TOKEN_EXPIRED') => {
 
 // 운영(Nginx) 및 개발(Vite proxy) 모두에서 '/' 상대 경로 사용을 우선
 // 필요 시 VITE_API_BASE_URL로 오버라이드
-const resolvedBaseURL = import.meta.env?.VITE_API_BASE_URL || '/';
+const resolvedBaseURL = import.meta.env.VITE_API_BASE_URL || '/';
 
 const api = axios.create({
   baseURL: resolvedBaseURL,
@@ -75,27 +76,24 @@ const api = axios.create({
 
 // Request interceptor
 api.interceptors.request.use(
-  (config) => {
+  (config: InternalAxiosRequestConfig) => {
     const currentUserId = localStorage.getItem('userId');
-    let token = null;
+    let token: string | null = null;
     
     alog.debug('API 요청 - 현재 사용자 ID:', currentUserId);
     
     // 기존 방식 사용
     token = localStorage.getItem('accessToken');
 
-    if (token) {
-      config.headers = {
-        ...config.headers,
-        Authorization: `Bearer ${token}`
-      };
+    if (token && config.headers) {
+      config.headers.set('Authorization', `Bearer ${token}`);
       alog.debug('토큰 설정 완료');
     } else {
       alog.debug('토큰 없음 - 인증되지 않은 요청');
     }
     return config;
   },
-  (error) => {
+  (error: AxiosError) => {
     // Request interceptor 에러는 드물지만 발생 시 로깅
     if (typeof window !== 'undefined' && window.Sentry) {
       window.Sentry.captureException(error);
@@ -106,10 +104,10 @@ api.interceptors.request.use(
 
 // Response interceptor
 api.interceptors.response.use(
-  (response) => {
+  (response: AxiosResponse) => {
     return response;
   },
-  async (error) => {
+  async (error: AxiosError) => {
     // Response error는 이미 alog로 처리되므로 여기서는 제거
     
     // 401 Unauthorized - 토큰 만료 또는 인증 실패
@@ -132,7 +130,7 @@ api.interceptors.response.use(
     // 500+ 서버 에러
     // 백엔드에서 이미 로그를 남기므로, 프론트엔드에서는 로그만 남기고
     // Grafana Loki + Promtail을 통해 백엔드 로그를 수집하는 것을 권장합니다.
-    if (error.response?.status >= 500) {
+    if (error.response?.status && error.response.status >= 500) {
       alog.error('서버 에러 발생', {
         status: error.response.status,
         url: error.config?.url,

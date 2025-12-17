@@ -52,7 +52,7 @@
 
 ## 단계별 실행 계획
 
-### Phase 1: TypeScript 환경 설정 (1주)
+### Phase 1: TypeScript 환경 설정
 
 #### 1.1 TypeScript 및 필수 패키지 설치
 ```bash
@@ -114,7 +114,7 @@ pnpm build
 
 ---
 
-### Phase 2: 타입 정의 파일 생성 (1-2주)
+### Phase 2: 타입 정의 파일 생성
 
 #### 2.1 공통 타입 정의 파일 생성
 **파일**: `src/types/index.ts`
@@ -251,7 +251,7 @@ export interface ApiError {
 
 ---
 
-### Phase 3: 유틸리티 및 서비스 파일 마이그레이션 (2-3주)
+### Phase 3: 유틸리티 및 서비스 파일 마이그레이션
 
 #### 3.1 우선순위 파일 목록
 1. `src/lib/utils.js` → `utils.ts`
@@ -310,7 +310,7 @@ export const getDocuments = async (workspaceId: number): Promise<Document[]> => 
 
 ---
 
-### Phase 4: 훅 및 컨텍스트 마이그레이션 (2-3주)
+### Phase 4: 훅 및 컨텍스트 마이그레이션
 
 #### 4.1 우선순위 파일 목록
 1. `src/hooks/useToast.js` → `useToast.ts`
@@ -431,7 +431,7 @@ export function useAuth(): AuthContextType {
 
 ---
 
-### Phase 5: 컴포넌트 마이그레이션 (4-6주)
+### Phase 5: 컴포넌트 마이그레이션
 
 #### 5.1 우선순위 파일 목록
 1. **UI 컴포넌트** (낮은 복잡도)
@@ -492,7 +492,7 @@ export function UserBadge({ user, showName = true }: UserBadgeProps) {
 
 ---
 
-### Phase 6: 타입 엄격도 강화 (2주)
+### Phase 6: 타입 엄격도 강화
 
 #### 6.1 tsconfig.json 엄격도 단계적 증가
 
@@ -1027,9 +1027,3 @@ import type { User } from '@/types';
 2. 코드 리뷰 시 타입 체크 강화
 3. 새로운 기능은 TypeScript로만 작성
 4. 점진적으로 엄격도 증가
-
----
-
-**작성일**: 2025-01-XX
-**작성자**: 개발팀
-**버전**: 1.0.0

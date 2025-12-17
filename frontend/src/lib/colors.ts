@@ -1,4 +1,11 @@
-export const TAG_COLORS = [
+export interface TagColor {
+  name: string;
+  value: string;
+  bg: string;
+  border: string;
+}
+
+export const TAG_COLORS: TagColor[] = [
   { name: '기본', value: 'default', bg: 'bg-gray-100', border: 'border-gray-300' },
   { name: '회색', value: 'gray', bg: 'bg-gray-200', border: 'border-gray-300' },
   { name: '갈색', value: 'brown', bg: 'bg-amber-100', border: 'border-amber-300' },
@@ -11,6 +18,6 @@ export const TAG_COLORS = [
   { name: '빨간색', value: 'red', bg: 'bg-red-100', border: 'border-red-300' },
 ];
 
-export function getColorObj(value) {
+export function getColorObj(value: string): TagColor {
   return TAG_COLORS.find(c => c.value === value) || TAG_COLORS[0];
-} 
+}
