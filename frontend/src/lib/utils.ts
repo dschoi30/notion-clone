@@ -1,13 +1,13 @@
-import { clsx } from "clsx";
-import { twMerge } from "tailwind-merge"
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 import dayjs from 'dayjs';
 import 'dayjs/locale/ko';
 
-export function cn(...inputs) {
+export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
-export function slugify(text) {
+export function slugify(text: string | number): string {
   return text
     .toString()
     .trim()
@@ -17,7 +17,7 @@ export function slugify(text) {
     .replace(/^-+|-+$/g, '');        // 양쪽 - 제거
 }
 
-export function formatKoreanDateTime(dt) {
+export function formatKoreanDateTime(dt: string | Date | null | undefined): string {
   if (!dt) return '';
   const d = dayjs(dt).locale('ko');
   const hour = d.hour();
@@ -28,7 +28,7 @@ export function formatKoreanDateTime(dt) {
 
 // 날짜 문자열에 시간이 포함되지 않으면 'YYYY년 M월 D일' 형식으로만 표기
 // 시간이 포함되면 formatKoreanDateTime 형식으로 표기
-export function formatKoreanDateSmart(dt) {
+export function formatKoreanDateSmart(dt: string | Date | null | undefined): string {
   if (!dt) return '';
   const hasTime = typeof dt === 'string' && dt.includes('T') && dt.split('T')[1].length >= 4;
   if (!hasTime) {

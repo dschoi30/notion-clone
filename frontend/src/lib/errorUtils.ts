@@ -3,17 +3,40 @@ import { createLogger } from './logger';
 
 const elog = createLogger('ErrorUtils');
 
-/**
- * 에러 객체를 사용자 친화적인 메시지로 변환
- * @param {Error|Object} error - 에러 객체
- * @returns {string} 사용자 친화적인 에러 메시지
- */
+export interface ToastMessage {
+  title: string;
+  description: string;
+  variant: 'default' | 'destructive';
+}
+
+interface ErrorResponse {
+  status?: number;
+  data?: unknown;
+}
+
+interface ApiError {
+  response?: ErrorResponse;
+  code?: string;
+  message?: string;
+  name?: string;
+  stack?: string;
+}
+
+// 타입 가드 함수: ApiError인지 확인
+function isApiError(error: unknown): error is ApiError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    ('response' in error || 'code' in error || 'message' in error)
+  );
+}
+
 /**
  * 에러 객체를 Toast 메시지 객체로 변환
- * @param {Error|Object} error - 에러 객체
- * @returns {Object} Toast 메시지 객체 { title, description, variant }
+ * @param error - 에러 객체
+ * @returns Toast 메시지 객체 { title, description, variant }
  */
-export const getToastMessageFromError = (error) => {
+export const getToastMessageFromError = (error: unknown): ToastMessage => {
   if (!error) {
     return {
       title: '오류 발생',
@@ -22,9 +45,20 @@ export const getToastMessageFromError = (error) => {
     };
   }
   
+  // 타입 가드를 사용하여 안전하게 처리
+  if (!isApiError(error)) {
+    return {
+      title: '오류 발생',
+      description: '일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.',
+      variant: 'destructive'
+    };
+  }
+  
+  const apiError = error;
+  
   // HTTP 상태 코드별 메시지
-  if (error.response?.status) {
-    switch (error.response.status) {
+  if (apiError.response?.status) {
+    switch (apiError.response.status) {
       case 400:
         return {
           title: '입력 오류',
@@ -91,7 +125,7 @@ export const getToastMessageFromError = (error) => {
   }
   
   // 네트워크 오류
-  if (error.code === 'NETWORK_ERROR' || error.message?.includes('Network Error')) {
+  if (apiError.code === 'NETWORK_ERROR' || apiError.message?.includes('Network Error')) {
     return {
       title: '네트워크 오류',
       description: '네트워크 연결을 확인해주세요.',
@@ -100,7 +134,7 @@ export const getToastMessageFromError = (error) => {
   }
   
   // 타임아웃 오류
-  if (error.code === 'TIMEOUT' || error.message?.includes('timeout')) {
+  if (apiError.code === 'TIMEOUT' || apiError.message?.includes('timeout')) {
     return {
       title: '요청 시간 초과',
       description: '요청 시간이 초과되었습니다. 다시 시도해주세요.',
@@ -111,17 +145,24 @@ export const getToastMessageFromError = (error) => {
   // 기본 에러 메시지
   return {
     title: '오류 발생',
-    description: error.message || '일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.',
+    description: apiError.message || '일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.',
     variant: 'destructive'
   };
 };
 
-export const getErrorMessageFromError = (error) => {
+export const getErrorMessageFromError = (error: unknown): string => {
   if (!error) return '알 수 없는 오류가 발생했습니다.';
   
+  // 타입 가드를 사용하여 안전하게 처리
+  if (!isApiError(error)) {
+    return '일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.';
+  }
+  
+  const apiError = error;
+  
   // HTTP 상태 코드별 메시지
-  if (error.response?.status) {
-    switch (error.response.status) {
+  if (apiError.response?.status) {
+    switch (apiError.response.status) {
       case 400:
         return '입력한 정보를 다시 확인해주세요.';
       case 401:
@@ -148,17 +189,17 @@ export const getErrorMessageFromError = (error) => {
   }
   
   // 네트워크 오류
-  if (error.code === 'NETWORK_ERROR' || error.message?.includes('Network Error')) {
+  if (apiError.code === 'NETWORK_ERROR' || apiError.message?.includes('Network Error')) {
     return '네트워크 연결을 확인해주세요.';
   }
   
   // 타임아웃 오류
-  if (error.code === 'TIMEOUT' || error.message?.includes('timeout')) {
+  if (apiError.code === 'TIMEOUT' || apiError.message?.includes('timeout')) {
     return '요청 시간이 초과되었습니다. 다시 시도해주세요.';
   }
   
   // 기타 에러 메시지
-  return error.message || '알 수 없는 오류가 발생했습니다.';
+  return apiError.message || '알 수 없는 오류가 발생했습니다.';
 };
 
 // 에러 타입 상수
@@ -170,10 +211,19 @@ export const ERROR_TYPES = {
   CHUNK_LOAD_ERROR: 'CHUNK_LOAD_ERROR',
   SECURITY_ERROR: 'SECURITY_ERROR',
   UNKNOWN_ERROR: 'UNKNOWN_ERROR'
-};
+} as const;
+
+type ErrorType = typeof ERROR_TYPES[keyof typeof ERROR_TYPES];
+
+interface ErrorMessage {
+  title: string;
+  description: string;
+  shouldRedirect: boolean;
+  redirectDelay?: number;
+}
 
 // 에러 메시지 템플릿
-const ERROR_MESSAGES = {
+const ERROR_MESSAGES: Record<ErrorType, ErrorMessage> = {
   [ERROR_TYPES.SESSION_EXPIRED]: {
     title: '로그인 세션이 만료되었습니다',
     description: '다시 로그인해주세요. 잠시 후 로그인 페이지로 이동합니다.',
@@ -216,7 +266,7 @@ const ERROR_MESSAGES = {
  * 안전한 localStorage 접근
  * @returns {Object} {token: string|null, user: string|null}
  */
-const getStoredAuthData = () => {
+const getStoredAuthData = (): { token: string | null; user: string | null } => {
   try {
     if (typeof window === 'undefined' || !window.localStorage) {
       return { token: null, user: null };
@@ -234,10 +284,10 @@ const getStoredAuthData = () => {
 
 /**
  * 에러 타입 분류
- * @param {Error} error - 에러 객체
- * @returns {string} 에러 타입
+ * @param error - 에러 객체
+ * @returns 에러 타입
  */
-const classifyError = (error) => {
+const classifyError = (error: unknown): ErrorType => {
   if (!error) return ERROR_TYPES.UNKNOWN_ERROR;
 
   // 세션 만료 에러 우선 체크
@@ -245,14 +295,16 @@ const classifyError = (error) => {
     return ERROR_TYPES.SESSION_EXPIRED;
   }
 
+  const err = error as Error;
+  
   // 에러 이름별 분류
-  switch (error.name) {
+  switch (err.name) {
     case 'ChunkLoadError':
       return ERROR_TYPES.CHUNK_LOAD_ERROR;
     
     case 'TypeError':
-      if (error.message?.includes('Cannot read properties') || 
-          error.message?.includes('Cannot read property')) {
+      if (err.message?.includes('Cannot read properties') || 
+          err.message?.includes('Cannot read property')) {
         return ERROR_TYPES.DATA_ERROR;
       }
       return ERROR_TYPES.SYSTEM_ERROR;
@@ -274,10 +326,10 @@ const classifyError = (error) => {
 
 /**
  * React 에러 객체를 사용자 친화적인 메시지로 변환
- * @param {Error} error - React 에러 객체
- * @returns {Object} {title: string, description: string, shouldRedirect: boolean, redirectDelay?: number}
+ * @param error - React 에러 객체
+ * @returns {title: string, description: string, shouldRedirect: boolean, redirectDelay?: number}
  */
-export const getReactErrorMessage = (error) => {
+export const getReactErrorMessage = (error: unknown): ErrorMessage => {
   const errorType = classifyError(error);
   const message = ERROR_MESSAGES[errorType];
   
@@ -290,10 +342,10 @@ export const getReactErrorMessage = (error) => {
 
 /**
  * 세션 만료 에러인지 확인
- * @param {Error} error - 에러 객체
- * @returns {boolean} 세션 만료 여부
+ * @param error - 에러 객체
+ * @returns 세션 만료 여부
  */
-export const isSessionExpiredError = (error) => {
+export const isSessionExpiredError = (error: unknown): boolean => {
   try {
     // 안전한 localStorage 접근
     const { token, user } = getStoredAuthData();
@@ -303,52 +355,59 @@ export const isSessionExpiredError = (error) => {
       return true;
     }
     
+    const err = error as ApiError;
+    
     // 에러 메시지에서 세션 관련 키워드 확인
     const sessionKeywords = [
       'session', 'token', 'auth', 'login', 'unauthorized', 'forbidden',
       '세션', '토큰', '인증', '로그인'
     ];
     
-    const errorMessage = error.message?.toLowerCase() || '';
+    const errorMessage = err.message?.toLowerCase() || '';
     const hasSessionKeyword = sessionKeywords.some(keyword => 
       errorMessage.includes(keyword)
     );
     
     // 스택 트레이스에서 API 호출 관련 에러 확인
-    const stackTrace = error.stack?.toLowerCase() || '';
+    const stackTrace = (err as Error).stack?.toLowerCase() || '';
     const hasApiCall = stackTrace.includes('api') || stackTrace.includes('fetch') || 
                       stackTrace.includes('axios') || stackTrace.includes('request');
     
     return hasSessionKeyword || (hasApiCall && !token);
-  } catch (error) {
-    elog.warn('세션 만료 체크 실패:', error);
+  } catch (err) {
+    elog.warn('세션 만료 체크 실패:', err);
     return false;
   }
 };
 
 /**
  * 에러 타입을 판별
- * @param {Error|Object} error - 에러 객체
- * @returns {string} 에러 타입 ('network', 'timeout', 'server', 'client', 'unknown')
+ * @param error - 에러 객체
+ * @returns 에러 타입 ('network', 'timeout', 'server', 'client', 'unknown')
  */
-export const getErrorType = (error) => {
+export const getErrorType = (error: unknown): 'network' | 'timeout' | 'server' | 'client' | 'unknown' => {
   if (!error) return 'unknown';
   
+  // 타입 가드를 사용하여 안전하게 처리
+  if (!isApiError(error)) return 'unknown';
+  
+  const apiError = error;
+  
   // 네트워크 오류
-  if (error.code === 'NETWORK_ERROR' || error.message?.includes('Network Error')) {
+  if (apiError.code === 'NETWORK_ERROR' || apiError.message?.includes('Network Error')) {
     return 'network';
   }
   
   // 타임아웃 오류
-  if (error.code === 'TIMEOUT' || error.message?.includes('timeout')) {
+  if (apiError.code === 'TIMEOUT' || apiError.message?.includes('timeout')) {
     return 'timeout';
   }
   
   // HTTP 상태 코드 기반 분류
-  if (error.response?.status) {
-    if (error.response.status >= 500) {
+  if (apiError.response?.status) {
+    if (apiError.response.status >= 500) {
       return 'server';
-    } else if (error.response.status >= 400) {
+    } else if (apiError.response.status >= 400) {
       return 'client';
     }
   }
@@ -358,19 +417,23 @@ export const getErrorType = (error) => {
 
 /**
  * 에러 심각도 판별
- * @param {Error|Object} error - 에러 객체
- * @returns {string} 심각도 ('low', 'medium', 'high', 'critical')
+ * @param error - 에러 객체
+ * @returns 심각도 ('low', 'medium', 'high', 'critical')
  */
-export const getErrorSeverity = (error) => {
+export const getErrorSeverity = (error: unknown): 'low' | 'medium' | 'high' | 'critical' => {
   if (!error) return 'medium';
   
+  if (!isApiError(error)) return 'medium';
+  
+  const apiError = error;
+  
   // 500+ 서버 에러는 높은 심각도
-  if (error.response?.status >= 500) {
+  if (apiError.response?.status && apiError.response.status >= 500) {
     return 'high';
   }
   
   // 401, 403 인증/권한 에러는 높은 심각도
-  if (error.response?.status === 401 || error.response?.status === 403) {
+  if (apiError.response?.status === 401 || apiError.response?.status === 403) {
     return 'high';
   }
   
@@ -380,7 +443,7 @@ export const getErrorSeverity = (error) => {
   }
   
   // 4xx 클라이언트 에러는 중간 심각도
-  if (error.response?.status >= 400) {
+  if (apiError.response?.status && apiError.response.status >= 400) {
     return 'medium';
   }
   
@@ -389,14 +452,18 @@ export const getErrorSeverity = (error) => {
 
 /**
  * 에러에 대한 재시도 가능 여부 판별
- * @param {Error|Object} error - 에러 객체
- * @returns {boolean} 재시도 가능 여부
+ * @param error - 에러 객체
+ * @returns 재시도 가능 여부
  */
-export const isRetryable = (error) => {
+export const isRetryable = (error: unknown): boolean => {
   if (!error) return false;
   
+  if (!isApiError(error)) return false;
+  
+  const apiError = error;
+  
   // 500+ 서버 에러는 재시도 가능
-  if (error.response?.status >= 500) {
+  if (apiError.response?.status && apiError.response.status >= 500) {
     return true;
   }
   
@@ -411,7 +478,7 @@ export const isRetryable = (error) => {
   }
   
   // 429 Too Many Requests는 재시도 가능
-  if (error.response?.status === 429) {
+  if (apiError.response?.status === 429) {
     return true;
   }
   
@@ -420,13 +487,17 @@ export const isRetryable = (error) => {
 
 /**
  * 에러에 대한 재시도 메시지 생성
- * @param {Error|Object} error - 에러 객체
- * @returns {string} 재시도 안내 메시지
+ * @param error - 에러 객체
+ * @returns 재시도 안내 메시지
  */
-export const getRetryMessage = (error) => {
+export const getRetryMessage = (error: unknown): string => {
   if (!error) return '다시 시도해주세요.';
   
-  if (error.response?.status >= 500) {
+  if (!isApiError(error)) return '다시 시도해주세요.';
+  
+  const apiError = error;
+  
+  if (apiError.response?.status && apiError.response.status >= 500) {
     return '서버에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.';
   }
   
@@ -438,7 +509,7 @@ export const getRetryMessage = (error) => {
     return '요청 시간이 초과되었습니다. 다시 시도해주세요.';
   }
   
-  if (error.response?.status === 429) {
+  if (apiError.response?.status === 429) {
     return '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.';
   }
   

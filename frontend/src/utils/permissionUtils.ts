@@ -1,25 +1,29 @@
 /**
  * 문서 권한 관련 유틸리티 함수
  */
+import type { Document, User, Permission } from '@/types';
 
 /**
  * 문서 소유자인지 확인
- * @param {Object} document - 문서 객체 (userId 필드 필요)
- * @param {Object} user - 사용자 객체 (id 필드 필요)
- * @returns {boolean} 소유자 여부
+ * @param document - 문서 객체 (userId 필드 필요)
+ * @param user - 사용자 객체 (id 필드 필요)
+ * @returns 소유자 여부
  */
-export function isDocumentOwner(document, user) {
+export function isDocumentOwner(document: Document | null | undefined, user: User | null | undefined): boolean {
   if (!document || !user) return false;
   return String(document.userId) === String(user.id);
 }
 
 /**
  * 사용자의 문서 권한 가져오기
- * @param {Object} document - 문서 객체 (permissions 배열 필요)
- * @param {Object} user - 사용자 객체 (id 필드 필요)
- * @returns {Object|null} 권한 객체 또는 null
+ * @param document - 문서 객체 (permissions 배열 필요)
+ * @param user - 사용자 객체 (id 필드 필요)
+ * @returns 권한 객체 또는 null
  */
-export function getUserPermission(document, user) {
+export function getUserPermission(
+  document: Document | null | undefined,
+  user: User | null | undefined
+): Permission | null {
   if (!document || !user || !document.permissions) return null;
   return document.permissions.find(p => String(p.userId) === String(user.id)) || null;
 }
@@ -27,11 +31,14 @@ export function getUserPermission(document, user) {
 /**
  * 문서에 대한 쓰기 권한이 있는지 확인
  * 소유자이거나 WRITE/OWNER 권한이 있는 경우 true
- * @param {Object} document - 문서 객체 (userId, permissions 필드 필요)
- * @param {Object} user - 사용자 객체 (id 필드 필요)
- * @returns {boolean} 쓰기 권한 여부
+ * @param document - 문서 객체 (userId, permissions 필드 필요)
+ * @param user - 사용자 객체 (id 필드 필요)
+ * @returns 쓰기 권한 여부
  */
-export function hasWritePermission(document, user) {
+export function hasWritePermission(
+  document: Document | null | undefined,
+  user: User | null | undefined
+): boolean {
   if (!document || !user) return false;
   
   // 소유자인지 확인
@@ -47,11 +54,14 @@ export function hasWritePermission(document, user) {
 /**
  * 문서에 대한 읽기 권한이 있는지 확인
  * 소유자이거나 READ/WRITE/OWNER 권한이 있는 경우 true
- * @param {Object} document - 문서 객체 (userId, permissions 필드 필요)
- * @param {Object} user - 사용자 객체 (id 필드 필요)
- * @returns {boolean} 읽기 권한 여부
+ * @param document - 문서 객체 (userId, permissions 필드 필요)
+ * @param user - 사용자 객체 (id 필드 필요)
+ * @returns 읽기 권한 여부
  */
-export function hasReadPermission(document, user) {
+export function hasReadPermission(
+  document: Document | null | undefined,
+  user: User | null | undefined
+): boolean {
   if (!document || !user) return false;
   
   // 소유자인지 확인
@@ -65,4 +75,3 @@ export function hasReadPermission(document, user) {
     || myPermission?.permissionType === 'WRITE' 
     || myPermission?.permissionType === 'OWNER';
 }
-

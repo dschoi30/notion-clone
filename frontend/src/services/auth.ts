@@ -1,11 +1,32 @@
 import api from './api';
 import { createLogger } from '@/lib/logger';
+import type { User } from '@/types';
 
 const log = createLogger('auth');
 
-export const login = async (email, password) => {
+interface LoginResponse {
+  accessToken: string;
+  user: User;
+}
+
+interface RegisterRequest {
+  email: string;
+  password: string;
+  name: string;
+}
+
+interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+interface GoogleLoginRequest {
+  credential: string;
+}
+
+export const login = async (email: string, password: string): Promise<LoginResponse> => {
   try {
-    const response = await api.post('/api/auth/login', { email, password });
+    const response = await api.post<LoginResponse>('/api/auth/login', { email, password } as LoginRequest);
     if (response.data.accessToken) {
       localStorage.setItem('accessToken', response.data.accessToken);
     }
@@ -16,9 +37,9 @@ export const login = async (email, password) => {
   }
 };
 
-export const register = async (email, password, name) => {
+export const register = async (email: string, password: string, name: string): Promise<LoginResponse> => {
   try {
-    const response = await api.post('/api/auth/register', { email, password, name });
+    const response = await api.post<LoginResponse>('/api/auth/register', { email, password, name } as RegisterRequest);
     if (response.data.accessToken) {
       localStorage.setItem('accessToken', response.data.accessToken);
     }
@@ -29,9 +50,9 @@ export const register = async (email, password, name) => {
   }
 };
 
-export const loginWithGoogle = async (credential) => {
+export const loginWithGoogle = async (credential: string): Promise<LoginResponse> => {
   try {
-    const response = await api.post('/api/auth/google', { credential });
+    const response = await api.post<LoginResponse>('/api/auth/google', { credential } as GoogleLoginRequest);
     
     if (response.data.accessToken) {
       localStorage.setItem('accessToken', response.data.accessToken);
@@ -44,7 +65,7 @@ export const loginWithGoogle = async (credential) => {
   }
 };
 
-export const logout = () => {
+export const logout = (): void => {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('user');
   localStorage.removeItem('userId');
@@ -52,9 +73,9 @@ export const logout = () => {
   window.location.href = '/login';
 };
 
-export const getCurrentUser = async () => {
+export const getCurrentUser = async (): Promise<User> => {
   try {
-    const response = await api.get('/api/users/me');
+    const response = await api.get<User>('/api/users/me');
     return response.data;
   } catch (error) {
     localStorage.removeItem('accessToken');
@@ -64,6 +85,6 @@ export const getCurrentUser = async () => {
   }
 };
 
-export const isAuthenticated = () => {
+export const isAuthenticated = (): boolean => {
   return !!localStorage.getItem('accessToken');
-}; 
+};
