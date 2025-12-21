@@ -207,6 +207,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [loginWithGoogle]);
 
+  const logoutWrapper = useCallback(async () => {
+    logout();
+  }, [logout]);
+
+  const updateUserWrapper = useCallback(async (userData: Partial<User>) => {
+    updateUser(userData);
+  }, [updateUser]);
+
   const value: AuthContextType = {
     user,
     loading,
@@ -214,8 +222,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     login: loginWrapper,
     register: registerWrapper,
     loginWithGoogle: loginWithGoogleWrapper,
-    logout,
-    updateUser
+    logout: logoutWrapper,
+    updateUser: updateUserWrapper
   };
 
   return (

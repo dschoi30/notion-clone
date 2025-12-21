@@ -33,7 +33,7 @@ interface WorkspacePermissions {
   VIEW_SHARED_DOCUMENT: 'VIEW_SHARED_DOCUMENT';
 }
 
-type PermissionType = WorkspacePermissions[keyof WorkspacePermissions];
+export type PermissionType = WorkspacePermissions[keyof WorkspacePermissions];
 
 /**
  * 워크스페이스 권한 관리 훅
