@@ -1,0 +1,121 @@
+import { useRef, useCallback, useEffect, useState } from 'react';
+
+/**
+ * 디바운싱 훅 - 연속된 호출을 지연시켜 마지막 호출만 실행
+ * @param callback - 실행할 함수
+ * @param delay - 지연 시간 (ms)
+ * @param deps - 의존성 배열
+ * @returns 디바운싱된 함수
+ */
+export function useDebounce<T extends (...args: any[]) => any>(
+  callback: T,
+  delay: number,
+  deps: any[] = []
+): (...args: Parameters<T>) => void {
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const debouncedCallback = useCallback(
+    (...args: Parameters<T>) => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      timeoutRef.current = setTimeout(() => {
+        callback(...args);
+      }, delay);
+    },
+    [callback, delay, ...deps]
+  );
+
+  // 컴포넌트 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  return debouncedCallback;
+}
+
+interface UseDebounceAdvancedOptions {
+  immediate?: boolean;
+}
+
+/**
+ * 디바운싱 훅 (고급) - 즉시 실행 옵션 지원
+ * @param callback - 실행할 함수
+ * @param delay - 지연 시간 (ms)
+ * @param options - 옵션
+ * @param options.immediate - 첫 번째 호출 즉시 실행
+ * @param deps - 의존성 배열
+ * @returns 디바운싱된 함수
+ */
+export function useDebounceAdvanced<T extends (...args: any[]) => any>(
+  callback: T,
+  delay: number,
+  options: UseDebounceAdvancedOptions = {},
+  deps: any[] = []
+): (...args: Parameters<T>) => void {
+  const { immediate = false } = options;
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasBeenCalled = useRef<boolean>(false);
+
+  const debouncedCallback = useCallback(
+    (...args: Parameters<T>) => {
+      const callNow = immediate && !hasBeenCalled.current;
+      
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      if (callNow) {
+        callback(...args);
+        hasBeenCalled.current = true;
+      } else {
+        timeoutRef.current = setTimeout(() => {
+          callback(...args);
+          hasBeenCalled.current = true;
+        }, delay);
+      }
+    },
+    [callback, delay, immediate, ...deps]
+  );
+
+  // 컴포넌트 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  return debouncedCallback;
+}
+
+/**
+ * 디바운싱된 값 훅 - 값 변경을 디바운싱
+ * @param value - 디바운싱할 값
+ * @param delay - 지연 시간 (ms)
+ * @returns 디바운싱된 값
+ */
+export function useDebouncedValue<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
+export default useDebounce;
+

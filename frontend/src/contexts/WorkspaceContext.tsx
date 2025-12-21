@@ -1,15 +1,33 @@
-import React, { createContext, useContext, useCallback, useEffect } from 'react';
+import { createContext, useContext, useCallback, useEffect, ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useShallow } from 'zustand/react/shallow';
 import * as workspaceApi from '@/services/workspaceApi';
 import { createLogger } from '@/lib/logger';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
+import type { Workspace } from '@/types';
+import type { CreateWorkspaceRequest } from '@/services/workspaceApi';
 
-const WorkspaceContext = createContext();
+interface WorkspaceContextType {
+  workspaces: Workspace[];
+  currentWorkspace: Workspace | null;
+  loading: boolean;
+  error: string | null;
+  isSettingsPanelOpen: boolean;
+  setIsSettingsPanelOpen: (open: boolean) => void;
+  isSearchModalOpen: boolean;
+  setIsSearchModalOpen: (open: boolean) => void;
+  fetchWorkspaces: () => Promise<void>;
+  createWorkspace: (workspaceData: CreateWorkspaceRequest) => Promise<Workspace>;
+  updateWorkspace: (id: number, workspaceData: Partial<Workspace>) => Promise<void>;
+  deleteWorkspace: (id: number) => Promise<void>;
+  selectWorkspace: (workspace: Workspace) => void;
+}
+
+const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 const wlog = createLogger('WorkspaceContext');
 
-export function useWorkspace() {
+export function useWorkspace(): WorkspaceContextType {
   const context = useContext(WorkspaceContext);
   if (!context) {
     throw new Error('useWorkspace must be used within a WorkspaceProvider');
@@ -17,7 +35,11 @@ export function useWorkspace() {
   return context;
 }
 
-export function WorkspaceProvider({ children }) {
+interface WorkspaceProviderProps {
+  children: ReactNode;
+}
+
+export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
   const queryClient = useQueryClient();
   const { handleError } = useErrorHandler();
 
@@ -50,14 +72,14 @@ export function WorkspaceProvider({ children }) {
     isLoading: loading,
     error: workspacesError,
     refetch: refetchWorkspaces,
-  } = useQuery({
+  } = useQuery<Workspace[]>({
     queryKey: ['workspaces'],
     queryFn: async () => {
-      wlog.info(`🔄 fetchWorkspaces 시작`);
+      wlog.info(`fetchWorkspaces 시작`);
       const data = await workspaceApi.getAccessibleWorkspaces();
       const filtered = Array.isArray(data) ? data.filter(ws => !ws.isTrashed) : [];
-      wlog.info(`📋 워크스페이스 목록 로드:`, filtered.map(ws => `${ws.id}(${ws.name})`).join(', '));
-      wlog.info(`✅ fetchWorkspaces 완료: ${filtered.length}개 워크스페이스`);
+      wlog.info(`워크스페이스 목록 로드:`, filtered.map(ws => `${ws.id}(${ws.name})`).join(', '));
+      wlog.info(`fetchWorkspaces 완료: ${filtered.length}개 워크스페이스`);
       return filtered;
     },
     staleTime: 1000 * 60 * 5, // 5분 - 워크스페이스는 자주 변경되지 않음
@@ -76,28 +98,28 @@ export function WorkspaceProvider({ children }) {
 
   // React Query 데이터를 로컬 변수로 동기화
   const workspaces = workspacesData || [];
-  const error = workspacesError?.message || null;
+  const error = workspacesError instanceof Error ? workspacesError.message : (workspacesError ? String(workspacesError) : null);
 
   // workspaces 목록이 로드되면 자동으로 currentWorkspace 설정
   useEffect(() => {
     const savedId = localStorage.getItem('selectedWorkspace');
-    wlog.info(`🏢 WorkspaceContext - savedId: ${savedId}, workspaces.length: ${workspaces.length}`);
-    wlog.info(`🏢 현재 workspaces:`, workspaces.map(ws => `${ws.id}(${ws.name})`).join(', '));
+    wlog.info(`WorkspaceContext - savedId: ${savedId}, workspaces.length: ${workspaces.length}`);
+    wlog.info(`현재 workspaces:`, workspaces.map(ws => `${ws.id}(${ws.name})`).join(', '));
     
     if (workspaces.length > 0 && !currentWorkspace) {
       if (savedId) {
         const found = workspaces.find(ws => String(ws.id) === String(savedId));
-        wlog.info(`🔍 savedId ${savedId}로 찾은 워크스페이스:`, found ? `${found.id}(${found.name})` : 'null');
+        wlog.info(`savedId ${savedId}로 찾은 워크스페이스:`, found ? `${found.id}(${found.name})` : 'null');
         
         if (found) {
-          wlog.info(`✅ 워크스페이스 설정: ${found.id}(${found.name})`);
+          wlog.info(`워크스페이스 설정: ${found.id}(${found.name})`);
           selectWorkspaceStore(found);
         } else {
-          wlog.info(`⚠️ 저장된 워크스페이스 못 찾음. 첫 번째 워크스페이스 사용: ${workspaces[0].id}(${workspaces[0].name})`);
+          wlog.info(`저장된 워크스페이스 못 찾음. 첫 번째 워크스페이스 사용: ${workspaces[0].id}(${workspaces[0].name})`);
           selectWorkspaceStore(workspaces[0]);
         }
       } else {
-        wlog.info(`📝 저장된 워크스페이스 없음. 첫 번째 워크스페이스 사용: ${workspaces[0].id}(${workspaces[0].name})`);
+        wlog.info(`저장된 워크스페이스 없음. 첫 번째 워크스페이스 사용: ${workspaces[0].id}(${workspaces[0].name})`);
         selectWorkspaceStore(workspaces[0]);
       }
     }
@@ -108,12 +130,12 @@ export function WorkspaceProvider({ children }) {
     await refetchWorkspaces();
   }, [refetchWorkspaces]);
 
-  const createWorkspace = useCallback(async (workspaceData) => {
+  const createWorkspace = useCallback(async (workspaceData: CreateWorkspaceRequest) => {
     try {
       const newWorkspace = await workspaceApi.createWorkspace(workspaceData);
       
       // React Query 캐시에 새 워크스페이스 추가
-      queryClient.setQueryData(['workspaces'], (oldData) => {
+      queryClient.setQueryData<Workspace[]>(['workspaces'], (oldData) => {
         if (!oldData) return [newWorkspace];
         return [...oldData, newWorkspace];
       });
@@ -129,12 +151,12 @@ export function WorkspaceProvider({ children }) {
     }
   }, [queryClient, handleError]);
 
-  const updateWorkspace = useCallback(async (id, workspaceData) => {
+  const updateWorkspace = useCallback(async (id: number, workspaceData: Partial<Workspace>) => {
     try {
       const updatedWorkspace = await workspaceApi.updateWorkspace(id, workspaceData);
       
       // React Query 캐시 업데이트
-      queryClient.setQueryData(['workspaces'], (oldData) => {
+      queryClient.setQueryData<Workspace[]>(['workspaces'], (oldData) => {
         if (!oldData) return oldData;
         return oldData.map(workspace => 
           workspace.id === id ? updatedWorkspace : workspace
@@ -155,12 +177,12 @@ export function WorkspaceProvider({ children }) {
     }
   }, [currentWorkspace, queryClient, handleError, updateCurrentWorkspace]);
 
-  const deleteWorkspace = useCallback(async (id) => {
+  const deleteWorkspace = useCallback(async (id: number) => {
     try {
       await workspaceApi.softDeleteWorkspace(id);
       
       // React Query 캐시에서 워크스페이스 제거
-      queryClient.setQueryData(['workspaces'], (oldData) => {
+      queryClient.setQueryData<Workspace[]>(['workspaces'], (oldData) => {
         if (!oldData) return oldData;
         return oldData.filter(workspace => workspace.id !== id);
       });
@@ -185,17 +207,17 @@ export function WorkspaceProvider({ children }) {
   }, [currentWorkspace, workspaces, queryClient, handleError, selectWorkspaceStore, clearCurrentWorkspace]);
 
   // 기존 API와 호환성을 위한 selectWorkspace 래퍼
-  const selectWorkspace = useCallback((workspace) => {
+  const selectWorkspace = useCallback((workspace: Workspace) => {
     selectWorkspaceStore(workspace);
     // localStorage는 persist 미들웨어가 자동으로 처리하지만, 
     // 기존 코드와의 호환성을 위해 명시적으로 저장
     if (workspace?.id) {
-      localStorage.setItem('selectedWorkspace', workspace.id);
-      wlog.info(`💾 localStorage 저장: selectedWorkspace = ${workspace.id}`);
+      localStorage.setItem('selectedWorkspace', String(workspace.id));
+      wlog.info(`localStorage 저장: selectedWorkspace = ${workspace.id}`);
     }
   }, [selectWorkspaceStore]);
 
-  const value = {
+  const value: WorkspaceContextType = {
     workspaces,
     currentWorkspace,
     loading,
@@ -217,3 +239,4 @@ export function WorkspaceProvider({ children }) {
     </WorkspaceContext.Provider>
   );
 }
+

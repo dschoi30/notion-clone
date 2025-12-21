@@ -11,7 +11,7 @@ export async function getWorkspace(id: number): Promise<Workspace> {
   return response.data;
 }
 
-interface CreateWorkspaceRequest {
+export interface CreateWorkspaceRequest {
   name: string;
   iconUrl?: string;
   parentId?: number;

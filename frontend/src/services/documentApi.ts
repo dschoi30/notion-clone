@@ -12,12 +12,13 @@ export async function getDocuments(workspaceId: number): Promise<Document[]> {
 }
 
 // 문서 목록 조회 (경량 버전 - DocumentList용, 페이지네이션 지원)
+// 페이지네이션 파라미터가 없으면 배열을 반환하고, 있으면 PaginatedResponse를 반환
 export async function getDocumentList(
   workspaceId: number,
   page: number | null = null,
   size: number | null = null,
   sort: string = 'sortOrder,asc'
-): Promise<PaginatedResponse<Document>> {
+): Promise<PaginatedResponse<Document> | Document[]> {
   const params: Record<string, unknown> = {};
   if (page !== null && size !== null) {
     params.page = page;
@@ -25,7 +26,11 @@ export async function getDocumentList(
     params.sort = sort;
   }
   
-  const response = await api.get<PaginatedResponse<Document>>(`/api/workspaces/${workspaceId}/documents/list`, { params });
+  // 페이지네이션 파라미터가 있으면 PaginatedResponse, 없으면 배열
+  const response = await api.get<PaginatedResponse<Document> | Document[]>(
+    `/api/workspaces/${workspaceId}/documents/list`, 
+    { params }
+  );
   return response.data;
 }
 
@@ -56,7 +61,7 @@ export async function getDocument(workspaceId: number, documentId: number): Prom
   return response.data;
 }
 
-interface CreateDocumentRequest {
+export interface CreateDocumentRequest {
   title: string;
   content?: string;
   viewType?: 'PAGE' | 'TABLE' | 'GALLERY';
