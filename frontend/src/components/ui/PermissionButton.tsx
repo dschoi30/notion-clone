@@ -1,5 +1,16 @@
-import React from 'react';
+import { ButtonHTMLAttributes, ReactNode, MouseEvent } from 'react';
 import { useWorkspacePermissions } from '../../hooks/useWorkspacePermissions';
+
+interface PermissionButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  children: ReactNode;
+  permission?: string;
+  permissions?: string[];
+  requireAll?: boolean;
+  workspaceId?: number;
+  disabled?: boolean;
+  onClick?: (event: MouseEvent<HTMLButtonElement>) => void;
+  className?: string;
+}
 
 /**
  * 권한 기반 버튼 컴포넌트
@@ -15,7 +26,7 @@ const PermissionButton = ({
     onClick,
     className = '',
     ...props 
-}) => {
+}: PermissionButtonProps) => {
     const { hasPermission, hasAnyPermission, hasAllPermissions } = useWorkspacePermissions(workspaceId);
     
     let hasRequiredPermission = false;

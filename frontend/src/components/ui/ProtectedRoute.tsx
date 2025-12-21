@@ -1,6 +1,16 @@
-import React from 'react';
+import { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useWorkspacePermissions } from '../../hooks/useWorkspacePermissions';
+
+interface ProtectedRouteProps {
+  children: ReactNode;
+  permission?: string;
+  permissions?: string[];
+  requireAll?: boolean;
+  workspaceId?: number;
+  redirectTo?: string;
+  fallback?: ReactNode;
+}
 
 /**
  * 권한 기반 보호된 라우트 컴포넌트
@@ -14,7 +24,7 @@ const ProtectedRoute = ({
     workspaceId,
     redirectTo = '/unauthorized',
     fallback = null 
-}) => {
+}: ProtectedRouteProps) => {
     const { hasPermission, hasAnyPermission, hasAllPermissions, loading } = useWorkspacePermissions(workspaceId);
     
     // 로딩 중일 때는 로딩 표시
@@ -44,7 +54,7 @@ const ProtectedRoute = ({
     }
     
     if (hasRequiredPermission) {
-        return children;
+        return <>{children}</>;
     }
     
     // 권한이 없는 경우 리다이렉트 또는 폴백 렌더링
@@ -52,7 +62,7 @@ const ProtectedRoute = ({
         return <Navigate to={redirectTo} replace />;
     }
     
-    return fallback || (
+    return <>{fallback || (
         <div className="flex items-center justify-center min-h-screen">
             <div className="text-center">
                 <h1 className="text-2xl font-bold text-gray-900 mb-4">접근 권한이 없습니다</h1>
@@ -65,7 +75,7 @@ const ProtectedRoute = ({
                 </button>
             </div>
         </div>
-    );
+    )}</>;
 };
 
 export default ProtectedRoute;

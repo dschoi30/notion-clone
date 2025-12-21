@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, ReactNode } from "react"
 
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 3000
@@ -28,6 +28,7 @@ export interface Toast {
   duration?: number
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  action?: ReactNode
 }
 
 interface ToastState {
