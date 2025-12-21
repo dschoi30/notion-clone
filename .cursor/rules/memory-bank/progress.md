@@ -1404,7 +1404,7 @@
     - 여러 사용자가 같은 브라우저를 사용해도 각자의 마지막 페이지가 유지됨
     - 로그아웃 시 현재 사용자의 데이터만 삭제되어 다른 사용자 데이터 보존
 
-## 2024-12-XX: 401 에러 시 API 무한 호출 문제 수정
+## 2024-12-11: 401 에러 시 API 무한 호출 문제 수정
 
 ### 문제
 - 401 Unauthorized 에러 발생 시 React Query가 계속해서 API를 재호출하는 무한 루프 문제 발생
@@ -1444,7 +1444,7 @@
 - 리다이렉트 전에 모든 쿼리가 취소되어 깔끔한 로그아웃 처리
 - 포커스 복귀나 네트워크 재연결 시에도 토큰이 없으면 자동 리페칭하지 않음
 
-## 2024-12-XX: 세션 만료 시 auth-storage 삭제 일관성 개선
+## 2024-12-11: 세션 만료 시 auth-storage 삭제 일관성 개선
 - **문제**: 세션 만료 시 `auth-storage` 삭제가 일부 경로에서 누락됨
 - **해결**:
   - `authSync.js`의 `handleAutoLogout()` 함수에 `auth-storage` 제거 추가
@@ -1455,7 +1455,7 @@
   - Zustand persist 스토리지와 인증 상태의 완전한 동기화 보장
   - 세션 만료 시 인증 상태가 완전히 초기화되어 보안 강화
 
-## 2025-01-XX: TypeScript 점진적 도입 가이드 작성
+## 2025-12-16: TypeScript 점진적 도입 가이드 작성
 - **목적**: JavaScript 프로젝트를 TypeScript로 점진적으로 마이그레이션하기 위한 상세 가이드 작성
 - **작성 내용**:
   - `docs/typescript-migration-guide.md` 생성
@@ -1474,3 +1474,33 @@
   - [ ] Phase 1 실행: TypeScript 설치 및 tsconfig.json 설정
   - [ ] Phase 2 실행: 공통 타입 정의 파일 생성
   - [ ] 점진적 마이그레이션 시작
+
+## 2025-12-21: AGENTS.md 시스템 구축 완료
+- **목적**: AI 에이전트를 위한 중앙 통제 및 위임 구조의 규칙 시스템 설계 및 구현
+- **구현 사항**:
+  - 루트 `./AGENTS.md` 파일 생성
+    - 프로젝트 컨텍스트 및 운영 명령어 정의
+    - Golden Rules (Immutable, Do's & Don'ts) 명시
+    - Standards & References (코딩 컨벤션, Git 전략, 커밋 메시지 포맷)
+    - Context Map (Action-Based Routing) 구성
+  - `frontend/AGENTS.md` 파일 생성
+    - 프론트엔드 모듈 컨텍스트 및 의존성 정의
+    - Tech Stack & Constraints (상태 관리, UI 프레임워크, 에디터, DnD)
+    - Implementation Patterns (컴포넌트, React Query, Zustand, 에러 처리, 로깅)
+    - Testing Strategy (단위 테스트, E2E 테스트)
+    - Local Golden Rules 및 파일 네이밍 컨벤션
+  - `backend/AGENTS.md` 파일 생성
+    - 백엔드 모듈 컨텍스트 및 의존성 정의
+    - Tech Stack & Constraints (프레임워크, 데이터베이스, 인증)
+    - Implementation Patterns (Controller, Service, Repository, Entity, DTO, 예외 처리)
+    - Security Patterns (JWT 인증, 권한 체크)
+    - Testing Strategy 및 Local Golden Rules
+- **규칙 준수**:
+  - 모든 파일 500라인 미만 유지
+  - 이모지 사용 금지
+  - 표(Table) 형식 금지
+  - Context Map은 액션 기반 라우팅 형식으로 작성
+- **영향**: 
+  - AI 에이전트가 프로젝트 구조와 규칙을 명확히 이해하고 일관된 코드 작성 가능
+  - 중앙 통제 및 위임 구조로 효율적인 컨텍스트 관리
+  - 새로운 개발자 온보딩 시 참고 자료로 활용 가능
