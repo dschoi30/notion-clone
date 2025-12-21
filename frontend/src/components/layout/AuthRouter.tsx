@@ -1,5 +1,4 @@
-// components/layout/AuthRouter.jsx
-import React from 'react';
+// components/layout/AuthRouter.tsx
 import { Routes, Route, Navigate } from 'react-router-dom';
 import LoginForm from '@/components/auth/LoginForm';
 import RegisterForm from '@/components/auth/RegisterForm';
@@ -19,3 +18,4 @@ const AuthRouter = () => {
 };
 
 export default AuthRouter;
+

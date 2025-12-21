@@ -1,7 +1,27 @@
-import React from 'react';
+import type { RefObject } from 'react';
 import { Book, User, Calendar, ChevronDown } from 'lucide-react';
 
-export default function SearchFilters({ titleOnly, onToggleTitleOnly, onOpenAuthorModal, selectedAuthorName, authorButtonRef, onOpenDateModal, selectedDateLabel, dateButtonRef }) {
+interface SearchFiltersProps {
+  titleOnly: boolean;
+  onToggleTitleOnly: () => void;
+  onOpenAuthorModal: () => void;
+  selectedAuthorName: string;
+  authorButtonRef: RefObject<HTMLButtonElement>;
+  onOpenDateModal: () => void;
+  selectedDateLabel: string;
+  dateButtonRef: RefObject<HTMLButtonElement>;
+}
+
+export default function SearchFilters({ 
+  titleOnly, 
+  onToggleTitleOnly, 
+  onOpenAuthorModal, 
+  selectedAuthorName, 
+  authorButtonRef, 
+  onOpenDateModal, 
+  selectedDateLabel, 
+  dateButtonRef 
+}: SearchFiltersProps) {
   return (
     <div className="flex gap-2 pl-3 mb-2">
       <button
@@ -39,4 +59,5 @@ export default function SearchFilters({ titleOnly, onToggleTitleOnly, onOpenAuth
       </button>
     </div>
   );
-} 
+}
+

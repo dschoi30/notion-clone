@@ -1,4 +1,3 @@
-import React from 'react';
 import WorkspaceList from '@/components/workspace/WorkspaceList';
 import DocumentList from '@/components/documents/DocumentList';
 import TrashButton from './TrashButton';
@@ -23,4 +22,5 @@ export default function Sidebar() {
       <TrashButton />
     </aside>
   );
-} 
+}
+

@@ -1,5 +1,4 @@
-// components/layout/MainLayout.jsx
-import React from 'react';
+// components/layout/MainLayout.tsx
 import Sidebar from './Sidebar';
 import AppRouter from './AppRouter';
 import { Toaster } from '@/components/ui/toaster';
@@ -17,3 +16,4 @@ const MainLayout = () => {
 };
 
 export default MainLayout;
+

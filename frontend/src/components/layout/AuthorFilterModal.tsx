@@ -1,11 +1,40 @@
-import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useLayoutEffect, type RefObject } from 'react';
 import UserBadge from '@/components/documents/shared/UserBadge';
 
-export default function AuthorFilterModal({ open, onClose, authors = [], onSelectAuthor, selectedAuthor, anchorRef }) {
+interface Author {
+  userId: string;
+  name: string;
+  email?: string;
+  profileImageUrl?: string;
+}
+
+interface AuthorFilterModalProps {
+  open: boolean;
+  onClose: () => void;
+  authors?: Author[];
+  onSelectAuthor: (userId: string) => void;
+  selectedAuthor: string;
+  anchorRef: RefObject<HTMLElement>;
+}
+
+interface Position {
+  top: number;
+  left: number;
+  minWidth: number;
+}
+
+export default function AuthorFilterModal({ 
+  open, 
+  onClose, 
+  authors = [], 
+  onSelectAuthor, 
+  selectedAuthor, 
+  anchorRef 
+}: AuthorFilterModalProps) {
   const [search, setSearch] = useState('');
-  const [position, setPosition] = useState({ top: 0, left: 0, minWidth: 180 });
-  const modalRef = useRef(null);
-  const inputRef = useRef(null);
+  const [position, setPosition] = useState<Position>({ top: 0, left: 0, minWidth: 180 });
+  const modalRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // 위치 계산
   useLayoutEffect(() => {
@@ -21,10 +50,10 @@ export default function AuthorFilterModal({ open, onClose, authors = [], onSelec
   // 외부 클릭 시 닫기
   useEffect(() => {
     if (!open) return;
-    function handleClick(e) {
+    function handleClick(e: MouseEvent) {
       if (
-        modalRef.current && !modalRef.current.contains(e.target) &&
-        anchorRef?.current && !anchorRef.current.contains(e.target)
+        modalRef.current && !modalRef.current.contains(e.target as Node) &&
+        anchorRef?.current && !anchorRef.current.contains(e.target as Node)
       ) {
         onClose();
       }
@@ -91,4 +120,5 @@ export default function AuthorFilterModal({ open, onClose, authors = [], onSelec
       </ul>
     </div>
   );
-} 
+}
+
