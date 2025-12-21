@@ -1,11 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { createLogger } from '@/lib/logger';
 
+interface UsePageStayTimerOptions {
+  enabled?: boolean;
+  onReachMs?: (elapsedMs: number) => void;
+  targetMs?: number;
+}
+
 // 누적 체류 시간을 ms로 계산. 문서가 보일 때만 카운트
-export default function usePageStayTimer({ enabled = true, onReachMs = () => {}, targetMs = 10 * 60 * 1000 }) {
+export default function usePageStayTimer({ 
+  enabled = true, 
+  onReachMs = () => {}, 
+  targetMs = 10 * 60 * 1000 
+}: UsePageStayTimerOptions = {}) {
   const [elapsedMs, setElapsedMs] = useState(0);
-  const lastTickRef = useRef(null);
-  const timerRef = useRef(null);
+  const lastTickRef = useRef<number | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const log = createLogger('stayTimer');
   const callbackRef = useRef(onReachMs);
 
@@ -19,7 +29,7 @@ export default function usePageStayTimer({ enabled = true, onReachMs = () => {},
       return;
     }
 
-    const handleVisibility = () => {
+    const handleVisibility = (): void => {
       if (document.hidden) {
         // stop
         if (timerRef.current) {
@@ -63,9 +73,8 @@ export default function usePageStayTimer({ enabled = true, onReachMs = () => {},
       }
       log.debug('cleanup');
     };
-  }, [enabled, targetMs]);
+  }, [enabled, targetMs, log]);
 
   return { elapsedMs };
 }
-
 

@@ -2,16 +2,28 @@ import { useEffect, useRef, useState } from 'react';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 import { authSync } from '@/utils/authSync';
+import type { User } from '@/types';
+
+interface PresenceUser {
+  userId: number;
+  name: string;
+  email: string;
+}
+
+interface PresenceMessage {
+  type: 'presence';
+  users: PresenceUser[];
+}
 
 /**
  * 문서 실시간 접속자(presence) 목록을 관리하는 커스텀 훅
- * @param {string} documentId - 현재 문서 ID
- * @param {object} user - 현재 로그인한 사용자 정보({ id, name, email })
- * @returns {Array} viewers - 현재 문서를 보고 있는 사용자 목록
+ * @param documentId - 현재 문서 ID
+ * @param user - 현재 로그인한 사용자 정보({ id, name, email })
+ * @returns viewers - 현재 문서를 보고 있는 사용자 목록
  */
-export default function useDocumentPresence(documentId, user) {
-  const [viewers, setViewers] = useState([]);
-  const stompClientRef = useRef(null);
+export default function useDocumentPresence(documentId: number | undefined, user: User | null): PresenceUser[] {
+  const [viewers, setViewers] = useState<PresenceUser[]>([]);
+  const stompClientRef = useRef<Client | null>(null);
 
   useEffect(() => {
     if (!documentId || !user) return;
@@ -32,7 +44,7 @@ export default function useDocumentPresence(documentId, user) {
         });
         // presence 브로드캐스트 구독
         stompClient.subscribe(`/topic/presence/${documentId}`, (msg) => {
-          const data = JSON.parse(msg.body);
+          const data = JSON.parse(msg.body) as PresenceMessage;
           if (data.type === 'presence') {
             // console.log('presence 브로드캐스트 수신:', data.users);
             setViewers(data.users);
@@ -59,4 +71,5 @@ export default function useDocumentPresence(documentId, user) {
   }, [documentId, user]);
 
   return viewers;
-} 
+}
+

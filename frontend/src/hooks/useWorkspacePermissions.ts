@@ -8,17 +8,44 @@ import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 const log = createLogger('useWorkspacePermissions');
 
+interface PermissionData {
+  hasPermission: boolean;
+  permissions: string[];
+}
+
+type WorkspaceRole = 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER' | 'GUEST';
+
+interface WorkspacePermissions {
+  // 워크스페이스 관리
+  DELETE_WORKSPACE: 'DELETE_WORKSPACE';
+  MANAGE_WORKSPACE_SETTINGS: 'MANAGE_WORKSPACE_SETTINGS';
+  MANAGE_MEMBERS: 'MANAGE_MEMBERS';
+  INVITE_MEMBERS: 'INVITE_MEMBERS';
+  
+  // 문서 관리
+  CREATE_DOCUMENT: 'CREATE_DOCUMENT';
+  EDIT_DOCUMENT: 'EDIT_DOCUMENT';
+  DELETE_DOCUMENT: 'DELETE_DOCUMENT';
+  VIEW_DOCUMENT: 'VIEW_DOCUMENT';
+  SHARE_DOCUMENT: 'SHARE_DOCUMENT';
+  
+  // 제한된 접근
+  VIEW_SHARED_DOCUMENT: 'VIEW_SHARED_DOCUMENT';
+}
+
+type PermissionType = WorkspacePermissions[keyof WorkspacePermissions];
+
 /**
  * 워크스페이스 권한 관리 훅
  * 사용자의 워크스페이스 권한을 확인하고 관리
  */
-export const useWorkspacePermissions = (workspaceId) => {
+export const useWorkspacePermissions = (workspaceId?: number) => {
     const { user } = useAuth();
     const { currentWorkspace } = useWorkspace();
     const { handleError } = useErrorHandler();
 
     // 권한 상수 정의 (백엔드 WorkspacePermissionType.java와 일치)
-    const WORKSPACE_PERMISSIONS = useMemo(() => ({
+    const WORKSPACE_PERMISSIONS = useMemo<WorkspacePermissions>(() => ({
         // 워크스페이스 관리
         DELETE_WORKSPACE: 'DELETE_WORKSPACE',
         MANAGE_WORKSPACE_SETTINGS: 'MANAGE_WORKSPACE_SETTINGS',
@@ -42,7 +69,7 @@ export const useWorkspacePermissions = (workspaceId) => {
         isLoading: loading,
         error: queryError,
         refetch,
-    } = useQuery({
+    } = useQuery<PermissionData>({
         queryKey: ['workspace-permissions', workspaceId, user?.id],
         queryFn: async () => {
             if (!user || !workspaceId) {
@@ -53,11 +80,11 @@ export const useWorkspacePermissions = (workspaceId) => {
                 user: user?.id,
                 workspaceId,
                 currentWorkspace: currentWorkspace?.id,
-                currentWorkspaceOwnerId: currentWorkspace?.ownerId
+                currentWorkspaceOwnerId: (currentWorkspace as any)?.ownerId
             });
 
             // 백엔드 API에서 권한 정보 가져오기
-            const response = await api.get(`/api/workspaces/${workspaceId}/permissions`);
+            const response = await api.get<PermissionData>(`/api/workspaces/${workspaceId}/permissions`);
             const data = response.data;
 
             log.debug('백엔드에서 받은 권한 정보:', data);
@@ -89,10 +116,10 @@ export const useWorkspacePermissions = (workspaceId) => {
         return permissionData?.hasPermission ? (permissionData.permissions || []) : [];
     }, [permissionData]);
 
-    const error = queryError?.message || null;
+    const error = queryError instanceof Error ? queryError.message : (queryError ? String(queryError) : null);
 
     // 역할별 권한 매핑 (백엔드 WorkspaceRole.java와 동일한 로직)
-    const getRolePermissions = (role) => {
+    const getRolePermissions = (role: WorkspaceRole): PermissionType[] => {
         switch (role) {
             case 'OWNER':
                 // 소유자는 모든 권한
@@ -121,50 +148,50 @@ export const useWorkspacePermissions = (workspaceId) => {
     };
 
     // 특정 권한 확인
-    const hasPermission = useCallback((permission) => {
+    const hasPermission = useCallback((permission: PermissionType): boolean => {
         return permissions.includes(permission);
     }, [permissions]);
 
     // 여러 권한 중 하나라도 있는지 확인
-    const hasAnyPermission = useCallback((permissionList) => {
+    const hasAnyPermission = useCallback((permissionList: PermissionType[]): boolean => {
         return permissionList.some(permission => hasPermission(permission));
     }, [hasPermission]);
 
     // 모든 권한을 가지고 있는지 확인
-    const hasAllPermissions = useCallback((permissionList) => {
+    const hasAllPermissions = useCallback((permissionList: PermissionType[]): boolean => {
         return permissionList.every(permission => hasPermission(permission));
     }, [hasPermission]);
 
     // 편의 메서드들
-    const canCreateDocument = useCallback(() => {
+    const canCreateDocument = useCallback((): boolean => {
         return hasPermission(WORKSPACE_PERMISSIONS.CREATE_DOCUMENT);
     }, [hasPermission]);
 
-    const canEditDocument = useCallback(() => {
+    const canEditDocument = useCallback((): boolean => {
         return hasPermission(WORKSPACE_PERMISSIONS.EDIT_DOCUMENT);
     }, [hasPermission]);
 
-    const canDeleteDocument = useCallback(() => {
+    const canDeleteDocument = useCallback((): boolean => {
         return hasPermission(WORKSPACE_PERMISSIONS.DELETE_DOCUMENT);
     }, [hasPermission]);
 
-    const canShareDocument = useCallback(() => {
+    const canShareDocument = useCallback((): boolean => {
         return hasPermission(WORKSPACE_PERMISSIONS.SHARE_DOCUMENT);
     }, [hasPermission]);
 
-    const canManageMembers = useCallback(() => {
+    const canManageMembers = useCallback((): boolean => {
         return hasPermission(WORKSPACE_PERMISSIONS.MANAGE_MEMBERS);
     }, [hasPermission]);
 
-    const canInviteMembers = useCallback(() => {
+    const canInviteMembers = useCallback((): boolean => {
         return hasPermission(WORKSPACE_PERMISSIONS.INVITE_MEMBERS);
     }, [hasPermission]);
 
-    const isWorkspaceOwner = useCallback(() => {
+    const isWorkspaceOwner = useCallback((): boolean => {
         return hasPermission(WORKSPACE_PERMISSIONS.DELETE_WORKSPACE);
     }, [hasPermission]);
 
-    const isWorkspaceAdmin = useCallback(() => {
+    const isWorkspaceAdmin = useCallback((): boolean => {
         return hasAnyPermission([
             WORKSPACE_PERMISSIONS.DELETE_WORKSPACE,
             WORKSPACE_PERMISSIONS.MANAGE_WORKSPACE_SETTINGS,
@@ -173,7 +200,7 @@ export const useWorkspacePermissions = (workspaceId) => {
     }, [hasAnyPermission]);
 
     // 기존 API와 호환성을 위한 reloadPermissions 함수
-    const reloadPermissions = useCallback(async () => {
+    const reloadPermissions = useCallback(async (): Promise<void> => {
         await refetch();
     }, [refetch]);
 
@@ -196,3 +223,4 @@ export const useWorkspacePermissions = (workspaceId) => {
         reloadPermissions
     };
 };
+
