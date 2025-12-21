@@ -8,10 +8,11 @@ import {
 } from '@/services/trashApi';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 import { createLogger } from '@/lib/logger';
+import type { Document } from '@/types';
 
 const log = createLogger('useTrash');
 
-export default function useTrash(workspaceId) {
+export default function useTrash(workspaceId: number | undefined) {
   const queryClient = useQueryClient();
   const { handleError } = useErrorHandler();
 
@@ -21,9 +22,9 @@ export default function useTrash(workspaceId) {
     isLoading: loading,
     error: queryError,
     refetch: refetchTrashedDocuments,
-  } = useQuery({
+  } = useQuery<Document[]>({
     queryKey: ['trashed-documents', workspaceId],
-    queryFn: () => getTrashedDocuments(workspaceId),
+    queryFn: () => getTrashedDocuments(workspaceId!),
     enabled: !!workspaceId,
     staleTime: 1000 * 60 * 1, // 1분 - 휴지통은 자주 변경될 수 있음
   });
@@ -40,11 +41,11 @@ export default function useTrash(workspaceId) {
   }, [queryError, handleError]);
 
   // 문서 복원 mutation
-  const restoreMutation = useMutation({
-    mutationFn: ({ docId }) => restoreDocument(workspaceId, docId),
+  const restoreMutation = useMutation<void, unknown, { docId: number }>({
+    mutationFn: ({ docId }) => restoreDocument(workspaceId!, docId),
     onSuccess: (_, variables) => {
       // 휴지통 목록에서 제거
-      queryClient.setQueryData(['trashed-documents', workspaceId], (oldData) => {
+      queryClient.setQueryData<Document[]>(['trashed-documents', workspaceId], (oldData) => {
         return (oldData || []).filter(d => d.id !== variables.docId);
       });
       // 문서 목록도 새로고침 (복원된 문서가 다시 나타나야 함)
@@ -60,11 +61,11 @@ export default function useTrash(workspaceId) {
   });
 
   // 문서 완전 삭제 mutation
-  const deleteMutation = useMutation({
-    mutationFn: ({ docId }) => deleteDocumentPermanently(workspaceId, docId),
+  const deleteMutation = useMutation<void, unknown, { docId: number }>({
+    mutationFn: ({ docId }) => deleteDocumentPermanently(workspaceId!, docId),
     onSuccess: (_, variables) => {
       // 휴지통 목록에서 제거
-      queryClient.setQueryData(['trashed-documents', workspaceId], (oldData) => {
+      queryClient.setQueryData<Document[]>(['trashed-documents', workspaceId], (oldData) => {
         return (oldData || []).filter(d => d.id !== variables.docId);
       });
     },
@@ -78,11 +79,11 @@ export default function useTrash(workspaceId) {
   });
 
   // 휴지통 전체 비우기 mutation
-  const emptyTrashMutation = useMutation({
-    mutationFn: () => emptyTrash(workspaceId),
+  const emptyTrashMutation = useMutation<void, unknown, void>({
+    mutationFn: () => emptyTrash(workspaceId!),
     onSuccess: () => {
       // 휴지통 목록 비우기
-      queryClient.setQueryData(['trashed-documents', workspaceId], []);
+      queryClient.setQueryData<Document[]>(['trashed-documents', workspaceId], []);
     },
     onError: (e) => {
       log.error('휴지통 전체 비우기 실패', e);
@@ -94,11 +95,11 @@ export default function useTrash(workspaceId) {
   });
 
   // 기존 API와 호환성을 위한 래퍼 함수
-  const fetchTrashedDocuments = useCallback(async () => {
+  const fetchTrashedDocuments = useCallback(async (): Promise<void> => {
     await refetchTrashedDocuments();
   }, [refetchTrashedDocuments]);
 
-  const handleRestore = useCallback(async (docId, onRestore) => {
+  const handleRestore = useCallback(async (docId: number, onRestore?: (docId: number) => void): Promise<void> => {
     try {
       await restoreMutation.mutateAsync({ docId });
       if (onRestore) onRestore(docId);
@@ -107,7 +108,7 @@ export default function useTrash(workspaceId) {
     }
   }, [restoreMutation]);
 
-  const handleDelete = useCallback(async (docId) => {
+  const handleDelete = useCallback(async (docId: number): Promise<void> => {
     try {
       await deleteMutation.mutateAsync({ docId });
     } catch (e) {
@@ -115,7 +116,7 @@ export default function useTrash(workspaceId) {
     }
   }, [deleteMutation]);
 
-  const handleDeleteAll = useCallback(async () => {
+  const handleDeleteAll = useCallback(async (): Promise<void> => {
     try {
       await emptyTrashMutation.mutateAsync();
     } catch (e) {
@@ -124,8 +125,8 @@ export default function useTrash(workspaceId) {
   }, [emptyTrashMutation]);
 
   // setTrashedDocuments는 기존 API와 호환성을 위해 제공 (React Query 캐시 업데이트)
-  const setTrashedDocuments = useCallback((updater) => {
-    queryClient.setQueryData(['trashed-documents', workspaceId], (oldData) => {
+  const setTrashedDocuments = useCallback((updater: Document[] | ((oldData: Document[] | undefined) => Document[])): void => {
+    queryClient.setQueryData<Document[]>(['trashed-documents', workspaceId], (oldData) => {
       if (typeof updater === 'function') {
         return updater(oldData || []);
       }
@@ -142,4 +143,5 @@ export default function useTrash(workspaceId) {
     handleDeleteAll,
     setTrashedDocuments,
   };
-} 
+}
+

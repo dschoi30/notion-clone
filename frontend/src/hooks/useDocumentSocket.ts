@@ -1,19 +1,26 @@
-// useDocumentSocket.js (커스텀 훅)
+// useDocumentSocket.ts (커스텀 훅)
 import { useEffect, useRef } from 'react';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 import { createLogger } from '@/lib/logger';
 import { captureException } from '@/lib/sentry';
 
+interface EditMessage {
+  [key: string]: unknown;
+}
+
 /**
  * 문서 실시간 협업용 WebSocket 커스텀 훅
- * @param {string} documentId - 편집 중인 문서 ID
- * @param {function} onRemoteEdit - 서버에서 온 편집 메시지 처리 콜백
- * @returns {object} sendEdit(메시지 전송 함수)
+ * @param documentId - 편집 중인 문서 ID
+ * @param onRemoteEdit - 서버에서 온 편집 메시지 처리 콜백
+ * @returns sendEdit(메시지 전송 함수)
  */
-export default function useDocumentSocket(documentId, onRemoteEdit) {
+export default function useDocumentSocket(
+  documentId: number | undefined,
+  onRemoteEdit: (message: EditMessage) => void
+): { sendEdit: (editData: EditMessage) => void } {
   const rlog = createLogger('useDocumentSocket');
-  const stompClientRef = useRef(null);
+  const stompClientRef = useRef<Client | null>(null);
   const onRemoteEditRef = useRef(onRemoteEdit);
 
   // 최신 콜백을 참조로 유지하여 이펙트 재실행 없이도 최신 로직을 사용
@@ -40,7 +47,7 @@ export default function useDocumentSocket(documentId, onRemoteEdit) {
         rlog.info('WebSocket 연결 성공:', documentId);
         stompClient.subscribe(`/topic/document/${documentId}`, (msg) => {
           if (msg.body && onRemoteEditRef.current) {
-            onRemoteEditRef.current(JSON.parse(msg.body));
+            onRemoteEditRef.current(JSON.parse(msg.body) as EditMessage);
           }
         });
       },
@@ -48,7 +55,7 @@ export default function useDocumentSocket(documentId, onRemoteEdit) {
         rlog.error('STOMP 에러:', frame);
         captureException(new Error('WebSocket STOMP error'), {
           tags: {
-            document_id: documentId,
+            document_id: String(documentId),
             error_type: 'websocket_stomp',
           },
           extra: {
@@ -62,7 +69,7 @@ export default function useDocumentSocket(documentId, onRemoteEdit) {
         rlog.error('WebSocket 연결 에러:', event);
         captureException(new Error('WebSocket connection error'), {
           tags: {
-            document_id: documentId,
+            document_id: String(documentId),
             error_type: 'websocket_connection',
           },
         });
@@ -76,10 +83,10 @@ export default function useDocumentSocket(documentId, onRemoteEdit) {
     return () => {
       stompClient.deactivate();
     };
-  }, [documentId]);
+  }, [documentId, rlog]);
 
   // 편집 메시지 전송 함수
-  const sendEdit = (editData) => {
+  const sendEdit = (editData: EditMessage): void => {
     if (stompClientRef.current && stompClientRef.current.connected) {
       // console.log('WebSocket 메시지 전송:', editData);
       stompClientRef.current.publish({
@@ -93,3 +100,4 @@ export default function useDocumentSocket(documentId, onRemoteEdit) {
 
   return { sendEdit };
 }
+
