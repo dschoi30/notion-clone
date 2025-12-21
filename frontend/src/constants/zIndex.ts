@@ -63,7 +63,7 @@ export const Z_INDEX = {
   
   /** 테이블 헤더 */
   TABLE_HEADER: 10,
-};
+} as const;
 
 /**
  * Z-Index 유틸리티 함수들
@@ -71,21 +71,22 @@ export const Z_INDEX = {
 export const ZIndexUtils = {
   /**
    * 모달이 열려있을 때 테이블 툴바의 z-index를 반환
-   * @param {boolean} isModalOpen - 모달이 열려있는지 여부
-   * @returns {number} 적절한 z-index 값
+   * @param isModalOpen - 모달이 열려있는지 여부
+   * @returns 적절한 z-index 값
    */
-  getTableToolbarZIndex: (isModalOpen) => {
+  getTableToolbarZIndex: (isModalOpen: boolean): number => {
     return isModalOpen ? Z_INDEX.TABLE_TOOLBAR : Z_INDEX.TABLE_TOOLBAR_ACTIVE;
   },
   
   /**
    * 모달이 열려있을 때 DocumentHeader의 배경색을 반환
-   * @param {boolean} isModalOpen - 모달이 열려있는지 여부
-   * @returns {string} CSS 클래스명
+   * @param isModalOpen - 모달이 열려있는지 여부
+   * @returns CSS 클래스명
    */
-  getDocumentHeaderBackground: (isModalOpen) => {
+  getDocumentHeaderBackground: (isModalOpen: boolean): string => {
     return isModalOpen ? '' : 'bg-white backdrop-blur-sm';
   },
 };
 
 export default Z_INDEX;
+

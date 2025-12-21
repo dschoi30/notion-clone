@@ -1,29 +1,40 @@
-import React, { useRef, useLayoutEffect, useState } from 'react';
+import { useRef, useLayoutEffect, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 const PRESETS = [
   { label: '오늘', value: 'today' },
   { label: '이번 주', value: 'week' },
   { label: '이번 달', value: 'month' },
-];
+] as const;
 
-function getDaysInMonth(year, month) {
+type PresetValue = typeof PRESETS[number]['value'];
+
+interface DateFilterValue {
+  type?: 'custom';
+  range?: { start: Date; end: Date };
+  date?: Date;
+}
+
+export type DateFilterSelected = PresetValue | DateFilterValue | null | undefined;
+
+function getDaysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
 }
 
-function isSameDay(a, b) {
-  return a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+function isSameDay(a: Date | null | undefined, b: Date | null | undefined): boolean {
+  return a !== null && a !== undefined && b !== null && b !== undefined && 
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-function isInRange(day, start, end) {
+function isInRange(day: Date, start: Date | null | undefined, end: Date | null | undefined): boolean {
   if (!start || !end) return false;
   const d = day.getTime();
   return start.getTime() < d && d < end.getTime();
 }
 
-export function getDateLabel(selected) {
+export function getDateLabel(selected: DateFilterSelected): string {
   if (!selected) return '';
-  if (selected.type === 'custom') {
+  if (typeof selected === 'object' && selected.type === 'custom') {
     if (selected.range && selected.range.start && selected.range.end) {
       const s = selected.range.start;
       const e = selected.range.end;
@@ -40,19 +51,53 @@ export function getDateLabel(selected) {
   return '';
 }
 
-export default function DateFilterModal({ open, onClose, onSelect, anchorRef, selected, dateType, onDateTypeChange }) {
-  const modalRef = useRef(null);
-  const [position, setPosition] = useState({ top: 0, left: 0, minWidth: 180 });
+interface DateFilterModalProps {
+  open: boolean;
+  onClose: () => void;
+  onSelect: (value: DateFilterSelected) => void;
+  anchorRef: React.RefObject<HTMLElement>;
+  selected: DateFilterSelected;
+  dateType: 'created' | 'edited';
+  onDateTypeChange: (type: 'created' | 'edited') => void;
+}
+
+interface Position {
+  top: number;
+  left: number;
+  minWidth: number;
+}
+
+interface CalendarState {
+  year: number;
+  month: number;
+}
+
+interface RangeState {
+  start: Date | null;
+  end: Date | null;
+}
+
+export default function DateFilterModal({ 
+  open, 
+  onClose, 
+  onSelect, 
+  anchorRef, 
+  selected, 
+  dateType, 
+  onDateTypeChange 
+}: DateFilterModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<Position>({ top: 0, left: 0, minWidth: 180 });
   const today = new Date();
-  const [range, setRange] = useState({ start: null, end: null });
-  const [calendar, setCalendar] = useState({
+  const [range, setRange] = useState<RangeState>({ start: null, end: null });
+  const [calendar, setCalendar] = useState<CalendarState>({
     year: today.getFullYear(),
     month: today.getMonth(),
   });
   const dateTypeLabel = dateType === 'created' ? '생성일' : '최종 편집일';
   const dateTypeOptions = [
-    { value: 'created', label: '생성일' },
-    { value: 'edited', label: '최종 편집일' },
+    { value: 'created' as const, label: '생성일' },
+    { value: 'edited' as const, label: '최종 편집일' },
   ];
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -66,12 +111,12 @@ export default function DateFilterModal({ open, onClose, onSelect, anchorRef, se
     });
   }, [open, anchorRef]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!open) return;
-    function handleClick(e) {
+    function handleClick(e: MouseEvent) {
       if (
-        modalRef.current && !modalRef.current.contains(e.target) &&
-        anchorRef?.current && !anchorRef.current.contains(e.target)
+        modalRef.current && !modalRef.current.contains(e.target as Node) &&
+        anchorRef?.current && !anchorRef.current.contains(e.target as Node)
       ) {
         onClose();
       }
@@ -80,7 +125,7 @@ export default function DateFilterModal({ open, onClose, onSelect, anchorRef, se
     return () => document.removeEventListener('click', handleClick, true);
   }, [open, onClose, anchorRef]);
 
-  function handleDatePick(day) {
+  function handleDatePick(day: number) {
     const picked = new Date(calendar.year, calendar.month, day);
     if (!range.start || (range.start && range.end)) {
       setRange({ start: picked, end: null });
@@ -99,9 +144,9 @@ export default function DateFilterModal({ open, onClose, onSelect, anchorRef, se
     }
   }
 
-  function handlePresetClick(opt) {
-    let newRange = { start: null, end: null };
-    let newCalendar = { ...calendar };
+  function handlePresetClick(opt: typeof PRESETS[number]) {
+    let newRange: RangeState = { start: null, end: null };
+    let newCalendar: CalendarState = { ...calendar };
     if (opt.value === 'today') {
       const t = new Date();
       newRange = { start: t, end: t };
@@ -188,7 +233,7 @@ export default function DateFilterModal({ open, onClose, onSelect, anchorRef, se
         {PRESETS.map(opt => (
           <li
             key={opt.value}
-            className={`py-1 px-2 cursor-pointer rounded ${selected && selected.type === 'custom' ? '' : opt.value === selected ? 'bg-gray-100' : 'hover:bg-gray-200'}`}
+            className={`py-1 px-2 cursor-pointer rounded ${selected && typeof selected === 'object' && selected.type === 'custom' ? '' : opt.value === selected ? 'bg-gray-100' : 'hover:bg-gray-200'}`}
             onClick={() => handlePresetClick(opt)}
           >
             {opt.label}
@@ -246,4 +291,5 @@ export default function DateFilterModal({ open, onClose, onSelect, anchorRef, se
     </div>,
     document.body
   );
-} 
+}
+

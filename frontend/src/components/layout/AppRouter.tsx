@@ -1,5 +1,5 @@
-// components/layout/AppRouter.jsx
-import React, { useEffect } from 'react';
+// components/layout/AppRouter.tsx
+import { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useDocument } from '@/contexts/DocumentContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -18,13 +18,13 @@ const AppRouter = () => {
   const navigate = useNavigate();
 
   // 현재 URL에서 문서 ID 추출
-  const getCurrentDocIdFromUrl = () => {
+  const getCurrentDocIdFromUrl = (): string | null => {
     const match = location.pathname.match(/^\/(\d+)(-.*)?$/);
     return match ? match[1] : null;
   };
 
   // 올바른 문서 경로로 네비게이션
-  const navigateToCorrectDocument = (doc) => {
+  const navigateToCorrectDocument = (doc: { id: number; title: string }) => {
     const correctPath = `/${doc.id}-${slugify(doc.title)}`;
     if (location.pathname !== correctPath) {
       rlog.info('navigateToCorrectDocument', { from: location.pathname, to: correctPath });
@@ -33,7 +33,7 @@ const AppRouter = () => {
   };
 
   // 로딩이 완료된 후에만 리다이렉트 경로 결정
-  const getDefaultDocPath = () => {
+  const getDefaultDocPath = (): string | null => {
     if (workspaceLoading || documentsLoading || !currentWorkspace || documents.length === 0) {
       return null;
     }
@@ -107,7 +107,7 @@ const AppRouter = () => {
         navigateToCorrectDocument(targetDoc);
       }
     }
-  }, [currentWorkspace, documents, workspaceLoading, documentsLoading, currentDocument, user]);
+  }, [currentWorkspace, documents, workspaceLoading, documentsLoading, currentDocument, user, location.pathname, navigate]);
 
   const defaultPath = getDefaultDocPath();
 
@@ -131,3 +131,4 @@ const AppRouter = () => {
 };
 
 export default AppRouter;
+

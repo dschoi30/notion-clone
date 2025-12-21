@@ -1,10 +1,23 @@
-import { useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
+import { useSensor, useSensors, PointerSensor, KeyboardSensor, DragEndEvent } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates, arrayMove } from '@dnd-kit/sortable';
 import { updatePropertyOrder } from '@/services/documentApi';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
+import type { DocumentProperty } from '@/types';
+
+interface UsePropertiesDndParams {
+  properties: DocumentProperty[];
+  setProperties: (properties: DocumentProperty[]) => void;
+  workspaceId: number;
+  documentId: number;
+}
 
 // 공통 속성 DnD 훅: 컬럼(테이블)과 리스트(Page) 모두에서 사용 가능
-export function usePropertiesDnd({ properties, setProperties, workspaceId, documentId }) {
+export function usePropertiesDnd({ 
+  properties, 
+  setProperties, 
+  workspaceId, 
+  documentId 
+}: UsePropertiesDndParams) {
   const { handleError } = useErrorHandler();
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -15,7 +28,7 @@ export function usePropertiesDnd({ properties, setProperties, workspaceId, docum
     }),
   );
 
-  const handleColumnDragEnd = async (event) => {
+  const handleColumnDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -29,9 +42,8 @@ export function usePropertiesDnd({ properties, setProperties, workspaceId, docum
       const propertyIds = newProperties.map((p) => p.id);
       await updatePropertyOrder(workspaceId, documentId, propertyIds);
     } catch (err) {
-      console.error('속성 순서 업데이트 실패:', err);
       setProperties(properties);
-      handleError(err, {
+      handleError(err as Error, {
         customMessage: '속성 순서 변경에 실패했습니다. 다시 시도해주세요.',
         showToast: true
       });
@@ -42,5 +54,4 @@ export function usePropertiesDnd({ properties, setProperties, workspaceId, docum
 }
 
 export default usePropertiesDnd;
-
 

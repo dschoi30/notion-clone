@@ -1,4 +1,15 @@
-export function resolveUserDisplay(rawValue, permissions = []) {
+import type { Permission } from '@/types';
+
+export interface UserDisplay {
+  name: string;
+  email: string;
+  profileImageUrl?: string;
+}
+
+export function resolveUserDisplay(
+  rawValue: string | null | undefined,
+  permissions: Permission[] = []
+): UserDisplay {
   const value = rawValue || '';
   if (!value) return { name: '', email: '', profileImageUrl: undefined };
   const matched = permissions.find(
@@ -19,5 +30,4 @@ export function resolveUserDisplay(rawValue, permissions = []) {
     profileImageUrl: undefined,
   };
 }
-
 

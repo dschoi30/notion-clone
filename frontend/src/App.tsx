@@ -1,4 +1,4 @@
-// App.jsx
+// App.tsx
 import { BrowserRouter as Router } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
@@ -34,10 +34,10 @@ const AppContent = () => {
 
 // Sentry ErrorBoundary로 감싸기
 const SentryWrappedAppContent = Sentry.withErrorBoundary(AppContent, {
-  fallback: ({ error, resetError }) => <ErrorBoundary />,
-  beforeCapture: (scope, error, errorInfo) => {
+  fallback: () => <ErrorBoundary />,
+  beforeCapture: (scope, _error, componentStack) => {
     scope.setContext('react', {
-      componentStack: errorInfo?.componentStack,
+      componentStack,
     });
   },
 });
@@ -58,3 +58,4 @@ const App = () => {
 };
 
 export default App;
+

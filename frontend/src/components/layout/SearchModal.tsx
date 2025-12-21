@@ -1,16 +1,22 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useDocument } from '@/contexts/DocumentContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useNavigate } from 'react-router-dom';
 import SearchFilters from './SearchFilters';
 import AuthorFilterModal from './AuthorFilterModal';
-import DateFilterModal, { getDateLabel } from './DateFilterModal';
+import DateFilterModal, { getDateLabel, type DateFilterSelected } from './DateFilterModal';
 import { slugify } from '@/lib/utils';
 import { Z_INDEX } from '@/constants/zIndex';
+import type { Document } from '@/types';
 
-export default function SearchModal({ open, onClose }) {
-  const inputRef = useRef(null);
-  const { documents, fetchDocuments, documentsLoading, selectDocument } = useDocument();
+interface SearchModalProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+export default function SearchModal({ open, onClose }: SearchModalProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { documents, fetchDocuments, documentsLoading } = useDocument();
   const { currentWorkspace } = useWorkspace();
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -18,16 +24,16 @@ export default function SearchModal({ open, onClose }) {
   const [titleOnly, setTitleOnly] = useState(false);
   const [selectedAuthor, setSelectedAuthor] = useState('');
   const [authorModalOpen, setAuthorModalOpen] = useState(false);
-  const authorButtonRef = useRef(null);
+  const authorButtonRef = useRef<HTMLButtonElement>(null);
   const [dateModalOpen, setDateModalOpen] = useState(false);
-  const [selectedDateValue, setSelectedDateValue] = useState('');
-  const dateButtonRef = useRef(null);
-  const [selectedDateType, setSelectedDateType] = useState('created');
+  const [selectedDateValue, setSelectedDateValue] = useState<DateFilterSelected>(null);
+  const dateButtonRef = useRef<HTMLButtonElement>(null);
+  const [selectedDateType, setSelectedDateType] = useState<'created' | 'edited'>('created');
 
   // ESC 키로 닫기
   useEffect(() => {
     if (!open) return;
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -35,11 +41,11 @@ export default function SearchModal({ open, onClose }) {
   }, [open, onClose]);
 
   // 바깥 클릭 시 닫기
-  const modalRef = useRef(null);
+  const modalRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
-    const handleClick = (e) => {
-      if (modalRef.current && !modalRef.current.contains(e.target)) {
+    const handleClick = (e: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
         onClose();
       }
     };
@@ -65,16 +71,18 @@ export default function SearchModal({ open, onClose }) {
 
   // 권한 있는 모든 작성자(userId, name) 추출
   const authors = useMemo(() => {
-    const map = new Map();
+    const map = new Map<string, string>();
     documents.forEach(doc => {
-      if (doc.user && doc.user.userId && doc.user.name) {
-        map.set(doc.user.userId, doc.user.name);
+      // 문서 작성자 추가 (userId와 createdBy 사용)
+      if (doc.userId) {
+        const authorName = doc.createdBy || `User ${doc.userId}`;
+        map.set(String(doc.userId), authorName);
       }
       // 권한자 목록도 포함(permissions)
       if (Array.isArray(doc.permissions)) {
         doc.permissions.forEach(p => {
           if (p.userId && p.name) {
-            map.set(p.userId, p.name);
+            map.set(String(p.userId), p.name);
           }
         });
       }
@@ -87,8 +95,8 @@ export default function SearchModal({ open, onClose }) {
     let filtered = documents;
     if (selectedAuthor) {
       filtered = filtered.filter(doc =>
-        (doc.user && doc.user.userId === selectedAuthor) ||
-        (Array.isArray(doc.permissions) && doc.permissions.some(p => p.userId === selectedAuthor))
+        String(doc.userId) === selectedAuthor ||
+        (Array.isArray(doc.permissions) && doc.permissions.some(p => String(p.userId) === selectedAuthor))
       );
     }
     // 날짜 필터 적용
@@ -114,7 +122,7 @@ export default function SearchModal({ open, onClose }) {
           const now = new Date();
           return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
         }
-        if (selectedDateValue?.type === 'custom') {
+        if (typeof selectedDateValue === 'object' && selectedDateValue.type === 'custom') {
           if (selectedDateValue.range && selectedDateValue.range.start && selectedDateValue.range.end) {
             const s = selectedDateValue.range.start;
             const e = selectedDateValue.range.end;
@@ -128,7 +136,7 @@ export default function SearchModal({ open, onClose }) {
         return true;
       });
     }
-    if (!debouncedQuery.trim()) return filtered.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)).slice(0, 30);
+    if (!debouncedQuery.trim()) return filtered.sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime()).slice(0, 30);
     const lower = debouncedQuery.toLowerCase();
     if (titleOnly) {
       return filtered.filter(doc =>
@@ -142,14 +150,14 @@ export default function SearchModal({ open, onClose }) {
   }, [debouncedQuery, documents, titleOnly, selectedAuthor, selectedDateValue, selectedDateType]);
 
   // HTML 태그 제거 함수
-  function stripHtmlTags(html) {
+  function stripHtmlTags(html: string | null | undefined): string {
     if (!html) return '';
     return html.replace(/<[^>]+>/g, '');
   }
 
   // 하이라이트 함수
-  function highlightText(text, keyword) {
-    if (!keyword || !text) return text;
+  function highlightText(text: string | null | undefined, keyword: string): (string | JSX.Element)[] {
+    if (!keyword || !text) return [text || ''];
     const regex = new RegExp(`(${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
     return text.split(regex).map((part, i) =>
       regex.test(part) ? <b key={i} className="font-bold bg-gray-50">{part}</b> : part
@@ -157,7 +165,7 @@ export default function SearchModal({ open, onClose }) {
   }
 
   // 검색 결과 클릭 시 문서로 이동
-  const handleResultClick = async (doc) => {
+  const handleResultClick = async (doc: Document) => {
     try {
       // selectDocument 호출하지 않고 직접 navigate만 사용
       // URL 변경으로 자동으로 DocumentContext가 해당 문서를 로드할 것임
@@ -251,4 +259,5 @@ export default function SearchModal({ open, onClose }) {
       </div>
     </div>
   );
-} 
+}
+

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import TrashModal from './TrashModal';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { TrashIcon } from 'lucide-react';
@@ -7,7 +7,7 @@ import { useDocument } from '@/contexts/DocumentContext';
 export default function TrashButton() {
   const [trashOpen, setTrashOpen] = useState(false);
   const { currentWorkspace } = useWorkspace();
-  const trashAreaRef = useRef(null);
+  const trashAreaRef = useRef<HTMLDivElement>(null);
   const { fetchDocuments } = useDocument();
 
   const handleRestore = () => {
@@ -38,4 +38,5 @@ export default function TrashButton() {
       />
     </>
   );
-} 
+}
+

@@ -1,4 +1,3 @@
-import React from 'react';
 import SearchModal from './SearchModal';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 
@@ -20,4 +19,5 @@ export default function SearchButton() {
       <SearchModal open={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} />
     </>
   );
-} 
+}
+
