@@ -1,7 +1,16 @@
-import React from 'react';
+import { useMemo } from 'react';
 import { Tooltip } from '@/components/ui/tooltip';
 
-function getInitials(name, email) {
+interface UserBadgeProps {
+  name?: string;
+  email?: string;
+  profileImageUrl?: string;
+  size?: number | string;
+  showLabel?: boolean;
+  xOffset?: number;
+}
+
+function getInitials(name?: string, email?: string): string {
   const base = (name && name.trim().length > 0 ? name : (email || '')).trim();
   if (!base) return '?';
   const hasHangul = /[\uAC00-\uD7AF]/.test(base);
@@ -16,12 +25,19 @@ function getInitials(name, email) {
   return base.substring(0, 2).toUpperCase();
 }
 
-export default function UserBadge({ name, email, profileImageUrl, size = 20, showLabel = true, xOffset = 0 }) {
+export default function UserBadge({ 
+  name, 
+  email, 
+  profileImageUrl, 
+  size = 20, 
+  showLabel = true, 
+  xOffset = 0 
+}: UserBadgeProps) {
   const initials = getInitials(name, email);
   const dimension = typeof size === 'number' ? `${size}px` : size;
   
   // 툴팁 내용 생성
-  const tooltipContent = React.useMemo(() => {
+  const tooltipContent = useMemo(() => {
     if (!name && !email) return null;
     if (name && email) {
       return (
@@ -70,5 +86,4 @@ export default function UserBadge({ name, email, profileImageUrl, size = 20, sho
     </Tooltip>
   );
 }
-
 

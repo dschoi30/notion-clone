@@ -1,11 +1,21 @@
-import React, { useState, useRef, useCallback, useEffect } from "react"
+import { useState, useRef, useCallback, useEffect, ReactNode } from "react"
 import { cn } from "@/lib/utils"
 
-const Tooltip = ({ children, content, side = "top", className, delayDuration = 700, xOffset = 0, ...props }) => {
+interface TooltipProps {
+  children: ReactNode;
+  content?: ReactNode;
+  side?: "top" | "bottom" | "left" | "right";
+  className?: string;
+  delayDuration?: number;
+  xOffset?: number;
+  [key: string]: unknown;
+}
+
+const Tooltip = ({ children, content, side = "top", className, delayDuration = 700, xOffset = 0, ...props }: TooltipProps) => {
   const [isVisible, setIsVisible] = useState(false)
   const [position, setPosition] = useState({ x: 0, y: 0 })
-  const timeoutRef = useRef(null)
-  const triggerRef = useRef(null)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const triggerRef = useRef<HTMLDivElement | null>(null)
 
   const showTooltip = useCallback(() => {
     if (timeoutRef.current) {
@@ -14,7 +24,7 @@ const Tooltip = ({ children, content, side = "top", className, delayDuration = 7
     timeoutRef.current = setTimeout(() => {
       if (triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect()
-        let x, y
+        let x: number, y: number
         const offset = 8 // 툴팁과 요소 사이의 간격
         
         switch (side) {
@@ -71,7 +81,7 @@ const Tooltip = ({ children, content, side = "top", className, delayDuration = 7
     hideTooltip()
   }, [hideTooltip])
 
-  const getTransformOrigin = () => {
+  const getTransformOrigin = (): string => {
     switch (side) {
       case "top": return "center bottom"
       case "bottom": return "center top"
@@ -81,7 +91,7 @@ const Tooltip = ({ children, content, side = "top", className, delayDuration = 7
     }
   }
 
-  const getTransform = () => {
+  const getTransform = (): string => {
     switch (side) {
       case "top": 
       case "bottom": 
@@ -96,7 +106,7 @@ const Tooltip = ({ children, content, side = "top", className, delayDuration = 7
   }
 
   if (!content) {
-    return children
+    return <>{children}</>
   }
 
   return (
@@ -133,3 +143,4 @@ const Tooltip = ({ children, content, side = "top", className, delayDuration = 7
 }
 
 export { Tooltip }
+

@@ -1,5 +1,14 @@
-import React from 'react';
+import { ReactNode } from 'react';
 import { useWorkspacePermissions } from '../../hooks/useWorkspacePermissions';
+
+interface PermissionGateProps {
+  children: ReactNode;
+  permission?: string;
+  permissions?: string[];
+  requireAll?: boolean;
+  fallback?: ReactNode;
+  workspaceId?: number;
+}
 
 /**
  * 권한 기반 접근 제어 컴포넌트
@@ -12,7 +21,7 @@ const PermissionGate = ({
     requireAll = false,
     fallback = null,
     workspaceId 
-}) => {
+}: PermissionGateProps) => {
     const { hasPermission, hasAnyPermission, hasAllPermissions } = useWorkspacePermissions(workspaceId);
     
     let hasRequiredPermission = false;
@@ -33,10 +42,10 @@ const PermissionGate = ({
     }
     
     if (hasRequiredPermission) {
-        return children;
+        return <>{children}</>;
     }
     
-    return fallback;
+    return <>{fallback}</>;
 };
 
 export default PermissionGate;

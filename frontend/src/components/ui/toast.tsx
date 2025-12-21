@@ -1,8 +1,6 @@
-"use client"
-
-import * as React from "react"
+import { forwardRef, ElementRef, ComponentPropsWithoutRef } from "react"
 import * as ToastPrimitives from "@radix-ui/react-toast"
-import { cva } from "class-variance-authority"
+import { cva, type VariantProps } from "class-variance-authority"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -10,7 +8,10 @@ import { Z_INDEX } from "@/constants/zIndex"
 
 const ToastProvider = ToastPrimitives.Provider
 
-const ToastViewport = React.forwardRef(({ className, style, ...props }, ref) => (
+const ToastViewport = forwardRef<
+  ElementRef<typeof ToastPrimitives.Viewport>,
+  ComponentPropsWithoutRef<typeof ToastPrimitives.Viewport>
+>(({ className, style, ...props }, ref) => (
   <ToastPrimitives.Viewport
     ref={ref}
     className={cn(
@@ -43,7 +44,11 @@ const toastVariants = cva(
   }
 )
 
-const Toast = React.forwardRef(({ className, variant, ...props }, ref) => {
+const Toast = forwardRef<
+  ElementRef<typeof ToastPrimitives.Root>,
+  ComponentPropsWithoutRef<typeof ToastPrimitives.Root> &
+    VariantProps<typeof toastVariants>
+>(({ className, variant, ...props }, ref) => {
   return (
     <ToastPrimitives.Root
       ref={ref}
@@ -54,7 +59,10 @@ const Toast = React.forwardRef(({ className, variant, ...props }, ref) => {
 })
 Toast.displayName = ToastPrimitives.Root.displayName
 
-const ToastAction = React.forwardRef(({ className, ...props }, ref) => (
+const ToastAction = forwardRef<
+  ElementRef<typeof ToastPrimitives.Action>,
+  ComponentPropsWithoutRef<typeof ToastPrimitives.Action>
+>(({ className, ...props }, ref) => (
   <ToastPrimitives.Action
     ref={ref}
     className={cn(
@@ -66,7 +74,10 @@ const ToastAction = React.forwardRef(({ className, ...props }, ref) => (
 ))
 ToastAction.displayName = ToastPrimitives.Action.displayName
 
-const ToastClose = React.forwardRef(({ className, ...props }, ref) => (
+const ToastClose = forwardRef<
+  ElementRef<typeof ToastPrimitives.Close>,
+  ComponentPropsWithoutRef<typeof ToastPrimitives.Close>
+>(({ className, ...props }, ref) => (
   <ToastPrimitives.Close
     ref={ref}
     className={cn(
@@ -81,7 +92,10 @@ const ToastClose = React.forwardRef(({ className, ...props }, ref) => (
 ))
 ToastClose.displayName = ToastPrimitives.Close.displayName
 
-const ToastTitle = React.forwardRef(({ className, ...props }, ref) => (
+const ToastTitle = forwardRef<
+  ElementRef<typeof ToastPrimitives.Title>,
+  ComponentPropsWithoutRef<typeof ToastPrimitives.Title>
+>(({ className, ...props }, ref) => (
   <ToastPrimitives.Title
     ref={ref}
     className={cn("text-sm font-semibold", className)}
@@ -90,7 +104,10 @@ const ToastTitle = React.forwardRef(({ className, ...props }, ref) => (
 ))
 ToastTitle.displayName = ToastPrimitives.Title.displayName
 
-const ToastDescription = React.forwardRef(({ className, ...props }, ref) => (
+const ToastDescription = forwardRef<
+  ElementRef<typeof ToastPrimitives.Description>,
+  ComponentPropsWithoutRef<typeof ToastPrimitives.Description>
+>(({ className, ...props }, ref) => (
   <ToastPrimitives.Description
     ref={ref}
     className={cn("text-sm opacity-90", className)}
@@ -108,3 +125,4 @@ export {
   ToastClose,
   ToastAction,
 }
+

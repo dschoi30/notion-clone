@@ -1,9 +1,12 @@
-import * as React from "react"
+import { forwardRef, ElementRef, ComponentPropsWithoutRef } from "react"
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
 import { CheckIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-const Checkbox = React.forwardRef(({ className, ...props }, ref) => (
+const Checkbox = forwardRef<
+  ElementRef<typeof CheckboxPrimitive.Root>,
+  ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>
+>(({ className, ...props }, ref) => (
   <CheckboxPrimitive.Root
     ref={ref}
     className={cn(
@@ -21,5 +24,4 @@ const Checkbox = React.forwardRef(({ className, ...props }, ref) => (
 Checkbox.displayName = CheckboxPrimitive.Root.displayName
 
 export { Checkbox }
-
 
