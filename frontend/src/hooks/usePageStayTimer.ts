@@ -15,7 +15,7 @@ export default function usePageStayTimer({
 }: UsePageStayTimerOptions = {}) {
   const [elapsedMs, setElapsedMs] = useState(0);
   const lastTickRef = useRef<number | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<number | null>(null);
   const log = createLogger('stayTimer');
   const callbackRef = useRef(onReachMs);
 

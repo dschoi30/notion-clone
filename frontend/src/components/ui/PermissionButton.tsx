@@ -1,10 +1,10 @@
 import { ButtonHTMLAttributes, ReactNode, MouseEvent } from 'react';
-import { useWorkspacePermissions } from '../../hooks/useWorkspacePermissions';
+import { useWorkspacePermissions, type PermissionType } from '@/hooks/useWorkspacePermissions';
 
 interface PermissionButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
-  permission?: string;
-  permissions?: string[];
+  permission?: PermissionType;
+  permissions?: PermissionType[];
   requireAll?: boolean;
   workspaceId?: number;
   disabled?: boolean;
