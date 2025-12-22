@@ -3,7 +3,16 @@ import { AlertTriangle, X, RefreshCw, AlertCircle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getErrorMessageFromError, getRetryMessage, isRetryable } from '@/lib/errorUtils';
 
-const ErrorMessage = ({ 
+interface ErrorMessageProps {
+  error: unknown;
+  onRetry?: () => void;
+  onDismiss?: () => void;
+  variant?: 'error' | 'warning' | 'info';
+  showDetails?: boolean;
+  className?: string;
+}
+
+const ErrorMessage: React.FC<ErrorMessageProps> = ({ 
   error, 
   onRetry, 
   onDismiss, 
@@ -38,6 +47,11 @@ const ErrorMessage = ({
   const retryMessage = getRetryMessage(error);
   const canRetry = isRetryable(error);
 
+  // 타입 가드: error가 response 속성을 가진 객체인지 확인
+  const hasResponse = (err: unknown): err is { response?: { data?: { message?: string } } } => {
+    return typeof err === 'object' && err !== null && 'response' in err;
+  };
+
   return (
     <div className={`p-4 rounded-lg border ${getErrorColor()} ${className}`}>
       <div className="flex gap-3 items-start">
@@ -48,7 +62,7 @@ const ErrorMessage = ({
             {errorMessage}
           </p>
           
-          {showDetails && error?.response?.data?.message && (
+          {showDetails && hasResponse(error) && error.response?.data?.message && (
             <p className="mb-2 text-xs text-gray-600">
               {error.response.data.message}
             </p>
@@ -91,6 +105,7 @@ const ErrorMessage = ({
           <button
             onClick={onDismiss}
             className="flex-shrink-0 text-gray-400 hover:text-gray-600"
+            aria-label="닫기"
           >
             <X className="w-4 h-4" />
           </button>
@@ -101,3 +116,4 @@ const ErrorMessage = ({
 };
 
 export default ErrorMessage;
+
