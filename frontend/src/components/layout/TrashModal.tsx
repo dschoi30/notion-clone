@@ -39,6 +39,7 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
   const { user } = useAuth();
   const log = createLogger('trash');
   const [parentDocsCache, setParentDocsCache] = useState<Record<number, Document>>({}); // 부모 문서 캐시
+  const failedParentIdsRef = useRef<Set<number>>(new Set()); // 실패한 부모 문서 ID 추적
 
   // 쓰기 권한이 있는 문서가 하나라도 있는지 확인
   const hasAnyWritableDocument = trashedDocuments.some(doc => hasWritePermission(doc, user));
@@ -53,7 +54,8 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
         if (doc.parentId) {
           // 휴지통에 없는 부모만 조회
           const parentInTrash = trashedDocuments.find(d => String(d.id) === String(doc.parentId));
-          if (!parentInTrash && !parentDocsCache[doc.parentId]) {
+          // 캐시에 없고, 실패한 ID 목록에도 없는 경우만 조회 대상에 추가
+          if (!parentInTrash && !parentDocsCache[doc.parentId] && !failedParentIdsRef.current.has(doc.parentId)) {
             parentIds.add(doc.parentId);
           }
         }
@@ -67,8 +69,12 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
         try {
           const parentDoc = await getDocument(workspaceId, parentId);
           newCache[parentId] = parentDoc;
+          // 성공한 경우 실패 목록에서 제거 (재시도 가능하도록)
+          failedParentIdsRef.current.delete(parentId);
         } catch (err) {
           log.warn('부모 문서 조회 실패', { parentId, error: err });
+          // 실패한 ID를 추적하여 재시도 방지
+          failedParentIdsRef.current.add(parentId);
         }
       });
       
@@ -129,6 +135,10 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
   // 휴지통 문서 목록 fetch (open, workspaceId 변경 시)
   useEffect(() => {
     if (!open || !workspaceId) return;
+    // 모달이 열릴 때 실패한 ID 목록 초기화 (재시도 가능하도록)
+    if (open) {
+      failedParentIdsRef.current.clear();
+    }
     fetchTrashedDocuments();
   }, [open, workspaceId]);
 

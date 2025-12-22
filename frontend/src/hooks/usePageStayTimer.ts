@@ -73,7 +73,8 @@ export default function usePageStayTimer({
       }
       log.debug('cleanup');
     };
-  }, [enabled, targetMs, log]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, targetMs]);
 
   return { elapsedMs };
 }
