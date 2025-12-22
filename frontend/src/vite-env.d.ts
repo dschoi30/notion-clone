@@ -9,4 +9,29 @@ interface Window {
       tags?: Record<string, string>;
     }) => void;
   };
+  google?: {
+    accounts?: {
+      id?: {
+        initialize: (config: {
+          client_id: string;
+          callback: (response: { credential: string }) => void;
+          ux_mode?: 'popup' | 'redirect';
+          context?: 'signin' | 'signup' | 'use';
+          auto_select?: boolean;
+          itp_support?: boolean;
+        }) => void;
+        renderButton: (
+          element: HTMLElement,
+          options: {
+            theme?: 'outline' | 'filled_blue' | 'filled_black';
+            size?: 'large' | 'medium' | 'small';
+            text?: 'signin_with' | 'signup_with' | 'continue_with' | 'signin';
+            shape?: 'rectangular' | 'pill' | 'circle';
+            locale?: string;
+            width?: number;
+          }
+        ) => void;
+      };
+    };
+  };
 }

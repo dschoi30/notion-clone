@@ -1,16 +1,33 @@
-// components/auth/GoogleAuth.jsx
 import React, { useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
+interface GoogleCredentialResponse {
+  credential: string;
+}
+
+interface ResizeObserverEntry {
+  contentRect: {
+    width: number;
+  };
+}
+
+interface ResizeObserverCallback {
+  (entries: ResizeObserverEntry[]): void;
+}
+
+interface HTMLElementWithResizeObserver extends HTMLElement {
+  _resizeObserver?: ResizeObserver;
+}
+
 export default function GoogleAuth() {
   const navigate = useNavigate();
   const { loginWithGoogle } = useAuth();
-  const isInitialized = useRef(false);
-  const buttonContainerRef = useRef(null);
-  const containerWidthRef = useRef(null);
+  const isInitialized = useRef<boolean>(false);
+  const buttonContainerRef = useRef<HTMLElementWithResizeObserver | null>(null);
+  const containerWidthRef = useRef<number | null>(null);
 
-  const handleGoogleLogin = useCallback(async (response) => {
+  const handleGoogleLogin = useCallback(async (response: GoogleCredentialResponse) => {
     try {
       await loginWithGoogle(response.credential);
       navigate('/');
@@ -34,7 +51,7 @@ export default function GoogleAuth() {
         initializeGoogleAuth();
       } else {
         // 스크립트는 있지만 아직 로드 중이면 onload 대기
-        existingScript.onload = initializeGoogleAuth;
+        existingScript.onload = initializeGoogleAuth as (this: GlobalEventHandlers, ev: Event) => void;
       }
     } else {
       // 스크립트가 없으면 새로 로드
@@ -44,7 +61,7 @@ export default function GoogleAuth() {
       script.defer = true;
       document.body.appendChild(script);
 
-      script.onload = initializeGoogleAuth;
+      script.onload = initializeGoogleAuth as (this: GlobalEventHandlers, ev: Event) => void;
     }
 
     function initializeGoogleAuth() {
@@ -63,6 +80,11 @@ export default function GoogleAuth() {
         const containerWidth = buttonContainerRef.current.getBoundingClientRect().width;
         const buttonWidth = Math.max(containerWidth || 400, 200);
         containerWidthRef.current = buttonWidth;
+
+        if (!window.google?.accounts?.id) {
+          console.error('Google Accounts ID API가 로드되지 않았습니다.');
+          return;
+        }
 
         window.google.accounts.id.initialize({
           client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
@@ -99,7 +121,7 @@ export default function GoogleAuth() {
         return;
       }
 
-      const resizeObserver = new ResizeObserver((entries) => {
+      const resizeObserver = new ResizeObserver((entries: ResizeObserverEntry[]) => {
         for (const entry of entries) {
           const newWidth = entry.contentRect.width;
           const currentWidth = containerWidthRef.current;
@@ -107,8 +129,8 @@ export default function GoogleAuth() {
           // 너비가 10px 이상 변경되었을 때만 재렌더링 (성능 최적화)
           if (currentWidth && Math.abs(newWidth - currentWidth) > 10) {
             // 버튼 재렌더링
-            const existingButton = buttonContainerRef.current.querySelector('div[role="button"]');
-            if (existingButton && window.google?.accounts?.id) {
+            const existingButton = buttonContainerRef.current?.querySelector('div[role="button"]');
+            if (existingButton && window.google?.accounts?.id && buttonContainerRef.current) {
               buttonContainerRef.current.innerHTML = '';
               const buttonWidth = Math.max(newWidth || 400, 200);
               window.google.accounts.id.renderButton(
@@ -153,3 +175,4 @@ export default function GoogleAuth() {
     </div>
   );
 }
+

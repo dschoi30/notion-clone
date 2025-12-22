@@ -1,23 +1,34 @@
-import React from 'react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getReactErrorMessage } from '@/lib/errorUtils';
 import { createLogger } from '@/lib/logger';
 import { captureException } from '@/lib/sentry';
 
-class ErrorBoundary extends React.Component {
-  constructor(props) {
+interface Props {
+  children: ReactNode;
+}
+
+interface State {
+  hasError: boolean;
+  error: Error | null;
+  errorInfo: ErrorInfo | null;
+}
+
+class ErrorBoundary extends Component<Props, State> {
+  private logger = createLogger('ErrorBoundary');
+
+  constructor(props: Props) {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null };
-    this.logger = createLogger('ErrorBoundary');
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(error: Error): State {
     // 다음 렌더링에서 폴백 UI가 보이도록 상태를 업데이트합니다.
-    return { hasError: true };
+    return { hasError: true, error, errorInfo: null };
   }
 
-  componentDidCatch(error, errorInfo) {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // 에러 로깅 서비스에 에러를 기록할 수 있습니다.
     this.logger.error('ErrorBoundary caught an error:', error, errorInfo);
     
@@ -35,6 +46,13 @@ class ErrorBoundary extends React.Component {
 
   getErrorMessage = () => {
     const { error } = this.state;
+    if (!error) {
+      return {
+        title: '알 수 없는 오류',
+        description: '오류가 발생했습니다.'
+      };
+    }
+    
     const errorInfo = getReactErrorMessage(error);
     
     // 세션 만료인 경우 자동 리다이렉트
@@ -62,7 +80,6 @@ class ErrorBoundary extends React.Component {
   handleGoHome = () => {
     window.location.href = '/';
   };
-
 
   render() {
     if (this.state.hasError) {
@@ -93,12 +110,14 @@ class ErrorBoundary extends React.Component {
                   <div className="mb-2">
                     <strong>Error:</strong> {this.state.error.toString()}
                   </div>
-                  <div>
-                    <strong>Stack:</strong>
-                    <pre className="whitespace-pre-wrap">
-                      {this.state.errorInfo.componentStack}
-                    </pre>
-                  </div>
+                  {this.state.errorInfo && (
+                    <div>
+                      <strong>Stack:</strong>
+                      <pre className="whitespace-pre-wrap">
+                        {this.state.errorInfo.componentStack}
+                      </pre>
+                    </div>
+                  )}
                 </div>
               </details>
             )}
@@ -132,3 +151,4 @@ class ErrorBoundary extends React.Component {
 }
 
 export default ErrorBoundary;
+
