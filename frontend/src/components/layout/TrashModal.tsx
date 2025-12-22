@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useLayoutEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useLayoutEffect, useMemo, useState, type RefObject } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip } from '@/components/ui/tooltip';
 import { TrashIcon, Undo, FileText, Table } from 'lucide-react';
@@ -9,10 +9,25 @@ import { Z_INDEX } from '@/constants/zIndex';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasWritePermission } from '@/utils/permissionUtils';
 import { getDocument } from '@/services/documentApi';
+import type { Document } from '@/types';
 
-export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRestore }) {
-  const dialogRef = useRef(null);
-  const [dialogPosition, setDialogPosition] = React.useState({ left: 0, bottom: 0, position: 'fixed' });
+interface TrashModalProps {
+  open: boolean;
+  onClose: () => void;
+  workspaceId?: number;
+  anchorRef: RefObject<HTMLElement>;
+  onRestore?: () => void;
+}
+
+interface DialogPosition {
+  left: number;
+  bottom: number;
+  position: 'fixed';
+}
+
+export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRestore }: TrashModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const [dialogPosition, setDialogPosition] = useState<DialogPosition>({ left: 0, bottom: 0, position: 'fixed' });
   const {
     trashedDocuments,
     loading,
@@ -23,7 +38,7 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
   } = useTrash(workspaceId);
   const { user } = useAuth();
   const log = createLogger('trash');
-  const [parentDocsCache, setParentDocsCache] = useState({}); // 부모 문서 캐시
+  const [parentDocsCache, setParentDocsCache] = useState<Record<number, Document>>({}); // 부모 문서 캐시
 
   // 쓰기 권한이 있는 문서가 하나라도 있는지 확인
   const hasAnyWritableDocument = trashedDocuments.some(doc => hasWritePermission(doc, user));
@@ -33,7 +48,7 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
     if (!workspaceId || !open || trashedDocuments.length === 0) return;
     
     const fetchParentDocs = async () => {
-      const parentIds = new Set();
+      const parentIds = new Set<number>();
       trashedDocuments.forEach(doc => {
         if (doc.parentId) {
           // 휴지통에 없는 부모만 조회
@@ -67,10 +82,10 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
   // 문서 경로 계산 함수 (trashedDocuments와 parentDocsCache를 모두 사용)
   // 경로는 [루트, 부모1, 부모2, ..., 현재문서] 순서로 구성됨
   const getDocumentPath = useMemo(() => {
-    return (doc) => {
-      const path = [];
-      let currentDoc = doc;
-      const visited = new Set(); // 순환 참조 방지
+    return (doc: Document): Document[] => {
+      const path: Document[] = [];
+      let currentDoc: Document | undefined = doc;
+      const visited = new Set<number>(); // 순환 참조 방지
       
       // 현재 문서부터 시작해서 루트까지 올라가며 경로 구성
       while (currentDoc && !visited.has(currentDoc.id)) {
@@ -79,7 +94,7 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
         if (!currentDoc.parentId) break;
         
         // 먼저 휴지통에서 찾기
-        let parent = trashedDocuments.find(d => String(d.id) === String(currentDoc.parentId));
+        let parent = trashedDocuments.find(d => String(d.id) === String(currentDoc!.parentId));
         // 휴지통에 없으면 캐시에서 찾기
         if (!parent && parentDocsCache[currentDoc.parentId]) {
           parent = parentDocsCache[currentDoc.parentId];
@@ -93,7 +108,7 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
   }, [trashedDocuments, parentDocsCache]);
 
   // 경로를 문자열로 변환 (길면 축약, 현재 문서 제외하고 부모 경로만 표시)
-  const formatPath = (path) => {
+  const formatPath = (path: Document[]): string | null => {
     if (!path || path.length <= 1) return null; // 부모가 없으면 표시 안 함
     
     // path = [루트, 부모1, 부모2, ..., 현재문서]
@@ -118,7 +133,7 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
   }, [open, workspaceId]);
 
   // 위치 계산 함수 분리
-  function calculateDialogPosition(anchorEl) {
+  function calculateDialogPosition(anchorEl: HTMLElement): DialogPosition | null {
     const rect = anchorEl.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) {
       log.warn('TrashModal: anchorRef의 getBoundingClientRect 값이 0입니다.', rect);
@@ -264,4 +279,5 @@ export default function TrashModal({ open, onClose, workspaceId, anchorRef, onRe
         </DialogContent>
     </Dialog>
   );
-} 
+}
+
