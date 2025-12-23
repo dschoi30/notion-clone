@@ -1,15 +1,22 @@
 import React, { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 
-function PageHeaderArea({ addBtnRef, isAddOpen, setIsAddOpen, AddPropertyPopoverComponent }) {
-  const popoverRef = useRef(null);
+interface PageHeaderAreaProps {
+  addBtnRef: React.RefObject<HTMLButtonElement>;
+  isAddOpen: boolean;
+  setIsAddOpen: (value: boolean | ((prev: boolean) => boolean)) => void;
+  AddPropertyPopoverComponent: React.ComponentType;
+}
+
+function PageHeaderArea({ addBtnRef, isAddOpen, setIsAddOpen, AddPropertyPopoverComponent }: PageHeaderAreaProps) {
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isAddOpen) return;
-    const onDocMouseDown = (e) => {
+    const onDocMouseDown = (e: Event) => {
       const popoverEl = popoverRef.current;
       const btnEl = addBtnRef?.current;
-      const target = e.target;
+      const target = e.target as Node;
       const insidePopover = popoverEl && popoverEl.contains(target);
       const onButton = btnEl && btnEl.contains(target);
       if (!insidePopover && !onButton) setIsAddOpen(false);
@@ -34,5 +41,4 @@ function PageHeaderArea({ addBtnRef, isAddOpen, setIsAddOpen, AddPropertyPopover
 }
 
 export default PageHeaderArea;
-
 
