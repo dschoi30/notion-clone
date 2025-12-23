@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getReactErrorMessage } from '@/lib/errorUtils';
@@ -34,8 +34,10 @@ class ErrorBoundary extends Component<Props, State> {
     
     // Sentry에 에러 전송
     captureException(error, {
-      errorInfo,
-      componentStack: errorInfo.componentStack,
+      extra: {
+        errorInfo,
+        componentStack: errorInfo.componentStack,
+      },
     });
     
     this.setState({

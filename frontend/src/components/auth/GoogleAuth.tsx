@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -12,11 +12,7 @@ interface ResizeObserverEntry {
   };
 }
 
-interface ResizeObserverCallback {
-  (entries: ResizeObserverEntry[]): void;
-}
-
-interface HTMLElementWithResizeObserver extends HTMLElement {
+interface HTMLElementWithResizeObserver extends HTMLDivElement {
   _resizeObserver?: ResizeObserver;
 }
 
@@ -43,7 +39,7 @@ export default function GoogleAuth() {
     }
 
     // 스크립트가 이미 로드되어 있는지 확인
-    const existingScript = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+    const existingScript = document.querySelector('script[src="https://accounts.google.com/gsi/client"]') as HTMLScriptElement | null;
     
     if (existingScript) {
       // 스크립트가 이미 로드되어 있으면 바로 초기화
