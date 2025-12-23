@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, MouseEvent, ReactNode, memo } from 'react';
 import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -14,12 +14,47 @@ import { resolveUserDisplay } from '@/components/documents/shared/resolveUserDis
 import { Z_INDEX } from '@/constants/zIndex';
 import { toast } from '@/hooks/useToast';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
+import type { DocumentProperty, TagOption } from '@/types';
 
-function VersionProperties({ propertiesJson, valuesJson, tagOptionsByPropId }) {
-  const props = useMemo(() => {
+interface VersionPropertiesProps {
+  propertiesJson?: string | null;
+  valuesJson?: string | null;
+  tagOptionsByPropId?: Record<number, TagOption[]>;
+}
+
+interface DocumentVersion {
+  id: number;
+  createdAt: string;
+  createdBy?: string;
+}
+
+interface DocumentVersionDetail {
+  id: number;
+  title: string;
+  content: string;
+  viewType: string;
+  createdAt: string;
+  propertiesJson?: string;
+  propertyValuesJson?: string;
+}
+
+interface VersionProperties {
+  id?: number;
+  name: string;
+  type: string;
+}
+
+interface VersionHistoryPanelProps {
+  workspaceId?: number;
+  documentId?: number;
+  onClose: () => void;
+}
+
+function VersionPropertiesComponent({ propertiesJson, valuesJson, tagOptionsByPropId }: VersionPropertiesProps) {
+  const props = useMemo<VersionProperties[]>(() => {
     try { return propertiesJson ? JSON.parse(propertiesJson) : []; } catch { return []; }
   }, [propertiesJson]);
-  const values = useMemo(() => {
+  const values = useMemo<Record<string, string | number>>(() => {
     try { return valuesJson ? JSON.parse(valuesJson) : {}; } catch { return {}; }
   }, [valuesJson]);
   if (!props || props.length === 0) return null;
@@ -27,17 +62,17 @@ function VersionProperties({ propertiesJson, valuesJson, tagOptionsByPropId }) {
     <div className="mt-6 space-y-2">
       {props.map((p) => {
         const rawValue = values[String(p.id)] ?? '';
-        let renderedValue = null;
+        let renderedValue: ReactNode = null;
         if (p.type === 'DATE' || p.type === 'CREATED_AT' || p.type === 'LAST_UPDATED_AT') {
           renderedValue = (
             <span className="inline-flex items-center min-h-[28px]">
-              {rawValue ? formatKoreanDateSmart(rawValue) : ''}
+              {rawValue ? formatKoreanDateSmart(String(rawValue)) : ''}
             </span>
           );
         } else if (p.type === 'TAG') {
-          let tagIds = [];
-          try { tagIds = rawValue ? JSON.parse(rawValue) : []; } catch {}
-          const tagOptions = tagOptionsByPropId?.[p.id] || [];
+          let tagIds: number[] = [];
+          try { tagIds = rawValue ? JSON.parse(String(rawValue)) : []; } catch {}
+          const tagOptions = tagOptionsByPropId?.[p.id || 0] || [];
           renderedValue = (
             <div className="flex gap-1" style={{ minWidth: 0 }}>
               {Array.isArray(tagIds) && tagIds.map((tid) => {
@@ -59,7 +94,7 @@ function VersionProperties({ propertiesJson, valuesJson, tagOptionsByPropId }) {
         } else {
           renderedValue = (
             <span className="inline-flex items-center min-h-[28px]">
-              {rawValue}
+              {String(rawValue)}
             </span>
           );
         }
@@ -76,8 +111,8 @@ function VersionProperties({ propertiesJson, valuesJson, tagOptionsByPropId }) {
 
 const PAGE_SIZE = 20;
 
-function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
-  const [selectedId, setSelectedId] = useState(null);
+function VersionHistoryPanel({ workspaceId, documentId, onClose }: VersionHistoryPanelProps) {
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const queryClient = useQueryClient();
   const log = createLogger('version');
   const { handleError } = useErrorHandler();
@@ -87,8 +122,8 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
   // 권한 체크: 읽기 권한만 있는 경우 복원 버튼 비활성화
   const canRestore = hasWritePermission(currentDocument, user);
 
-  const scrollContainerRef = useRef(null);
-  const sentinelRef = useRef(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   // React Query로 문서 버전 목록 조회 (무한 스크롤)
   const {
@@ -101,6 +136,9 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
   } = useInfiniteQuery({
     queryKey: ['document-versions', workspaceId, documentId],
     queryFn: async ({ pageParam = 0 }) => {
+      if (!workspaceId || !documentId) {
+        throw new Error('workspaceId and documentId are required');
+      }
       const res = await getDocumentVersions(workspaceId, documentId, { page: pageParam, size: PAGE_SIZE });
       return {
         versions: res?.content || [],
@@ -127,10 +165,10 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
         showToast: true
       });
     }
-  }, [versionsQueryError, handleError]);
+  }, [versionsQueryError, handleError, log]);
 
   // 모든 버전을 하나의 배열로 합치기
-  const versions = useMemo(() => {
+  const versions = useMemo<DocumentVersion[]>(() => {
     if (!versionsData?.pages) return [];
     return versionsData.pages.flatMap((page) => page.versions);
   }, [versionsData]);
@@ -140,9 +178,14 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
     data: selected,
     isLoading: selectedLoading,
     error: selectedError,
-  } = useQuery({
+  } = useQuery<DocumentVersionDetail>({
     queryKey: ['document-version', workspaceId, documentId, selectedId],
-    queryFn: () => getDocumentVersion(workspaceId, documentId, selectedId),
+    queryFn: () => {
+      if (!workspaceId || !documentId || !selectedId) {
+        throw new Error('workspaceId, documentId, and selectedId are required');
+      }
+      return getDocumentVersion(workspaceId, documentId, selectedId);
+    },
     enabled: !!workspaceId && !!documentId && !!selectedId,
     staleTime: 1000 * 60 * 5, // 5분
   });
@@ -156,28 +199,26 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
         showToast: true
       });
     }
-  }, [selectedError, handleError]);
+  }, [selectedError, handleError, log]);
 
   // 속성 조회 (태그 옵션용)
   const {
     data: propertiesData,
     error: propertiesError,
-  } = useQuery({
+  } = useQuery<DocumentProperty[]>({
     queryKey: ['version-properties', workspaceId, documentId],
-    queryFn: () => getProperties(workspaceId, documentId),
+    queryFn: () => {
+      if (!workspaceId || !documentId) {
+        throw new Error('workspaceId and documentId are required');
+      }
+      return getProperties(workspaceId, documentId);
+    },
     enabled: !!workspaceId && !!documentId && !!selectedId,
     staleTime: 1000 * 60 * 5, // 5분
   });
 
   // 에러 처리 (React Query v5 권장 방식)
   useEffect(() => {
-    if (selectedError) {
-      log.error('문서 버전 상세 조회 실패', selectedError);
-      handleError(selectedError, {
-        customMessage: '문서 버전 상세 정보를 불러오지 못했습니다.',
-        showToast: true
-      });
-    }
     if (propertiesError) {
       log.error('속성 조회 실패 (버전 히스토리)', propertiesError);
       handleError(propertiesError, {
@@ -185,12 +226,12 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
         showToast: true
       });
     }
-  }, [selectedError, propertiesError, handleError]);
+  }, [propertiesError, handleError, log]);
 
   // 태그 옵션 맵 생성
-  const tagOptionsByPropId = useMemo(() => {
+  const tagOptionsByPropId = useMemo<Record<number, TagOption[]>>(() => {
     if (!propertiesData) return {};
-    const map = {};
+    const map: Record<number, TagOption[]> = {};
     (propertiesData || []).forEach((p) => {
       if (p?.id) map[p.id] = p.tagOptions || [];
     });
@@ -199,13 +240,20 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
 
   // 버전 복원 mutation
   const restoreMutation = useMutation({
-    mutationFn: (versionId) => restoreDocumentVersion(workspaceId, documentId, versionId),
+    mutationFn: (versionId: number) => {
+      if (!workspaceId || !documentId) {
+        throw new Error('workspaceId and documentId are required');
+      }
+      return restoreDocumentVersion(workspaceId, documentId, versionId);
+    },
     onSuccess: async () => {
       log.info('restore success');
-      // 현재 문서 정보 새로고침
-      await fetchDocument(documentId);
-      // 사이드바의 문서 목록과 자식 문서들도 새로고침하여 변경사항 반영
-      await refreshAllChildDocuments();
+      if (documentId) {
+        // 현재 문서 정보 새로고침
+        await fetchDocument(documentId);
+        // 사이드바의 문서 목록과 자식 문서들도 새로고침하여 변경사항 반영
+        await refreshAllChildDocuments();
+      }
       // 버전 목록도 새로고침
       queryClient.invalidateQueries({ queryKey: ['document-versions', workspaceId, documentId] });
       toast({
@@ -239,7 +287,7 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
     setSelectedId(null);
   }, [workspaceId, documentId]);
 
-  const handleSelect = (versionId) => {
+  const handleSelect = (versionId: number) => {
     log.debug('select version', versionId);
     setSelectedId(versionId);
   };
@@ -283,7 +331,7 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
       style={{ zIndex: Z_INDEX.VERSION_HISTORY }}
       onClick={onClose}
     >
-      <div className="relative bg-white w-[1040px] h-[85vh] rounded-lg shadow-2xl flex" onClick={(e) => e.stopPropagation()}>
+      <div className="relative bg-white w-[1040px] h-[85vh] rounded-lg shadow-2xl flex" onClick={(e: MouseEvent) => e.stopPropagation()}>
         {/* 메인 영역 */}
         <div className="overflow-auto flex-1 p-8">
           <div className="flex items-center mb-4">
@@ -292,7 +340,7 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
           {!selected && <div className="text-sm text-gray-500">우측 목록에서 버전을 선택하세요.</div>}
           {selected && (
             <div>
-              <VersionProperties propertiesJson={selected.propertiesJson} valuesJson={selected.propertyValuesJson} tagOptionsByPropId={tagOptionsByPropId} />
+              <VersionPropertiesComponent propertiesJson={selected.propertiesJson} valuesJson={selected.propertyValuesJson} tagOptionsByPropId={tagOptionsByPropId} />
               {selected.content && (
                 <>
                   <div className="my-6 border-t border-gray-200" />
@@ -369,4 +417,5 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }) {
   );
 }
 
-export default React.memo(VersionHistoryPanel);
+export default memo(VersionHistoryPanel);
+
