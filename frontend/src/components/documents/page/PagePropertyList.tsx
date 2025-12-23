@@ -1,9 +1,34 @@
 import React, { forwardRef, useImperativeHandle, useRef } from 'react';
-import { DndContext, closestCenter } from '@dnd-kit/core';
+import { DndContext, closestCenter, SensorDescriptor, SensorOptions } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import PagePropertyRow from './PagePropertyRow';
+import type { DocumentProperty } from '@/types';
 
-const PagePropertyList = forwardRef(({
+interface PagePropertyListProps {
+  properties: DocumentProperty[];
+  valuesByPropertyId: Record<number, string | number | boolean | number[]>;
+  sensors: SensorDescriptor<SensorOptions>[];
+  onDragEnd: (event: any) => void;
+  editingHeader: { id: number | null; name: string };
+  setEditingHeader: (header: { id: number | null; name: string }) => void;
+  onHeaderCommit: () => void;
+  editingValueId: number | null;
+  setEditingValueId: (id: number | null) => void;
+  editingValue: string | number | boolean | number[];
+  setEditingValue: (value: string | number | boolean | number[]) => void;
+  onValueCommit: (propertyId: number, value: string | number | boolean | number[]) => void;
+  tagPopoverRect: { top: number; left: number; width: number; height: number } | null;
+  setTagPopoverRect: (rect: { top: number; left: number; width: number; height: number } | null) => void;
+  isReadOnly?: boolean;
+  editorRef: React.RefObject<{ focus: () => void }>;
+}
+
+export interface PagePropertyListHandle {
+  focusFirstProperty: () => void;
+  focusNextProperty: (currentIndex: number) => void;
+}
+
+const PagePropertyList = forwardRef<PagePropertyListHandle, PagePropertyListProps>(({
   properties,
   valuesByPropertyId,
   sensors,
@@ -21,7 +46,7 @@ const PagePropertyList = forwardRef(({
   isReadOnly = false,
   editorRef,
 }, ref) => {
-  const propertyRowRefs = useRef({});
+  const propertyRowRefs = useRef<Record<number, { focusValue: () => void }>>({});
 
   // 외부에서 호출할 수 있는 함수들
   useImperativeHandle(ref, () => ({
@@ -31,7 +56,7 @@ const PagePropertyList = forwardRef(({
         propertyRowRefs.current[firstProperty.id].focusValue();
       }
     },
-    focusNextProperty: (currentIndex) => {
+    focusNextProperty: (currentIndex: number) => {
       const nextIndex = currentIndex + 1;
       if (nextIndex < properties.length) {
         const nextProperty = properties[nextIndex];
@@ -46,6 +71,7 @@ const PagePropertyList = forwardRef(({
       }
     }
   }));
+  
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       <SortableContext items={properties.map((p) => p.id)} strategy={verticalListSortingStrategy}>
@@ -53,7 +79,13 @@ const PagePropertyList = forwardRef(({
           {properties.map((prop) => (
             <PagePropertyRow
               key={prop.id}
-              ref={(el) => propertyRowRefs.current[prop.id] = el}
+              ref={(el) => {
+                if (el) {
+                  propertyRowRefs.current[prop.id] = el;
+                } else {
+                  delete propertyRowRefs.current[prop.id];
+                }
+              }}
               property={prop}
               value={valuesByPropertyId[prop.id]}
               isEditingHeader={editingHeader.id === prop.id}
@@ -80,6 +112,7 @@ const PagePropertyList = forwardRef(({
   );
 });
 
-export default PagePropertyList;
+PagePropertyList.displayName = 'PagePropertyList';
 
+export default PagePropertyList;
 

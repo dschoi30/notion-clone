@@ -1,4 +1,4 @@
-import React, { useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useRef, forwardRef, useImperativeHandle, ChangeEvent, KeyboardEvent, MouseEvent } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import DatePopover from '../DatePopover';
@@ -10,8 +10,35 @@ import { GripVertical } from 'lucide-react';
 import UserBadge from '@/components/documents/shared/UserBadge';
 import { useDocument } from '@/contexts/DocumentContext';
 import { resolveUserDisplay } from '@/components/documents/shared/resolveUserDisplay';
+import type { DocumentProperty } from '@/types';
+import type { PagePropertyListHandle } from './PagePropertyList';
 
-const PagePropertyRow = forwardRef(({
+interface PagePropertyRowProps {
+  property: DocumentProperty;
+  value: string | number | boolean | number[] | undefined;
+  isEditingHeader: boolean;
+  editingHeaderName: string;
+  setEditingHeaderName: (name: string) => void;
+  onHeaderCommit: () => void;
+  isEditingValue: boolean;
+  editingValue: string | number | boolean | number[];
+  setEditingValue: (value: string | number | boolean | number[]) => void;
+  onValueCommit: (propertyId: number, value: string | number | boolean | number[]) => void;
+  tagPopoverRect: { top: number; left: number; width: number; height: number } | null;
+  setTagPopoverRect: (rect: { top: number; left: number; width: number; height: number } | null) => void;
+  setEditingValueId: (id: number | null) => void;
+  isReadOnly?: boolean;
+  editorRef: React.RefObject<{ focus: () => void }>;
+  properties: DocumentProperty[];
+  currentPropertyIndex: number;
+  propertyListRef: React.RefObject<PagePropertyListHandle>;
+}
+
+export interface PagePropertyRowHandle {
+  focusValue: () => void;
+}
+
+const PagePropertyRow = forwardRef<PagePropertyRowHandle, PagePropertyRowProps>(({
   property,
   value,
   isEditingHeader,
@@ -35,8 +62,8 @@ const PagePropertyRow = forwardRef(({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: property.id, disabled: isReadOnly });
   const style = { transform: CSS.Transform.toString(transform), transition };
 
-  const tagCellRef = useRef(null);
-  const valueInputRef = useRef(null);
+  const tagCellRef = useRef<HTMLSpanElement>(null);
+  const valueInputRef = useRef<HTMLInputElement>(null);
 
   // 외부에서 호출할 수 있는 함수들
   useImperativeHandle(ref, () => ({
@@ -57,10 +84,10 @@ const PagePropertyRow = forwardRef(({
     }
   };
 
-  let content = null;
+  let content: React.ReactNode = null;
   const valueStr = value ?? '';
 
-  if (isEditingValue && !SYSTEM_PROP_TYPES.includes(property.type)) {
+  if (isEditingValue && !SYSTEM_PROP_TYPES.includes(property.type as any)) {
     if (property.type === 'TEXT') {
       content = (
         <input
@@ -68,13 +95,13 @@ const PagePropertyRow = forwardRef(({
           autoFocus
           className="px-2 py-1 w-full rounded border outline-none"
           style={{ background: '#fff', border: '1.5px solid #bdbdbd' }}
-          value={editingValue}
-          onChange={(e) => setEditingValue(e.target.value)}
+          value={editingValue as string}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setEditingValue(e.target.value)}
           onBlur={() => {
             onValueCommit(property.id, editingValue);
             setEditingValueId(null);
           }}
-          onKeyDown={(e) => {
+          onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
             if (e.key === 'Enter') {
               onValueCommit(property.id, editingValue);
               setEditingValueId(null);
@@ -95,13 +122,13 @@ const PagePropertyRow = forwardRef(({
           autoFocus
           className="px-2 py-1 w-full rounded border outline-none"
           style={{ background: '#fff', border: '1.5px solid #bdbdbd' }}
-          value={editingValue}
-          onChange={(e) => setEditingValue(e.target.value)}
+          value={editingValue as string | number}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setEditingValue(e.target.value)}
           onBlur={() => {
             onValueCommit(property.id, editingValue);
             setEditingValueId(null);
           }}
-          onKeyDown={(e) => {
+          onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
             if (e.key === 'Enter') {
               onValueCommit(property.id, editingValue);
               setEditingValueId(null);
@@ -117,8 +144,8 @@ const PagePropertyRow = forwardRef(({
     } else if (property.type === 'DATE') {
       content = (
         <DatePopover
-          value={editingValue}
-          onChange={(val) => {
+          value={editingValue as string}
+          onChange={(val: string) => {
             setEditingValue(val);
             onValueCommit(property.id, val);
           }}
@@ -138,18 +165,19 @@ const PagePropertyRow = forwardRef(({
     property.type === 'LAST_UPDATED_AT'
   ) {
     // 시스템/날짜 표시 시 한국어 포맷 적용
-    const display = valueStr ? formatKoreanDateSmart(valueStr) : '';
+    const display = valueStr ? formatKoreanDateSmart(String(valueStr)) : '';
     content = <span className="inline-flex items-center min-h-[28px]">{display}</span>;
   } else if (property.type === 'CREATED_BY') {
-    const { name, email, profileImageUrl } = resolveUserDisplay(valueStr, currentDocument?.permissions);
+    const { name, email, profileImageUrl } = resolveUserDisplay(String(valueStr), currentDocument?.permissions);
     content = <UserBadge name={name} email={email} profileImageUrl={profileImageUrl} />;
   } else if (property.type === 'LAST_UPDATED_BY') {
-    const { name, email, profileImageUrl } = resolveUserDisplay(valueStr, currentDocument?.permissions);
+    const { name, email, profileImageUrl } = resolveUserDisplay(String(valueStr), currentDocument?.permissions);
     content = <UserBadge name={name} email={email} profileImageUrl={profileImageUrl} />;
   } else if (property.type === 'TAG') {
-    let tags = [];
+    let tags: number[] = [];
     try {
-      tags = valueStr ? JSON.parse(valueStr) : [];
+      tags = valueStr ? JSON.parse(String(valueStr)) : [];
+      if (!Array.isArray(tags)) tags = [];
     } catch {}
     const tagOptions = property?.tagOptions || [];
     content = (
@@ -182,7 +210,7 @@ const PagePropertyRow = forwardRef(({
     // TEXT/NUMBER 등의 미수정 상태도 인풋 높이와 맞춤
     content = (
       <span className="inline-flex items-center min-h-[28px]">
-        {valueStr}
+        {String(valueStr)}
       </span>
     );
   }
@@ -198,7 +226,7 @@ const PagePropertyRow = forwardRef(({
         <div
           className="flex absolute top-0 items-center pr-1 pl-1 h-full opacity-0 transition-opacity group-hover:opacity-100"
           style={{ width: 28, zIndex: 2, left: -40 }}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e: MouseEvent) => e.stopPropagation()}
         >
           <button
             type="button"
@@ -214,21 +242,21 @@ const PagePropertyRow = forwardRef(({
       <span
         className="text-sm text-gray-500 font-medium mr-4 w-[140px] text-ellipsis"
         onClick={() => {
-          if (!SYSTEM_PROP_TYPES.includes(property.type)) {
+          if (!SYSTEM_PROP_TYPES.includes(property.type as any)) {
             // 편집 시작: 현재 라벨로 초기화
             setEditingHeaderName(property.name);
           }
         }}
       >
-        {isEditingHeader && !SYSTEM_PROP_TYPES.includes(property.type) && !isReadOnly ? (
+        {isEditingHeader && !SYSTEM_PROP_TYPES.includes(property.type as any) && !isReadOnly ? (
           <input
             autoFocus
             className="px-2 py-1 w-[140px] rounded border outline-none"
             style={{ background: '#fff', border: '1.5px solid #bdbdbd' }}
             value={editingHeaderName}
-            onChange={(e) => setEditingHeaderName(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setEditingHeaderName(e.target.value)}
             onBlur={onHeaderCommit}
-            onKeyDown={(e) => {
+            onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
               if (e.key === 'Enter') {
                 onHeaderCommit();
               } else if (e.key === 'Tab') {
@@ -246,7 +274,7 @@ const PagePropertyRow = forwardRef(({
         ref={tagCellRef}
         className="relative flex-1 text-sm text-gray-900 break-all"
         onClick={() => {
-          if (SYSTEM_PROP_TYPES.includes(property.type)) return;
+          if (SYSTEM_PROP_TYPES.includes(property.type as any)) return;
           if (isReadOnly) return;
           if (property.type === 'TAG') {
             const rect = tagCellRef.current?.getBoundingClientRect();
@@ -266,7 +294,7 @@ const PagePropertyRow = forwardRef(({
           }
         }}
         style={{
-          cursor: SYSTEM_PROP_TYPES.includes(property.type) ? 'default' : 'text',
+          cursor: SYSTEM_PROP_TYPES.includes(property.type as any) ? 'default' : 'text',
           minHeight: 32,
           display: 'flex',
           alignItems: 'center',
@@ -280,6 +308,7 @@ const PagePropertyRow = forwardRef(({
   );
 });
 
-export default PagePropertyRow;
+PagePropertyRow.displayName = 'PagePropertyRow';
 
+export default PagePropertyRow;
 

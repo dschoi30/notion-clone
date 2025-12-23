@@ -11,20 +11,48 @@ import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
 import { useDocument } from '@/contexts/DocumentContext';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 import { createLogger } from '@/lib/logger';
+import type { DocumentProperty, DocumentPropertyValue } from '@/types';
+import type { SystemPropExtractorForPage } from '@/components/documents/shared/systemPropTypeMap';
 
 const log = createLogger('usePageData');
 
+interface UsePageDataParams {
+  workspaceId: number;
+  documentId: number;
+  systemPropTypeMap?: Record<string, SystemPropExtractorForPage>;
+}
+
+interface EditingHeader {
+  id: number | null;
+  name: string;
+}
+
+interface UsePageDataReturn {
+  properties: DocumentProperty[];
+  setProperties: (properties: DocumentProperty[]) => void;
+  valuesByPropertyId: Record<number, string | number | boolean | number[]>;
+  setValuesByPropertyId: (updater: ((prev: Record<number, string | number | boolean | number[]>) => Record<number, string | number | boolean | number[]>) | Record<number, string | number | boolean | number[]>) => void;
+  isLoading: boolean;
+  error: string | null;
+  fetchPageData: () => Promise<void>;
+  editingHeader: EditingHeader;
+  setEditingHeader: (header: EditingHeader) => void;
+  handleAddProperty: (name: string, type: string) => Promise<void>;
+  handleHeaderNameChange: () => Promise<void>;
+  handleValueChange: (propertyId: number, value: string | number | boolean | number[]) => Promise<void>;
+}
+
 // PAGE 전용 데이터 훅: 속성/값 로딩, 추가/수정, 인라인 편집 상태 관리
-export function usePageData({ workspaceId, documentId, systemPropTypeMap }) {
+export function usePageData({ workspaceId, documentId, systemPropTypeMap }: UsePageDataParams): UsePageDataReturn {
   const properties = useDocumentPropertiesStore((state) => state.properties);
   const setProperties = useDocumentPropertiesStore((state) => state.setProperties);
   const queryClient = useQueryClient();
   const { fetchDocument } = useDocument();
   const { handleError } = useErrorHandler();
 
-  const [editingHeader, setEditingHeader] = useState({ id: null, name: '' });
+  const [editingHeader, setEditingHeader] = useState<EditingHeader>({ id: null, name: '' });
   // PagePropertyRow에서 헤더 클릭 시 시작 편집을 위한 헬퍼
-  const startEditHeader = (id, name) => setEditingHeader({ id, name });
+  const startEditHeader = (id: number, name: string) => setEditingHeader({ id, name });
 
   // React Query로 속성 값 조회
   const {
@@ -32,7 +60,7 @@ export function usePageData({ workspaceId, documentId, systemPropTypeMap }) {
     isLoading,
     error: propertyValuesError,
     refetch: refetchPropertyValues,
-  } = useQuery({
+  } = useQuery<DocumentPropertyValue[]>({
     queryKey: ['page-property-values', workspaceId, documentId],
     queryFn: () => getPropertyValuesByDocument(workspaceId, documentId),
     enabled: !!workspaceId && !!documentId,
@@ -51,9 +79,9 @@ export function usePageData({ workspaceId, documentId, systemPropTypeMap }) {
   }, [propertyValuesError, handleError]);
 
   // 속성 값을 propertyId별 객체로 변환
-  const valuesByPropertyId = useMemo(() => {
+  const valuesByPropertyId = useMemo<Record<number, string | number | boolean | number[]>>(() => {
     if (!propertyValuesData) return {};
-    const valuesObj = {};
+    const valuesObj: Record<number, string | number | boolean | number[]> = {};
     propertyValuesData.forEach((v) => {
       valuesObj[v.propertyId] = v.value;
     });
@@ -76,6 +104,34 @@ export function usePageData({ workspaceId, documentId, systemPropTypeMap }) {
     await refetchPropertyValues();
   };
 
+  // setValuesByPropertyId는 기존 API와 호환성을 위해 제공 (React Query 캐시 업데이트)
+  const setValuesByPropertyId = (updater: ((prev: Record<number, string | number | boolean | number[]>) => Record<number, string | number | boolean | number[]>) | Record<number, string | number | boolean | number[]>) => {
+    queryClient.setQueryData<DocumentPropertyValue[]>(['page-property-values', workspaceId, documentId], (oldData) => {
+      if (!oldData) return [];
+      if (typeof updater === 'function') {
+        const currentObj = oldData.reduce<Record<number, string | number | boolean | number[]>>((acc, v) => {
+          acc[v.propertyId] = v.value;
+          return acc;
+        }, {});
+        const newObj = updater(currentObj);
+        // 객체를 배열로 변환
+        return Object.entries(newObj).map(([propertyId, value]) => ({
+          propertyId: Number(propertyId),
+          value,
+          id: 0,
+          documentId,
+        }));
+      }
+      // 객체인 경우
+      return Object.entries(updater).map(([propertyId, value]) => ({
+        propertyId: Number(propertyId),
+        value,
+        id: 0,
+        documentId,
+      }));
+    });
+  };
+
   // 문서 메타데이터 변경 시(= systemPropTypeMap 변경 시) 시스템 속성 표시값 동기화
   useEffect(() => {
     if (!systemPropTypeMap || !properties?.length) return;
@@ -94,18 +150,18 @@ export function usePageData({ workspaceId, documentId, systemPropTypeMap }) {
       });
       return changed ? next : prev;
     });
-  }, [systemPropTypeMap, properties]);
+  }, [systemPropTypeMap, properties, setValuesByPropertyId]);
 
-  const handleAddProperty = async (name, type) => {
+  const handleAddProperty = async (name: string, type: string) => {
     if (!name || !type) return;
     try {
       const newProperty = await addProperty(workspaceId, documentId, {
         name,
-        type,
+        type: type as any,
         sortOrder: properties.length,
       });
       // 초기 값 결정 및 저장
-      let newValue = '';
+      let newValue: string | number | boolean | number[] = '';
       if (systemPropTypeMap && systemPropTypeMap[type]) {
         newValue = systemPropTypeMap[type]();
       }
@@ -115,9 +171,9 @@ export function usePageData({ workspaceId, documentId, systemPropTypeMap }) {
       setProperties([...properties, newProperty]);
       
       // React Query 캐시에 새 속성 값 추가
-      queryClient.setQueryData(['page-property-values', workspaceId, documentId], (oldData) => {
-        if (!oldData) return [{ propertyId: newProperty.id, value: newValue }];
-        return [...oldData, { propertyId: newProperty.id, value: newValue }];
+      queryClient.setQueryData<DocumentPropertyValue[]>(['page-property-values', workspaceId, documentId], (oldData) => {
+        if (!oldData) return [{ propertyId: newProperty.id, value: newValue, id: 0, documentId }];
+        return [...oldData, { propertyId: newProperty.id, value: newValue, id: 0, documentId }];
       });
     } catch (e) {
       log.error('handleAddProperty 에러', e);
@@ -147,15 +203,15 @@ export function usePageData({ workspaceId, documentId, systemPropTypeMap }) {
     }
   };
 
-  const handleValueChange = async (propertyId, value) => {
+  const handleValueChange = async (propertyId: number, value: string | number | boolean | number[]) => {
     // 낙관적 업데이트: React Query 캐시 즉시 업데이트
-    queryClient.setQueryData(['page-property-values', workspaceId, documentId], (oldData) => {
-      if (!oldData) return [{ propertyId, value }];
+    queryClient.setQueryData<DocumentPropertyValue[]>(['page-property-values', workspaceId, documentId], (oldData) => {
+      if (!oldData) return [{ propertyId, value, id: 0, documentId }];
       const existing = oldData.find((v) => v.propertyId === propertyId);
       if (existing) {
         return oldData.map((v) => (v.propertyId === propertyId ? { ...v, value } : v));
       } else {
-        return [...oldData, { propertyId, value }];
+        return [...oldData, { propertyId, value, id: 0, documentId }];
       }
     });
     
@@ -176,30 +232,6 @@ export function usePageData({ workspaceId, documentId, systemPropTypeMap }) {
     }
   };
 
-  // setValuesByPropertyId는 기존 API와 호환성을 위해 제공 (React Query 캐시 업데이트)
-  const setValuesByPropertyId = (updater) => {
-    queryClient.setQueryData(['page-property-values', workspaceId, documentId], (oldData) => {
-      if (!oldData) return [];
-      if (typeof updater === 'function') {
-        const currentObj = oldData.reduce((acc, v) => {
-          acc[v.propertyId] = v.value;
-          return acc;
-        }, {});
-        const newObj = updater(currentObj);
-        // 객체를 배열로 변환
-        return Object.entries(newObj).map(([propertyId, value]) => ({
-          propertyId: Number(propertyId),
-          value,
-        }));
-      }
-      // 객체인 경우
-      return Object.entries(updater).map(([propertyId, value]) => ({
-        propertyId: Number(propertyId),
-        value,
-      }));
-    });
-  };
-
   return {
     properties,
     setProperties,
@@ -217,5 +249,4 @@ export function usePageData({ workspaceId, documentId, systemPropTypeMap }) {
 }
 
 export default usePageData;
-
 
