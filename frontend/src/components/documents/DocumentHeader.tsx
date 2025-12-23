@@ -1,4 +1,4 @@
-import React, { Fragment, useCallback } from 'react';
+import { Fragment, useCallback, ChangeEvent, KeyboardEvent, RefObject } from 'react';
 import { useUIStore } from '@/stores/uiStore';
 import { useShallow } from 'zustand/react/shallow';
 import UserBadge from '@/components/documents/shared/UserBadge';
@@ -10,6 +10,26 @@ import { Z_INDEX } from '@/constants/zIndex';
 import { Lock, Unlock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasWritePermission } from '@/utils/permissionUtils';
+import type { Document, Workspace } from '@/types';
+
+type SaveStatus = 'saved' | 'saving' | 'error' | 'unsaved';
+
+interface DocumentHeaderProps {
+  title: string;
+  onTitleChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onTitleKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
+  saveStatus: SaveStatus;
+  isReadOnly: boolean;
+  showShareModal: boolean;
+  setShowShareModal: (v: boolean | ((prev: boolean) => boolean)) => void;
+  shareButtonRef: RefObject<HTMLButtonElement>;
+  currentDocument: Document | null;
+  viewers?: Array<{ userId: number }>;
+  currentWorkspace: Workspace | null;
+  path: Document[];
+  onPathClick: (id: number) => void;
+  onLockToggle: () => void;
+}
 
 export default function DocumentHeader({
   title,
@@ -26,7 +46,7 @@ export default function DocumentHeader({
   path,
   onPathClick,
   onLockToggle
-}) {
+}: DocumentHeaderProps) {
   // 버전 기록 패널 상태 (zustand store에서 관리)
   const { showVersionHistory, setShowVersionHistory } = useUIStore(
     useShallow((state) => ({
@@ -172,4 +192,5 @@ export default function DocumentHeader({
       )}
     </div>
   );
-} 
+}
+

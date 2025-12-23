@@ -1,4 +1,4 @@
-import { React, useState, useEffect, useRef, useMemo, useImperativeHandle, forwardRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useImperativeHandle, forwardRef, RefObject, createElement } from 'react';
 import Editor from '@/components/editor/Editor';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useDocument } from '@/contexts/DocumentContext';
@@ -10,8 +10,22 @@ import usePageData from './page/hooks/usePageData';
 import TagPopover from './TagPopover';
 import { Button } from '@/components/ui/button';
 import { buildSystemPropTypeMapForPage } from '@/components/documents/shared/systemPropTypeMap';
+import type { ViewType } from '@/types';
 
-const DocumentPageView = forwardRef(({
+interface DocumentPageViewProps {
+  content: string;
+  handleContentChange: (content: string) => void;
+  editorRef: RefObject<{ focus: () => void }>;
+  isReadOnly: boolean;
+  isInitial: boolean;
+  handleChangeViewType: (viewType: ViewType) => void;
+}
+
+export interface DocumentPageViewRef {
+  focusFirstProperty: () => void;
+}
+
+const DocumentPageView = forwardRef<DocumentPageViewRef, DocumentPageViewProps>(({
   content,
   handleContentChange,
   editorRef,
@@ -21,12 +35,12 @@ const DocumentPageView = forwardRef(({
 }, ref) => {
   const { currentWorkspace } = useWorkspace();
   const { currentDocument } = useDocument();
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const addPropBtnRef = useRef(null);
-  const [editingValueId, setEditingValueId] = useState(null);
-  const [editingValue, setEditingValue] = useState('');
-  const [tagPopoverRect, setTagPopoverRect] = useState(null);
-  const propertyListRef = useRef(null);
+  const [isAddOpen, setIsAddOpen] = useState<boolean>(false);
+  const addPropBtnRef = useRef<HTMLButtonElement>(null);
+  const [editingValueId, setEditingValueId] = useState<number | null>(null);
+  const [editingValue, setEditingValue] = useState<string | number | boolean | number[]>('');
+  const [tagPopoverRect, setTagPopoverRect] = useState<{ width: number; height: number; top: number; left: number } | null>(null);
+  const propertyListRef = useRef<{ focusFirstProperty: () => void; focusNextProperty: (index: number) => void } | null>(null);
 
   const systemPropTypeMap = useMemo(() => (
     buildSystemPropTypeMapForPage(currentDocument)
@@ -114,19 +128,19 @@ const DocumentPageView = forwardRef(({
           isAddOpen={isAddOpen}
           setIsAddOpen={setIsAddOpen}
           AddPropertyPopoverComponent={() => (
-            <AddPropertyPopover onAddProperty={(...args) => { setIsAddOpen(false); return handleAddProperty(...args); }} />
+            <AddPropertyPopover onAddProperty={(...args: [string, string]) => { setIsAddOpen(false); return handleAddProperty(...args); }} />
           )}
-          disabled={false}
         />
       )}
 
       {/* 에디터 */}
-      <Editor 
-        content={content} 
-        onUpdate={handleContentChange}
-        ref={editorRef}
-        editable={!isReadOnly}
-      />
+      {/* Editor is still JSX, will be converted in Phase 12 */}
+      {createElement(Editor as any, { 
+        content, 
+        onUpdate: handleContentChange,
+        ref: editorRef,
+        editable: !isReadOnly
+      })}
       {/* 최초 생성 상태에서만 하단 버튼 노출 */}
       {isInitial && !isReadOnly && (
         <div className="flex gap-2 mt-4">
@@ -138,13 +152,21 @@ const DocumentPageView = forwardRef(({
       {editingValueId && tagPopoverRect && tagPopoverRect.width > 0 && tagPopoverRect.height > 0 && (
         <TagPopover
           propertyId={editingValueId}
-          value={editingValue}
+          value={Array.isArray(editingValue) ? JSON.stringify(editingValue) : String(editingValue)}
           tagOptions={properties.find((p) => p.id === editingValueId)?.tagOptions}
-          onChange={(val) => {
-            setEditingValue(val);
-            // 저장 및 상태 반영
-            // usePageData의 handleValueChange 사용
-            handleValueChange(editingValueId, val);
+          onChange={(val: string) => {
+            try {
+              const parsed = JSON.parse(val);
+              const valueArray = Array.isArray(parsed) ? parsed : [parsed];
+              setEditingValue(valueArray);
+              // 저장 및 상태 반영
+              // usePageData의 handleValueChange 사용
+              handleValueChange(editingValueId, valueArray);
+            } catch {
+              // JSON 파싱 실패 시 빈 배열
+              setEditingValue([]);
+              handleValueChange(editingValueId, []);
+            }
           }}
           onClose={() => {
             setTagPopoverRect(null);
@@ -166,4 +188,7 @@ const DocumentPageView = forwardRef(({
   );
 });
 
-export default DocumentPageView; 
+DocumentPageView.displayName = 'DocumentPageView';
+
+export default DocumentPageView;
+
