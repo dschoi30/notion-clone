@@ -14,7 +14,7 @@ import { useDocument } from '@/contexts/DocumentContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 import { createLogger } from '@/lib/logger';
-import type { Document, DocumentProperty, DocumentPropertyValue } from '@/types';
+import type { Document, DocumentProperty, DocumentPropertyValue, PropertyValue } from '@/types';
 import type { SystemPropExtractor } from '@/components/documents/shared/systemPropTypeMap';
 import type { TableRowData } from '@/components/documents/shared/constants';
 
@@ -183,9 +183,9 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }: Use
   }, [valuesError, handleError]);
 
   // 속성 값을 documentId별로 그룹화
-  const valuesByRowId = useMemo<Record<number, Record<number, string | number | boolean | number[]>>>(() => {
+  const valuesByRowId = useMemo<Record<number, Record<number, PropertyValue>>>(() => {
     if (!propertyValuesData) return {};
-    return propertyValuesData.reduce<Record<number, Record<number, string | number | boolean | number[]>>>((acc, val) => {
+    return propertyValuesData.reduce<Record<number, Record<number, PropertyValue>>>((acc, val) => {
       if (!acc[val.documentId]) acc[val.documentId] = {};
       acc[val.documentId][val.propertyId] = val.value;
       return acc;
@@ -331,7 +331,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }: Use
   // 하단에 추가하는 전용 함수 (기본값)
   const handleAddRowBottom = () => handleAddRow('bottom');
 
-  const handleCellValueChange = useCallback(async (rowId: number, propertyId: number | null, value: string | number | boolean | number[]) => {
+  const handleCellValueChange = useCallback(async (rowId: number, propertyId: number | null, value: PropertyValue) => {
     if (propertyId == null) {
       // 제목 변경 - 낙관적 업데이트를 위해 캐시 직접 업데이트
       queryClient.setQueryData<{ pages: InfiniteQueryPage[] }>(['table-rows', workspaceId, documentId, sortKey], (oldData) => {

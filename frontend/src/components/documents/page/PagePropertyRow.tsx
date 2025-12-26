@@ -10,20 +10,20 @@ import { GripVertical } from 'lucide-react';
 import UserBadge from '@/components/documents/shared/UserBadge';
 import { useDocument } from '@/contexts/DocumentContext';
 import { resolveUserDisplay } from '@/components/documents/shared/resolveUserDisplay';
-import type { DocumentProperty } from '@/types';
+import type { DocumentProperty, PropertyValue } from '@/types';
 import type { PagePropertyListHandle } from './PagePropertyList';
 
 interface PagePropertyRowProps {
   property: DocumentProperty;
-  value: string | number | boolean | number[] | undefined;
+  value: PropertyValue | undefined;
   isEditingHeader: boolean;
   editingHeaderName: string;
   setEditingHeaderName: (name: string) => void;
   onHeaderCommit: () => void;
   isEditingValue: boolean;
-  editingValue: string | number | boolean | number[];
-  setEditingValue: (value: string | number | boolean | number[]) => void;
-  onValueCommit: (propertyId: number, value: string | number | boolean | number[]) => void;
+  editingValue: PropertyValue;
+  setEditingValue: (value: PropertyValue) => void;
+  onValueCommit: (propertyId: number, value: PropertyValue) => void;
   tagPopoverRect: { top: number; left: number; width: number; height: number } | null;
   setTagPopoverRect: (rect: { top: number; left: number; width: number; height: number } | null) => void;
   setEditingValueId: (id: number | null) => void;

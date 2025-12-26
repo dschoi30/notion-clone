@@ -1,7 +1,6 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  getProperties,
   getPropertyValuesByDocument,
   addProperty,
   updateProperty,
@@ -11,7 +10,7 @@ import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
 import { useDocument } from '@/contexts/DocumentContext';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 import { createLogger } from '@/lib/logger';
-import type { DocumentProperty, DocumentPropertyValue } from '@/types';
+import type { DocumentProperty, DocumentPropertyValue, PropertyValue } from '@/types';
 import type { SystemPropExtractorForPage } from '@/components/documents/shared/systemPropTypeMap';
 
 const log = createLogger('usePageData');
@@ -30,8 +29,8 @@ interface EditingHeader {
 interface UsePageDataReturn {
   properties: DocumentProperty[];
   setProperties: (properties: DocumentProperty[]) => void;
-  valuesByPropertyId: Record<number, string | number | boolean | number[]>;
-  setValuesByPropertyId: (updater: ((prev: Record<number, string | number | boolean | number[]>) => Record<number, string | number | boolean | number[]>) | Record<number, string | number | boolean | number[]>) => void;
+  valuesByPropertyId: Record<number, PropertyValue>;
+  setValuesByPropertyId: (updater: ((prev: Record<number, PropertyValue>) => Record<number, PropertyValue>) | Record<number, PropertyValue>) => void;
   isLoading: boolean;
   error: string | null;
   fetchPageData: () => Promise<void>;
@@ -39,7 +38,7 @@ interface UsePageDataReturn {
   setEditingHeader: (header: EditingHeader) => void;
   handleAddProperty: (name: string, type: string) => Promise<void>;
   handleHeaderNameChange: () => Promise<void>;
-  handleValueChange: (propertyId: number, value: string | number | boolean | number[]) => Promise<void>;
+  handleValueChange: (propertyId: number, value: PropertyValue) => Promise<void>;
 }
 
 // PAGE 전용 데이터 훅: 속성/값 로딩, 추가/수정, 인라인 편집 상태 관리
@@ -79,9 +78,9 @@ export function usePageData({ workspaceId, documentId, systemPropTypeMap }: UseP
   }, [propertyValuesError, handleError]);
 
   // 속성 값을 propertyId별 객체로 변환
-  const valuesByPropertyId = useMemo<Record<number, string | number | boolean | number[]>>(() => {
+  const valuesByPropertyId = useMemo<Record<number, PropertyValue>>(() => {
     if (!propertyValuesData) return {};
-    const valuesObj: Record<number, string | number | boolean | number[]> = {};
+    const valuesObj: Record<number, PropertyValue> = {};
     propertyValuesData.forEach((v) => {
       valuesObj[v.propertyId] = v.value;
     });
@@ -105,11 +104,11 @@ export function usePageData({ workspaceId, documentId, systemPropTypeMap }: UseP
   };
 
   // setValuesByPropertyId는 기존 API와 호환성을 위해 제공 (React Query 캐시 업데이트)
-  const setValuesByPropertyId = (updater: ((prev: Record<number, string | number | boolean | number[]>) => Record<number, string | number | boolean | number[]>) | Record<number, string | number | boolean | number[]>) => {
+  const setValuesByPropertyId = useCallback((updater: ((prev: Record<number, PropertyValue>) => Record<number, PropertyValue>) | Record<number, PropertyValue>) => {
     queryClient.setQueryData<DocumentPropertyValue[]>(['page-property-values', workspaceId, documentId], (oldData) => {
       if (!oldData) return [];
       if (typeof updater === 'function') {
-        const currentObj = oldData.reduce<Record<number, string | number | boolean | number[]>>((acc, v) => {
+        const currentObj = oldData.reduce<Record<number, PropertyValue>>((acc, v) => {
           acc[v.propertyId] = v.value;
           return acc;
         }, {});
@@ -130,7 +129,7 @@ export function usePageData({ workspaceId, documentId, systemPropTypeMap }: UseP
         documentId,
       }));
     });
-  };
+  }, [queryClient, workspaceId, documentId]);
 
   // 문서 메타데이터 변경 시(= systemPropTypeMap 변경 시) 시스템 속성 표시값 동기화
   useEffect(() => {
@@ -161,7 +160,7 @@ export function usePageData({ workspaceId, documentId, systemPropTypeMap }: UseP
         sortOrder: properties.length,
       });
       // 초기 값 결정 및 저장
-      let newValue: string | number | boolean | number[] = '';
+      let newValue: PropertyValue = '';
       if (systemPropTypeMap && systemPropTypeMap[type]) {
         newValue = systemPropTypeMap[type]();
       }
@@ -203,7 +202,7 @@ export function usePageData({ workspaceId, documentId, systemPropTypeMap }: UseP
     }
   };
 
-  const handleValueChange = async (propertyId: number, value: string | number | boolean | number[]) => {
+  const handleValueChange = async (propertyId: number, value: PropertyValue) => {
     // 낙관적 업데이트: React Query 캐시 즉시 업데이트
     queryClient.setQueryData<DocumentPropertyValue[]>(['page-property-values', workspaceId, documentId], (oldData) => {
       if (!oldData) return [{ propertyId, value, id: 0, documentId }];

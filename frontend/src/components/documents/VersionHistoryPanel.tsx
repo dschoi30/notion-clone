@@ -111,10 +111,12 @@ function VersionPropertiesComponent({ propertiesJson, valuesJson, tagOptionsByPr
 
 const PAGE_SIZE = 20;
 
+// Logger를 컴포넌트 외부에서 생성하여 매 렌더링마다 재생성되는 것을 방지
+const log = createLogger('version');
+
 function VersionHistoryPanel({ workspaceId, documentId, onClose }: VersionHistoryPanelProps) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const queryClient = useQueryClient();
-  const log = createLogger('version');
   const { handleError } = useErrorHandler();
   const { fetchDocument, currentDocument, refreshAllChildDocuments } = useDocument();
   const { user } = useAuth();
@@ -165,7 +167,7 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }: VersionHistor
         showToast: true
       });
     }
-  }, [versionsQueryError, handleError, log]);
+  }, [versionsQueryError, handleError]);
 
   // 모든 버전을 하나의 배열로 합치기
   const versions = useMemo<DocumentVersion[]>(() => {
@@ -199,7 +201,7 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }: VersionHistor
         showToast: true
       });
     }
-  }, [selectedError, handleError, log]);
+  }, [selectedError, handleError]);
 
   // 속성 조회 (태그 옵션용)
   const {
@@ -226,7 +228,7 @@ function VersionHistoryPanel({ workspaceId, documentId, onClose }: VersionHistor
         showToast: true
       });
     }
-  }, [propertiesError, handleError, log]);
+  }, [propertiesError, handleError]);
 
   // 태그 옵션 맵 생성
   const tagOptionsByPropId = useMemo<Record<number, TagOption[]>>(() => {

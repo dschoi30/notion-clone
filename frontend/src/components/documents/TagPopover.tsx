@@ -4,12 +4,12 @@ import { X, Trash2, Pencil } from 'lucide-react';
 import { TAG_COLORS as COLORS, getColorObj, type TagColor } from '@/lib/colors';
 import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import type { TagOption } from '@/types';
+import type { TagOption, PropertyValue } from '@/types';
 
 interface TagPopoverProps {
   propertyId: number;
   tagOptions?: TagOption[];
-  value: string | number | boolean | number[];
+  value: PropertyValue;
   position: { top: number; left: number; width: number; height: number } | null;
   onChange: (value: string) => void;
   onTagOptionsUpdate?: (tagOptions: TagOption[]) => void;
@@ -38,7 +38,7 @@ export default function TagPopover({ propertyId, tagOptions: propTagOptions, val
   }, [propTagOptions]);
 
   // value는 id 또는 id 배열(JSON 문자열)
-  const parseValue = (val: string | number | boolean | number[]): number[] => {
+  const parseValue = (val: PropertyValue): number[] => {
     try {
       if (!val) return [];
       const parsed = typeof val === 'string' ? JSON.parse(val) : val;
