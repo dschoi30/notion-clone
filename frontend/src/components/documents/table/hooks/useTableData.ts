@@ -7,7 +7,6 @@ import {
   deleteProperty,
   addOrUpdatePropertyValue,
   getPropertyValuesByChildDocuments,
-  getChildDocuments,
   getChildDocumentsPaged,
   updateChildDocumentOrder,
 } from '@/services/documentApi';
@@ -15,13 +14,40 @@ import { useDocument } from '@/contexts/DocumentContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 import { createLogger } from '@/lib/logger';
+import type { Document, DocumentProperty, DocumentPropertyValue } from '@/types';
+import type { SystemPropExtractor } from '@/components/documents/shared/systemPropTypeMap';
+import type { TableRowData } from '@/components/documents/shared/constants';
 
 const log = createLogger('useTableData');
 
-export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
-  const [editingHeader, setEditingHeader] = useState({ id: null, name: '' });
+interface EditingHeader {
+  id: number | null;
+  name: string;
+}
+
+interface ServerSortParams {
+  sortField?: string;
+  sortDir?: 'asc' | 'desc';
+  propId?: number;
+}
+
+interface UseTableDataParams {
+  workspaceId: number;
+  documentId: number;
+  systemPropTypeMap: Record<string, SystemPropExtractor>;
+}
+
+interface InfiniteQueryPage {
+  children: Document[];
+  page: number;
+  totalPages: number;
+  hasMore: boolean;
+}
+
+export function useTableData({ workspaceId, documentId, systemPropTypeMap }: UseTableDataParams) {
+  const [editingHeader, setEditingHeader] = useState<EditingHeader>({ id: null, name: '' });
   const queryClient = useQueryClient();
-  const { createDocument, updateDocument, fetchDocument, currentDocument } = useDocument();
+  const { createDocument, updateDocument, currentDocument } = useDocument();
   const { user } = useAuth();
   const { handleError } = useErrorHandler();
 
@@ -30,14 +56,14 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
 
   // 서버 정렬 파라미터 계산 (title/createdAt/updatedAt만 서버 정렬 지원)
   // useTableSort와 동일한 키로 저장된 정렬을 읽어 서버 정렬 파라미터 산출
-  const getServerSortParams = useCallback(() => {
+  const getServerSortParams = useCallback((): ServerSortParams => {
     try {
       if (!user?.id || !documentId) return {};
       const key = `tableSort_${user.id}_${documentId}`;
       const stored = localStorage.getItem(key);
       const sorts = stored ? JSON.parse(stored) : [];
       if (!Array.isArray(sorts) || sorts.length === 0) return {};
-      const s = sorts[0];
+      const s = sorts[0] as { propertyId: number; propertyType: string; propertyName?: string; order: 'asc' | 'desc' };
       // 이름(Title)
       if ((s.propertyId === 0 && s.propertyType === 'TEXT') || s.propertyName === '이름') {
         return { sortField: 'title', sortDir: s.order };
@@ -47,8 +73,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
       // 사용자 정의 속성: 텍스트/숫자/날짜/생성자/수정자 등은 서버 정렬로 위임 (문자열 비교)
       if (typeof s.propertyId === 'number') {
         // 타입별로 서버에서 처리할 수 있도록 키만 전달, 서버는 propId 기준 문자열 비교
-        let sortField = 'prop';
-        return { sortField, sortDir: s.order, propId: s.propertyId };
+        return { sortField: 'prop', sortDir: s.order, propId: s.propertyId };
       }
       return {};
     } catch (e) {
@@ -68,11 +93,11 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     isLoading: propertiesLoading,
     error: propertiesError,
     refetch: refetchProperties,
-  } = useQuery({
+  } = useQuery<DocumentProperty[]>({
     queryKey: ['table-properties', workspaceId, documentId],
     queryFn: () => getProperties(workspaceId, documentId),
     enabled: !!workspaceId && !!documentId,
-    staleTime: 1000 * 60 * 2, // 2분
+    staleTime: 1000
   });
 
   // 에러 처리 (React Query v5 권장 방식)
@@ -97,14 +122,14 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     fetchNextPage,
     error: rowsError,
     refetch: refetchRows,
-  } = useInfiniteQuery({
+  } = useInfiniteQuery<InfiniteQueryPage>({
     queryKey: ['table-rows', workspaceId, documentId, sortKey],
     queryFn: async ({ pageParam = 0 }) => {
       const { sortField, sortDir, propId } = getServerSortParams();
-      const response = await getChildDocumentsPaged(workspaceId, documentId, pageParam, 50, sortField, sortDir, propId);
+      const response = await getChildDocumentsPaged(workspaceId, documentId, pageParam as number, 50, sortField, sortDir, propId);
       return {
         children: response?.content || [],
-        page: response?.number || pageParam,
+        page: response?.number || (pageParam as number),
         totalPages: response?.totalPages || 0,
         hasMore: (response?.number || 0) + 1 < (response?.totalPages || 0),
       };
@@ -115,7 +140,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     },
     initialPageParam: 0,
     enabled: !!workspaceId && !!documentId,
-    staleTime: 1000 * 60 * 2, // 2분
+    staleTime: 1000 
   });
 
   // 에러 처리 (React Query v5 권장 방식)
@@ -130,7 +155,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
   }, [rowsError, handleError]);
 
   // 모든 페이지의 children을 하나의 배열로 합치기
-  const allChildren = useMemo(() => {
+  const allChildren = useMemo<Document[]>(() => {
     return rowsData?.pages.flatMap((page) => page.children) || [];
   }, [rowsData]);
 
@@ -139,7 +164,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     data: propertyValuesData,
     isLoading: valuesLoading,
     error: valuesError,
-  } = useQuery({
+  } = useQuery<DocumentPropertyValue[]>({
     queryKey: ['table-property-values', workspaceId, documentId],
     queryFn: () => getPropertyValuesByChildDocuments(workspaceId, documentId),
     enabled: !!workspaceId && !!documentId, // 백엔드에서 빈 케이스 처리
@@ -158,9 +183,9 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
   }, [valuesError, handleError]);
 
   // 속성 값을 documentId별로 그룹화
-  const valuesByRowId = useMemo(() => {
+  const valuesByRowId = useMemo<Record<number, Record<number, string | number | boolean | number[]>>>(() => {
     if (!propertyValuesData) return {};
-    return propertyValuesData.reduce((acc, val) => {
+    return propertyValuesData.reduce<Record<number, Record<number, string | number | boolean | number[]>>>((acc, val) => {
       if (!acc[val.documentId]) acc[val.documentId] = {};
       acc[val.documentId][val.propertyId] = val.value;
       return acc;
@@ -168,7 +193,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
   }, [propertyValuesData]);
 
   // 최종 rows 생성: children과 propertyValues를 합치기
-  const rows = useMemo(() => {
+  const rows = useMemo<TableRowData[]>(() => {
     return allChildren.map((child) => ({
       id: child.id,
       title: child.title,
@@ -191,13 +216,13 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     ]);
   }, [refetchProperties, refetchRows]);
 
-  const handleAddProperty = useCallback(async (name, type) => {
+  const handleAddProperty = useCallback(async (name: string, type: string) => {
     if (!name || !type) return;
     try {
       const newProperty = await addProperty(workspaceId, documentId, { name, type, sortOrder: properties.length });
       
       // React Query 캐시에 새 속성 추가
-      queryClient.setQueryData(['table-properties', workspaceId, documentId], (oldData) => {
+      queryClient.setQueryData<DocumentProperty[]>(['table-properties', workspaceId, documentId], (oldData) => {
         if (!oldData) return [newProperty];
         return [...oldData, newProperty];
       });
@@ -206,7 +231,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
         if (stableSystemMap[type]) {
           await Promise.all(
             rows.map(async (row) => {
-              const value = stableSystemMap[type](row);
+              const value = stableSystemMap[type](row as { document: Document });
               await addOrUpdatePropertyValue(workspaceId, row.id, newProperty.id, value);
             })
           );
@@ -226,13 +251,13 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     }
   }, [workspaceId, documentId, properties.length, rows, stableSystemMap, handleError, queryClient]);
 
-  const handleDeleteProperty = useCallback(async (propertyId) => {
+  const handleDeleteProperty = useCallback(async (propertyId: number) => {
     if (!window.confirm('정말로 이 속성을 삭제하시겠습니까?')) return;
     try {
       await deleteProperty(workspaceId, propertyId);
       
       // React Query 캐시에서 속성 제거
-      queryClient.setQueryData(['table-properties', workspaceId, documentId], (oldData) => {
+      queryClient.setQueryData<DocumentProperty[]>(['table-properties', workspaceId, documentId], (oldData) => {
         if (!oldData) return oldData;
         return oldData.filter((p) => p.id !== propertyId);
       });
@@ -248,7 +273,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
     }
   }, [workspaceId, documentId, queryClient, handleError]);
 
-  const handleAddRow = useCallback(async (position = 'bottom') => {
+  const handleAddRow = useCallback(async (position: 'top' | 'bottom' = 'bottom') => {
     try {
       // 실제 문서 생성
       const newDoc = await createDocument({
@@ -306,26 +331,26 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
   // 하단에 추가하는 전용 함수 (기본값)
   const handleAddRowBottom = () => handleAddRow('bottom');
 
-  const handleCellValueChange = useCallback(async (rowId, propertyId, value) => {
+  const handleCellValueChange = useCallback(async (rowId: number, propertyId: number | null, value: string | number | boolean | number[]) => {
     if (propertyId == null) {
       // 제목 변경 - 낙관적 업데이트를 위해 캐시 직접 업데이트
-      queryClient.setQueryData(['table-rows', workspaceId, documentId, sortKey], (oldData) => {
+      queryClient.setQueryData<{ pages: InfiniteQueryPage[] }>(['table-rows', workspaceId, documentId, sortKey], (oldData) => {
         if (!oldData) return oldData;
         return {
           ...oldData,
           pages: oldData.pages.map((page) => ({
             ...page,
             children: page.children.map((child) =>
-              child.id === rowId ? { ...child, title: value } : child
+              child.id === rowId ? { ...child, title: String(value) } : child
             ),
           })),
         };
       });
       
       try {
-        const updated = await updateDocument(rowId, { title: value });
+        const updated = await updateDocument(rowId, { title: String(value) });
         // 제목 변경 후 row.document 메타도 최신화
-        queryClient.setQueryData(['table-rows', workspaceId, documentId, sortKey], (oldData) => {
+        queryClient.setQueryData<{ pages: InfiniteQueryPage[] }>(['table-rows', workspaceId, documentId, sortKey], (oldData) => {
           if (!oldData) return oldData;
           return {
             ...oldData,
@@ -348,7 +373,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
       }
     } else {
       // 속성 값 변경 - 낙관적 업데이트
-      queryClient.setQueryData(['table-property-values', workspaceId, documentId], (oldData) => {
+      queryClient.setQueryData<DocumentPropertyValue[]>(['table-property-values', workspaceId, documentId], (oldData) => {
         if (!oldData) return oldData;
         const existing = oldData.find((v) => v.documentId === rowId && v.propertyId === propertyId);
         if (existing) {
@@ -358,14 +383,14 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
               : v
           );
         } else {
-          return [...oldData, { documentId: rowId, propertyId, value }];
+          return [...oldData, { id: 0, documentId: rowId, propertyId, value }];
         }
       });
       
       try {
         const resp = await addOrUpdatePropertyValue(workspaceId, rowId, propertyId, value);
         // 서버 응답으로 캐시 업데이트
-        queryClient.setQueryData(['table-property-values', workspaceId, documentId], (oldData) => {
+        queryClient.setQueryData<DocumentPropertyValue[]>(['table-property-values', workspaceId, documentId], (oldData) => {
           if (!oldData) return oldData;
           return oldData.map((v) =>
             v.documentId === rowId && v.propertyId === propertyId
@@ -375,7 +400,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
         });
         
         // rows의 document 메타도 업데이트
-        queryClient.setQueryData(['table-rows', workspaceId, documentId, sortKey], (oldData) => {
+        queryClient.setQueryData<{ pages: InfiniteQueryPage[] }>(['table-rows', workspaceId, documentId, sortKey], (oldData) => {
           if (!oldData) return oldData;
           return {
             ...oldData,
@@ -383,7 +408,11 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
               ...page,
               children: page.children.map((child) =>
                 child.id === rowId
-                  ? { ...child, updatedAt: resp?.updatedAt || child.updatedAt, updatedBy: resp?.updatedBy || child.updatedBy }
+                  ? { 
+                      ...child, 
+                      updatedAt: resp?.updatedAt || child.updatedAt, 
+                      updatedBy: resp?.updatedBy !== undefined ? String(resp.updatedBy) : child.updatedBy 
+                    }
                   : child
               ),
             })),
@@ -410,7 +439,7 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
       await updateProperty(workspaceId, editingHeader.id, editingHeader.name);
       
       // React Query 캐시 업데이트
-      queryClient.setQueryData(['table-properties', workspaceId, documentId], (oldData) => {
+      queryClient.setQueryData<DocumentProperty[]>(['table-properties', workspaceId, documentId], (oldData) => {
         if (!oldData) return oldData;
         return oldData.map((p) => (p.id === editingHeader.id ? { ...p, name: editingHeader.name } : p));
       });
@@ -426,8 +455,8 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
   }, [workspaceId, documentId, editingHeader, queryClient, handleError]);
 
   // setProperties는 기존 API와 호환성을 위해 제공 (React Query 캐시 업데이트)
-  const setProperties = useCallback((updater) => {
-    queryClient.setQueryData(['table-properties', workspaceId, documentId], (oldData) => {
+  const setProperties = useCallback((updater: DocumentProperty[] | ((prev: DocumentProperty[]) => DocumentProperty[])) => {
+    queryClient.setQueryData<DocumentProperty[]>(['table-properties', workspaceId, documentId], (oldData) => {
       if (!oldData) return oldData;
       if (typeof updater === 'function') {
         return updater(oldData);
@@ -437,8 +466,8 @@ export function useTableData({ workspaceId, documentId, systemPropTypeMap }) {
   }, [workspaceId, documentId, queryClient]);
 
   // setRows는 기존 API와 호환성을 위해 제공 (React Query 캐시 업데이트)
-  const setRows = useCallback((updater) => {
-    queryClient.setQueryData(['table-rows', workspaceId, documentId, sortKey], (oldData) => {
+  const setRows = useCallback((updater: Document[] | ((prev: Document[]) => Document[])) => {
+    queryClient.setQueryData<{ pages: InfiniteQueryPage[] }>(['table-rows', workspaceId, documentId, sortKey], (oldData) => {
       if (!oldData) return oldData;
       if (typeof updater === 'function') {
         // 함수인 경우: 기존 pages 구조를 rows 배열로 변환하여 처리

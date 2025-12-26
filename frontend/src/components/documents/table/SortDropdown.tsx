@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -9,18 +9,47 @@ import {
 import { ArrowUpDown } from 'lucide-react';
 import { getPropertyIcon } from './utils';
 import { Z_INDEX } from '@/constants/zIndex';
+import type { DocumentProperty } from '@/types';
 
-const SortDropdown = ({ properties, onSortAdd, onClearAllSorts, isReadOnly, activeSorts = [], forceShowDropdown = false, autoAddNameProperty = true, menuAlign = 'start' }) => {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const triggerRef = useRef(null);
+interface SortConfig {
+  id: string;
+  propertyId: number;
+  propertyName: string;
+  propertyType: string;
+  order: 'asc' | 'desc';
+}
+
+interface SortDropdownProps {
+  properties: DocumentProperty[];
+  onSortAdd: (property: DocumentProperty | { id: number; name: string; type: string }, defaultOrder?: 'asc' | 'desc') => void;
+  onClearAllSorts: () => void;
+  isReadOnly?: boolean;
+  activeSorts?: SortConfig[];
+  forceShowDropdown?: boolean;
+  autoAddNameProperty?: boolean;
+  menuAlign?: 'start' | 'end';
+}
+
+const SortDropdown = ({ 
+  properties, 
+  onSortAdd, 
+  onClearAllSorts, 
+  isReadOnly = false, 
+  activeSorts = [], 
+  forceShowDropdown = false, 
+  autoAddNameProperty = true, 
+  menuAlign = 'start' 
+}: SortDropdownProps) => {
+  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   // 문서명과 사용자 정의 속성을 함께 표시
   // autoAddNameProperty가 true이고 properties에 id: 0인 속성이 없으면 "이름" 속성 추가 (문서 테이블용)
   const hasNameProperty = properties.some(p => p.id === 0 || p.id === '0');
-  const allProperties = (autoAddNameProperty && !hasNameProperty)
-    ? [{ id: 0, name: '이름', type: 'TEXT' }, ...properties]
+  const allProperties: Array<DocumentProperty | { id: number; name: string; type: string }> = (autoAddNameProperty && !hasNameProperty)
+    ? [{ id: 0, name: '이름', type: 'TEXT' } as DocumentProperty, ...properties]
     : properties;
 
-  const handlePropertySelect = (property) => {
+  const handlePropertySelect = (property: DocumentProperty | { id: number; name: string; type: string }) => {
     // 생성일시나 수정일시의 경우 기본값을 내림차순으로 설정
     const defaultOrder = (property.type === 'CREATED_AT' || property.type === 'LAST_UPDATED_AT') ? 'desc' : 'asc';
     onSortAdd(property, defaultOrder);
@@ -36,7 +65,7 @@ const SortDropdown = ({ properties, onSortAdd, onClearAllSorts, isReadOnly, acti
   useEffect(() => {
     if (!isDropdownOpen || !triggerRef.current) return;
 
-    const menuElement = document.querySelector('[data-radix-popper-content-wrapper]');
+    const menuElement = document.querySelector('[data-radix-popper-content-wrapper]') as HTMLElement;
     if (!menuElement) return;
 
     const updatePosition = () => {
@@ -80,8 +109,9 @@ const SortDropdown = ({ properties, onSortAdd, onClearAllSorts, isReadOnly, acti
 
   return (
     <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen} modal={false}>
-      <DropdownMenuTrigger asChild ref={triggerRef}>
+      <DropdownMenuTrigger asChild>
         <Button 
+          ref={triggerRef}
           size="sm" 
           variant={hasActiveSorts ? "outline" : "ghost"}
           className={buttonClassName}
@@ -122,3 +152,4 @@ const SortDropdown = ({ properties, onSortAdd, onClearAllSorts, isReadOnly, acti
 };
 
 export default SortDropdown;
+

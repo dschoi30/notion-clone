@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback, memo } from 'react';
+import { useEffect, useState, useMemo, useCallback, memo, MouseEvent, CSSProperties } from 'react';
 import { Button } from '@/components/ui/button';
 import { PlusIcon, TrashIcon, GripVertical, ChevronRight, ChevronDown, FileText, Table } from 'lucide-react';
 import { useDocument } from '@/contexts/DocumentContext';
@@ -12,6 +12,7 @@ import {
   useSensors,
   PointerSensor,
   KeyboardSensor,
+  DragEndEvent,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -24,9 +25,32 @@ import { CSS } from '@dnd-kit/utilities';
 import { useNavigate } from 'react-router-dom';
 import { slugify } from '@/lib/utils';
 import { createLogger } from '@/lib/logger';
+import type { Document } from '@/types';
+
+// DocumentList에서 사용하는 확장 Document 타입
+interface DocumentWithExtras extends Document {
+  isChild?: boolean;
+  shared?: boolean;
+}
+
+interface DocumentItemProps {
+  document: DocumentWithExtras;
+  currentDocument: Document | null;
+  onSelect: (document: Document) => void;
+  onDelete: (id: number) => void;
+  openedIds: Set<number>;
+  setOpenedIds: (updater: (prev: Set<number>) => Set<number>) => void;
+  childrenMap: Record<number, Document[]>;
+  setChildrenMap: (updater: (prev: Record<number, Document[]>) => Record<number, Document[]>) => void;
+  fetchChildDocuments: (id: number, options?: { silent?: boolean }) => Promise<Document[]>;
+  idPath: number[];
+  sensors: ReturnType<typeof useSensors>;
+  onDragEnd: (event: DragEndEvent) => void;
+  style?: CSSProperties;
+}
 
 // 문서 아이템 컴포넌트
-const DocumentItem = memo(({ 
+const DocumentItem = memo<DocumentItemProps>(({ 
   document,
   currentDocument, 
   onSelect, 
@@ -41,7 +65,7 @@ const DocumentItem = memo(({
   onDragEnd,
   style
 }) => {
-  const [hovered, setHovered] = useState(false);
+  const [hovered, setHovered] = useState<boolean>(false);
 
   const {
     attributes,
@@ -55,15 +79,15 @@ const DocumentItem = memo(({
     animateLayoutChanges: () => true,
   });
 
-  const itemStyle = useMemo(() => ({
+  const itemStyle = useMemo<CSSProperties>(() => ({
     ...style,
     transform: CSS.Transform.toString(transform),
-    transition: isDragging ? 'none' : transition,
+    transition: isDragging ? 'none' : transition || undefined,
     opacity: isDragging ? 0.4 : 1,
     zIndex: isDragging ? 1000 : 'auto',
   }), [style, transform, transition, isDragging]);
 
-  const handleToggle = useCallback(async (e) => {
+  const handleToggle = useCallback(async (e: MouseEvent) => {
     e.stopPropagation();
     if (openedIds.has(document.id)) {
       setOpenedIds(prev => {
@@ -84,7 +108,7 @@ const DocumentItem = memo(({
     onSelect(document);
   }, [onSelect, document]);
 
-  const handleDelete = useCallback((e) => {
+  const handleDelete = useCallback((e: MouseEvent) => {
     e.stopPropagation();
     onDelete(document.id);
   }, [onDelete, document.id]);
@@ -234,8 +258,28 @@ const DocumentItem = memo(({
   );
 });
 
+DocumentItem.displayName = 'DocumentItem';
+
+interface DocumentSectionProps {
+  title: string;
+  documents: Document[];
+  currentDocument: Document | null;
+  onSelect: (document: Document) => void;
+  onDelete: (id: number) => void;
+  openedIds: Set<number>;
+  setOpenedIds: (updater: (prev: Set<number>) => Set<number>) => void;
+  childrenMap: Record<number, Document[]>;
+  setChildrenMap: (updater: (prev: Record<number, Document[]>) => Record<number, Document[]>) => void;
+  fetchChildDocuments: (id: number, options?: { silent?: boolean }) => Promise<Document[]>;
+  idPath: number[];
+  sensors: ReturnType<typeof useSensors>;
+  onDragEnd: (event: DragEndEvent) => void;
+  showCreateButton?: boolean;
+  onCreateDocument?: () => void;
+}
+
 // 문서 섹션 컴포넌트
-const DocumentSection = memo(({ 
+const DocumentSection = memo<DocumentSectionProps>(({ 
   title, 
   documents, 
   currentDocument, 
@@ -253,8 +297,8 @@ const DocumentSection = memo(({
   onCreateDocument
 }) => {
   // 자식 문서를 포함한 전체 문서 목록 생성
-  const allVisibleDocuments = useMemo(() => {
-    const result = [];
+  const allVisibleDocuments = useMemo<DocumentWithExtras[]>(() => {
+    const result: DocumentWithExtras[] = [];
     documents.forEach(doc => {
       result.push(doc);
       // 자식 문서가 열려있으면 추가
@@ -277,7 +321,7 @@ const DocumentSection = memo(({
     <div>
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-lg font-semibold">{title}</h2>
-        {showCreateButton && (
+        {showCreateButton && onCreateDocument && (
           <Button onClick={onCreateDocument} size="sm">
             <PlusIcon className="mr-1 w-4 h-4" /> 새 문서
           </Button>
@@ -329,6 +373,8 @@ const DocumentSection = memo(({
   );
 });
 
+DocumentSection.displayName = 'DocumentSection';
+
 // 메인 DocumentList 컴포넌트
 const DocumentList = memo(() => {
   const {
@@ -369,22 +415,25 @@ const DocumentList = memo(() => {
     }
     
     const accessibleIds = new Set(documents.map(d => d.id));
-    const isRootCandidate = (doc) => (doc.parentId == null) || !accessibleIds.has(doc.parentId);
+    const isRootCandidate = (doc: Document) => (doc.parentId == null) || !accessibleIds.has(doc.parentId);
 
-    const shared = [];
-    const personal = [];
+    const shared: DocumentWithExtras[] = [];
+    const personal: DocumentWithExtras[] = [];
     
     documents.forEach(doc => {
       if (isRootCandidate(doc)) {
-        if (doc.shared) {
-          shared.push(doc);
+        const docWithExtras = doc as DocumentWithExtras;
+        // shared 속성은 permissions를 기반으로 판단
+        const hasOtherUsers = doc.permissions && doc.permissions.some(p => p.userId !== user.id);
+        if (hasOtherUsers) {
+          shared.push({ ...docWithExtras, shared: true });
         } else {
-          personal.push(doc);
+          personal.push({ ...docWithExtras, shared: false });
         }
       }
     });
     
-    const sortByOrder = (a, b) => {
+    const sortByOrder = (a: Document, b: Document) => {
       const sortOrderA = a.sortOrder ?? Number.MAX_SAFE_INTEGER;
       const sortOrderB = b.sortOrder ?? Number.MAX_SAFE_INTEGER;
       return sortOrderA - sortOrderB;
@@ -397,10 +446,10 @@ const DocumentList = memo(() => {
   }, [documents, user.id]);
 
   // 드래그 앤 드롭 핸들러
-  const handleDragEnd = useCallback(async (event) => {
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
     
-    if (active.id !== over.id) {
+    if (!over || active.id !== over.id) {
       try {
         const draggedDoc = documents.find(doc => doc.id === active.id);
         const targetDoc = documents.find(doc => doc.id === over.id);
@@ -447,19 +496,19 @@ const DocumentList = memo(() => {
   }, [currentWorkspace, fetchDocuments]);
 
 
-  const [openedIds, setOpenedIds] = useState(new Set());
-  const [childrenMap, setChildrenMap] = useState({});
+  const [openedIds, setOpenedIds] = useState<Set<number>>(new Set());
+  const [childrenMap, setChildrenMap] = useState<Record<number, Document[]>>({});
 
   // 선택된 문서에서 루트까지 id 경로 계산
-  const idPath = useMemo(() => {
+  const idPath = useMemo<number[]>(() => {
     if (!currentDocument) {
       return [];
     }
-    const path = [];
-    let doc = currentDocument;
+    const path: number[] = [];
+    let doc: Document | undefined = currentDocument;
     while (doc) {
       path.unshift(doc.id);
-      doc = documents.find(d => d.id === doc.parentId);
+      doc = documents.find(d => d.id === doc!.parentId);
     }
     return path;
   }, [currentDocument, documents]);
@@ -480,7 +529,7 @@ const DocumentList = memo(() => {
     }
   }, [createDocument]);
 
-  const handleDeleteDocument = useCallback(async (id) => {
+  const handleDeleteDocument = useCallback(async (id: number) => {
     try {
       await deleteDocument(id);
     } catch (err) {
@@ -489,7 +538,7 @@ const DocumentList = memo(() => {
   }, [deleteDocument]);
 
   // 문서 클릭 시 라우팅
-  const handleSelectDocument = useCallback((document) => {
+  const handleSelectDocument = useCallback((document: Document) => {
     navigate(`/${document.id}-${slugify(document.title || 'untitled')}`);
     selectDocument(document);
   }, [navigate, selectDocument]);
@@ -574,7 +623,7 @@ const DocumentList = memo(() => {
           idPath={idPath}
           sensors={sensors}
           onDragEnd={handleDragEnd}
-          showCreateButton={currentWorkspace.ownerId === user.id}
+          showCreateButton={currentWorkspace.userId === user.id}
           onCreateDocument={handleCreateDocument}
         />
       </div>
@@ -582,4 +631,7 @@ const DocumentList = memo(() => {
   );
 });
 
+DocumentList.displayName = 'DocumentList';
+
 export default DocumentList;
+

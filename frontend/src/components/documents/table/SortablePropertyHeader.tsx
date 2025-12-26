@@ -1,9 +1,37 @@
-import React from 'react';
+import { ChangeEvent, KeyboardEvent, MouseEvent } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { getPropertyIcon } from './utils';
+import type { DocumentProperty } from '@/types';
 
-function SortablePropertyHeader({ property, index, onDelete, onEdit, onResize, editingHeader, setEditingHeader, colWidths, isReadOnly = false }) {
+interface EditingHeader {
+  id: number | null;
+  name: string;
+}
+
+interface SortablePropertyHeaderProps {
+  property: DocumentProperty;
+  index: number;
+  onDelete: (propertyId: number) => void;
+  onEdit: () => void;
+  onResize: (e: MouseEvent<HTMLDivElement>, colIdx: number) => void;
+  editingHeader: EditingHeader;
+  setEditingHeader: (header: EditingHeader | ((prev: EditingHeader) => EditingHeader)) => void;
+  colWidths: number[];
+  isReadOnly?: boolean;
+}
+
+function SortablePropertyHeader({ 
+  property, 
+  index, 
+  onDelete, 
+  onEdit, 
+  onResize, 
+  editingHeader, 
+  setEditingHeader, 
+  colWidths, 
+  isReadOnly = false 
+}: SortablePropertyHeaderProps) {
   const {
     attributes,
     listeners,
@@ -13,9 +41,9 @@ function SortablePropertyHeader({ property, index, onDelete, onEdit, onResize, e
     isDragging,
   } = useSortable({ id: property.id });
 
-  const style = {
+  const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: transition || undefined,
     opacity: isDragging ? 0.5 : 1,
     minWidth: colWidths[1 + index],
     width: colWidths[1 + index],
@@ -40,9 +68,9 @@ function SortablePropertyHeader({ property, index, onDelete, onEdit, onResize, e
         {editingHeader.id === property.id ? (
           <input
             value={editingHeader.name}
-            onChange={(e) => setEditingHeader((prev) => ({ ...prev, name: e.target.value }))}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setEditingHeader((prev) => ({ ...prev, name: e.target.value }))}
             onBlur={isReadOnly ? undefined : onEdit}
-            onKeyDown={(e) => !isReadOnly && e.key === 'Enter' && onEdit()}
+            onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => !isReadOnly && e.key === 'Enter' && onEdit()}
             autoFocus
             className="px-2 py-1 w-full rounded border outline-none"
             style={{ background: '#fff', border: '1.5px solid #bdbdbd' }}
@@ -60,7 +88,7 @@ function SortablePropertyHeader({ property, index, onDelete, onEdit, onResize, e
           <button
             className="ml-2 text-gray-400 opacity-0 transition hover:text-red-500 group-hover:opacity-100"
             style={{ fontSize: 14 }}
-            onClick={(e) => {
+            onClick={(e: MouseEvent<HTMLButtonElement>) => {
               e.stopPropagation();
               onDelete(property.id);
             }}
@@ -73,7 +101,7 @@ function SortablePropertyHeader({ property, index, onDelete, onEdit, onResize, e
       {!isReadOnly && (
         <div
           style={{ position: 'absolute', right: 0, top: 0, width: 6, height: '100%', cursor: 'col-resize', zIndex: 10 }}
-          onMouseDown={(e) => onResize(e, 1 + index)}
+          onMouseDown={(e: MouseEvent<HTMLDivElement>) => onResize(e, 1 + index)}
         />
       )}
     </div>

@@ -1,6 +1,16 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, MouseEvent } from 'react';
 import { updatePropertyWidth } from '@/services/documentApi';
 import { useThrottle } from '@/hooks/useThrottle';
+import type { DocumentProperty } from '@/types';
+
+interface UseColumnResizeParams {
+  properties: DocumentProperty[];
+  titleWidth: number;
+  propertyWidths: number[];
+  workspaceId: number;
+  documentId: number;
+  updateTitleWidthFn: (workspaceId: number, documentId: number, width: number) => Promise<void>;
+}
 
 export function useColumnResize({
   properties,
@@ -9,13 +19,13 @@ export function useColumnResize({
   workspaceId,
   documentId,
   updateTitleWidthFn,
-}) {
+}: UseColumnResizeParams) {
   const defaultColWidths = [titleWidth, ...propertyWidths];
-  const [colWidths, setColWidths] = useState(defaultColWidths);
-  const liveWidths = useRef(colWidths);
-  const resizingCol = useRef(null);
-  const startX = useRef(0);
-  const startWidth = useRef(0);
+  const [colWidths, setColWidths] = useState<number[]>(defaultColWidths);
+  const liveWidths = useRef<number[]>(colWidths);
+  const resizingCol = useRef<number | null>(null);
+  const startX = useRef<number>(0);
+  const startWidth = useRef<number>(0);
 
   useEffect(() => {
     const initial = [titleWidth, ...propertyWidths];
@@ -23,7 +33,7 @@ export function useColumnResize({
     liveWidths.current = initial;
   }, [titleWidth, propertyWidths.join(','), properties.length]);
 
-  const handleResizeMouseDown = (e, colIdx) => {
+  const handleResizeMouseDown = (e: MouseEvent<HTMLDivElement>, colIdx: number) => {
     resizingCol.current = colIdx;
     startX.current = e.clientX;
     startWidth.current = colWidths[colIdx];
@@ -33,20 +43,20 @@ export function useColumnResize({
   };
 
   // 쓰로틀링된 마우스 이동 핸들러 (16ms = 60fps)
-  const throttledMouseMove = useThrottle((e) => {
+  const throttledMouseMove = useThrottle((e: MouseEvent) => {
     if (resizingCol.current == null) return;
     const dx = e.clientX - startX.current;
     const newWidth = Math.max(100, startWidth.current + dx);
     setColWidths((prev) => {
       const next = [...prev];
-      next[resizingCol.current] = newWidth;
+      next[resizingCol.current!] = newWidth;
       return next;
     });
     liveWidths.current[resizingCol.current] = newWidth;
   }, 16);
 
-  const handleResizeMouseMove = useCallback((e) => {
-    throttledMouseMove(e);
+  const handleResizeMouseMove = useCallback((e: Event) => {
+    throttledMouseMove(e as unknown as MouseEvent);
   }, [throttledMouseMove]);
 
   const handleResizeMouseUp = async () => {

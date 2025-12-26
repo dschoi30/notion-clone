@@ -51,7 +51,7 @@ export function useUserTableData() {
       return lastPage.page + 1;
     },
     initialPageParam: 0,
-    staleTime: 1000 * 60 * 2, // 2분
+    staleTime: 1000
   });
 
   // 에러 처리 (React Query v5 권장 방식)

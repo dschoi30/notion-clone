@@ -1,15 +1,40 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import SearchSlideInput from './SearchSlideInput';
-import FilterDropdown from './FilterDropdown';
 import SortDropdown from './SortDropdown';
 import SortManager from './SortManager';
 import { useNotification } from '@/contexts/NotificationContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { ZIndexUtils } from '@/constants/zIndex';
+import type { DocumentProperty } from '@/types';
 
-const TableToolbar = ({ 
+interface TableToolbarProps {
+  onAddNewDocument: () => Promise<void>;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  isSearchOpen: boolean;
+  setIsSearchOpen: (open: boolean) => void;
+  clearSearch: () => void;
+  properties: DocumentProperty[];
+  onFilterAdd: (property: DocumentProperty) => void;
+  activeFilters?: any[];
+  onFilterRemove?: (filterId: string | number) => void;
+  activeSorts?: any[];
+  onSortAdd: (property: DocumentProperty, defaultOrder?: 'asc' | 'desc') => void;
+  onSortUpdate: (sortId: string, updates: any) => void;
+  onSortRemove: (sortId: string) => void;
+  onClearAllSorts?: () => void;
+  isReadOnly?: boolean;
+  anchorRef?: React.RefObject<HTMLDivElement>;
+  isOwner?: boolean;
+  workspaceId: number;
+  documentId: number;
+  getSortedDocumentIds: () => any[];
+  documentCount?: number;
+}
+
+const TableToolbar: React.FC<TableToolbarProps> = ({ 
   onAddNewDocument,
   searchQuery,
   setSearchQuery,
@@ -17,7 +42,6 @@ const TableToolbar = ({
   setIsSearchOpen,
   clearSearch,
   properties,
-  onFilterAdd,
   activeSorts = [],
   onSortAdd,
   onSortUpdate,
@@ -29,16 +53,15 @@ const TableToolbar = ({
   workspaceId,
   documentId,
   getSortedDocumentIds,
-  documentCount = 0
 }) => {
-  const [fixedTop, setFixedTop] = useState(null);
+  const [fixedTop, setFixedTop] = useState<number | null>(null);
   const { isNotificationModalOpen } = useNotification();
   const { isSettingsPanelOpen, isSearchModalOpen } = useWorkspace();
   
   useLayoutEffect(() => {
     if (!anchorRef?.current) return;
     
-    let animationId = null;
+    let animationId: number | null = null;
     
     const updatePosition = () => {
       if (!anchorRef?.current) return;
@@ -152,3 +175,4 @@ const TableToolbar = ({
 };
 
 export default TableToolbar;
+
