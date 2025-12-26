@@ -2,9 +2,16 @@ import React, { useRef } from 'react';
 import { NodeViewWrapper } from '@tiptap/react';
 import { Node as ProseMirrorNode } from '@tiptap/pm/model';
 
+interface ImageAttributes {
+  width?: number;
+  height?: number | 'auto';
+  src?: string;
+  alt?: string;
+}
+
 interface ResizableImageProps {
   node: ProseMirrorNode;
-  updateAttributes: (attrs: Record<string, any>) => void;
+  updateAttributes: (attrs: Partial<ImageAttributes>) => void;
   selected: boolean;
 }
 

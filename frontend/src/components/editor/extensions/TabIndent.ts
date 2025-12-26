@@ -15,11 +15,9 @@ export const TabIndent = Extension.create({
           return false;
         }
         
-        // 현재 라인의 시작 위치 찾기
+        // 현재 위치에 4칸 공백 추가
         const { $from } = selection;
         const currentPos = $from.pos;
-        
-        // 4칸 공백 추가
         const spacesToAdd = '    ';
         const tr = state.tr.insertText(spacesToAdd, currentPos, currentPos);
         dispatch(tr);

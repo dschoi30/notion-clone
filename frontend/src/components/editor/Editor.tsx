@@ -184,7 +184,8 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ content, onUpdate, editable
                   img.onerror = () => resolve({ originalSrc, finalImageUrl, width: null, error: 'Image load error' }); // 로드 실패해도 resolve
                 } catch (e) {
                   console.error(`Error processing image ${originalSrc}:`, e);
-                  resolve({ originalSrc, finalImageUrl: null, error: (e as Error).message, width: null }); // 에러 발생 시 정보 포함 resolve
+                  const error = e instanceof Error ? e : new Error(String(e));
+                  resolve({ originalSrc, finalImageUrl: null, error: error.message, width: null }); // 에러 발생 시 정보 포함 resolve
                 }
               });
             });
@@ -228,7 +229,8 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ content, onUpdate, editable
   
           } catch (e) {
             console.error("Error processing HTML clipboard content:", e);
-            handleError(e as Error, {
+            const error = e instanceof Error ? e : new Error(String(e));
+            handleError(error, {
               customMessage: 'HTML 붙여넣기 처리 중 오류가 발생했습니다.',
               showToast: true
             });
@@ -267,7 +269,8 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ content, onUpdate, editable
             return true; // 이미지 파일 처리 완료
           } catch (e) {
             console.error("Error processing direct image files:", e);
-            handleError(e as Error, {
+            const error = e instanceof Error ? e : new Error(String(e));
+            handleError(error, {
               customMessage: '이미지 파일 처리 중 오류가 발생했습니다.',
               showToast: true
             });
