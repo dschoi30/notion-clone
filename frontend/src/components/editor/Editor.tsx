@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -9,15 +10,15 @@ import Highlight from '@tiptap/extension-highlight';
 import TextStyle from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import { Extension } from '@tiptap/core';
-import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import EditorMenuBar from './EditorMenuBar';
 import './Editor.css';
 import CustomImage from './CustomImage';
-import { fetchImageViaProxy } from '../../services/documentApi';
+import { fetchImageViaProxy } from '@/services/documentApi';
 import { BlockDragHandle } from './extensions/BlockDragHandle';
 import { TabIndent } from './extensions/TabIndent';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 import { createLogger } from '@/lib/logger';
+import { EditorView } from '@tiptap/pm/view';
 
 const lowlight = createLowlight(common);
 
@@ -29,8 +30,8 @@ const BackgroundColor = Extension.create({
     return {
       backgroundColor: {
         default: null,
-        parseHTML: element => element.style.backgroundColor,
-        renderHTML: attributes => {
+        parseHTML: (element: HTMLElement) => element.style.backgroundColor,
+        renderHTML: (attributes: { backgroundColor: string | null }) => {
           if (!attributes.backgroundColor) {
             return {};
           }
@@ -49,8 +50,8 @@ const BackgroundColor = Extension.create({
         attributes: {
           backgroundColor: {
             default: null,
-            parseHTML: element => element.style.backgroundColor,
-            renderHTML: attributes => {
+            parseHTML: (element: HTMLElement) => element.style.backgroundColor,
+            renderHTML: (attributes: { backgroundColor: string | null }) => {
               if (!attributes.backgroundColor) {
                 return {};
               }
@@ -65,10 +66,13 @@ const BackgroundColor = Extension.create({
   },
 });
 
-const CLOUDINARY_CLOUD_NAME = 'dsjybr8fb'; // 실제 값으로 교체
-const CLOUDINARY_UPLOAD_PRESET = 'notion-clone'; // 실제 값으로 교체
+const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
-async function uploadImageToCloudinary(file) {
+async function uploadImageToCloudinary(file: File): Promise<string> {
+  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+    throw new Error('Cloudinary 설정이 올바르지 않습니다. 환경변수를 확인해주세요.');
+  }
   const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
   const formData = new FormData();
   formData.append('file', file);
@@ -84,7 +88,17 @@ async function uploadImageToCloudinary(file) {
   return data.secure_url;
 }
 
-const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
+interface EditorProps {
+  content?: string;
+  onUpdate: (content: string) => void;
+  editable?: boolean;
+}
+
+export interface EditorRef {
+  focus: () => void;
+}
+
+const Editor = forwardRef<EditorRef, EditorProps>(({ content, onUpdate, editable = true }, ref) => {
   const [isComposing, setIsComposing] = useState(false);
   const latestHTML = useRef('');
   const { handleError } = useErrorHandler();
@@ -130,21 +144,22 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
     },
     editorProps: {
       // handlePaste를 async 함수로 변경
-      async handlePaste(view, event) {
+      // @ts-ignore - ProseMirror의 handlePaste는 동기 함수로 타입 정의되어 있지만, 실제로는 async 함수도 지원함
+      async handlePaste(view: EditorView, event: ClipboardEvent) {
         if (!view?.editable) return false;
         const items = event.clipboardData?.items;
         if (!items) return false;
         log.info('Available Clipboard Types:', Array.from(items).map(item => item.type));
   
-        let htmlString = null;
-        let imageFiles = [];
+        let htmlString: string | null = null;
+        const imageFiles: File[] = [];
         // text/plain은 Tiptap 기본 핸들러가 더 잘 처리할 수 있으므로 여기서는 수집하지 않음
   
         // 비동기 작업(getAsString)을 기다리기 위해 Promise 사용
         const processingPromises = Array.from(items).map(item => {
-          return new Promise(async (resolve) => {
+          return new Promise<void>((resolve) => {
             if (item.type === 'text/html') {
-              item.getAsString(html => {
+              item.getAsString((html) => {
                 htmlString = html; // 외부 스코프 변수에 할당
                 resolve();
               });
@@ -172,20 +187,20 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
             const imageProcessingPromises = imgSrcMatches.map(match => {
               const originalSrc = match[1];
               // 각 이미지 src 처리 (data:, http://, https://) 후 최종 URL과 width 반환
-              return new Promise(async (resolve) => { // 각 이미지 처리를 Promise로 감쌈
+              return new Promise<{ originalSrc: string; finalImageUrl: string | null; width: number | null; error?: string }>(async (resolve) => { // 각 이미지 처리를 Promise로 감쌈
                 try {
-                  let finalImageUrl;
-                  let blob;
+                  let finalImageUrl: string | null = null;
+                  let blob: Blob | null = null;
                   if (originalSrc.startsWith('data:image/')) {
                     const res = await fetch(originalSrc);
                     blob = await res.blob();
-                    if (!blob.type.startsWith('image/')) return resolve({ originalSrc, finalImageUrl: null, error: 'Invalid blob type' });
+                    if (!blob.type.startsWith('image/')) return resolve({ originalSrc, finalImageUrl: null, error: 'Invalid blob type', width: null });
                     const file = new File([blob], 'clipboard-image', { type: blob.type });
                     finalImageUrl = await uploadImageToCloudinary(file);
                   } else if (originalSrc.startsWith('http://') || originalSrc.startsWith('https://')) {
                     finalImageUrl = await fetchImageViaProxy(originalSrc);
                   } else {
-                    return resolve({ originalSrc, finalImageUrl: null, error: 'Unsupported src type' });
+                    return resolve({ originalSrc, finalImageUrl: null, error: 'Unsupported src type', width: null });
                   }
   
                   // 최종 URL로 이미지 크기 계산
@@ -199,7 +214,7 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
                   img.onerror = () => resolve({ originalSrc, finalImageUrl, width: null, error: 'Image load error' }); // 로드 실패해도 resolve
                 } catch (e) {
                   console.error(`Error processing image ${originalSrc}:`, e);
-                  resolve({ originalSrc, finalImageUrl: null, error: e.message }); // 에러 발생 시 정보 포함 resolve
+                  resolve({ originalSrc, finalImageUrl: null, error: (e as Error).message, width: null }); // 에러 발생 시 정보 포함 resolve
                 }
               });
             });
@@ -208,19 +223,19 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
             const imageResults = await Promise.allSettled(imageProcessingPromises);
   
             // 원본 src를 최종 URL/width로 매핑하는 객체 생성
-            const urlMap = {};
+            const urlMap: Record<string, { url: string; width: number | null }> = {};
             imageResults.forEach(result => {
               if (result.status === 'fulfilled' && result.value.finalImageUrl) {
                 urlMap[result.value.originalSrc] = { url: result.value.finalImageUrl, width: result.value.width };
               } else {
                 // 처리 실패한 이미지 로그 (선택적)
-                const failedSrc = result.reason?.originalSrc || result.value?.originalSrc || 'unknown';
+                const failedSrc = result.status === 'rejected' ? 'unknown' : (result.value?.originalSrc || 'unknown');
                 console.warn(`Failed to process image from HTML: ${failedSrc}`);
               }
             });
   
             // 원본 HTML에서 <img> 태그 교체
-            let modifiedHtml = htmlString.replace(/<img[^>]*src=["']([^"'>]+)["'][^>]*>/gi, (match, capturedSrc) => {
+            let modifiedHtml = htmlString.replace(/<img[^>]*src=["']([^"'>]+)["'][^>]*>/gi, (_match, capturedSrc) => {
               const mapping = urlMap[capturedSrc];
               if (mapping && mapping.url) {
                 // 간단한 교체. 속성을 유지하려면 더 복잡한 파싱 필요.
@@ -243,7 +258,7 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
   
           } catch (e) {
             console.error("Error processing HTML clipboard content:", e);
-            handleError(e, {
+            handleError(e as Error, {
               customMessage: 'HTML 붙여넣기 처리 중 오류가 발생했습니다.',
               showToast: true
             });
@@ -261,7 +276,7 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
   
             // 업로드된 이미지를 순차적으로 에디터에 삽입
             for (const url of uploadedUrls) {
-              await new Promise((resolve, reject) => { // 각 삽입을 Promise로 처리
+              await new Promise<void>((resolve, reject) => { // 각 삽입을 Promise로 처리
                 const img = new window.Image();
                 img.src = url;
                 img.onload = () => {
@@ -282,7 +297,7 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
             return true; // 이미지 파일 처리 완료
           } catch (e) {
             console.error("Error processing direct image files:", e);
-            handleError(e, {
+            handleError(e as Error, {
               customMessage: '이미지 파일 처리 중 오류가 발생했습니다.',
               showToast: true
             });
@@ -356,4 +371,7 @@ const Editor = forwardRef(({ content, onUpdate, editable = true }, ref) => {
   );
 });
 
-export default Editor; 
+Editor.displayName = 'Editor';
+
+export default Editor;
+

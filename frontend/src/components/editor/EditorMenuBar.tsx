@@ -1,3 +1,4 @@
+import { Editor } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
 import {
   Bold,
@@ -13,8 +14,7 @@ import {
   Quote,
   Undo,
   Redo,
-  Link as LinkIcon,
-  Palette,
+  Palette
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -23,7 +23,12 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 
-const COLORS = [
+interface ColorOption {
+  name: string;
+  value: string;
+}
+
+const COLORS: ColorOption[] = [
   { name: '검정', value: '#000000' },
   { name: '회색', value: '#666666' },
   { name: '빨강', value: '#ff0000' },
@@ -34,7 +39,7 @@ const COLORS = [
   { name: '보라', value: '#6600ff' },
 ];
 
-const BG_COLORS = [
+const BG_COLORS: ColorOption[] = [
   { name: '흰색', value: '#ffffff' },
   { name: '연한 회색', value: '#f1f1f1' },
   { name: '연한 빨강', value: '#ffe6e6' },
@@ -45,12 +50,24 @@ const BG_COLORS = [
   { name: '연한 보라', value: '#f2e6ff' },
 ];
 
-const EditorMenuBar = ({ editor, setLink }) => {
+interface MenuItem {
+  icon: React.ReactNode;
+  title: string;
+  action: () => void;
+  isActive: () => boolean;
+}
+
+interface EditorMenuBarProps {
+  editor: Editor | null;
+  setLink?: (url: string) => void;
+}
+
+const EditorMenuBar: React.FC<EditorMenuBarProps> = ({ editor }) => {
   if (!editor) {
     return null;
   }
 
-  const menuItems = [
+  const menuItems: MenuItem[] = [
     {
       icon: <Bold className="w-4 h-4" />,
       title: '굵게',
@@ -223,4 +240,5 @@ const EditorMenuBar = ({ editor, setLink }) => {
   );
 };
 
-export default EditorMenuBar; 
+export default EditorMenuBar;
+
