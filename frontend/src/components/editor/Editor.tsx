@@ -111,19 +111,11 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ content, onUpdate, editable
     baseExtensions.push(BlockDragHandle);
   }
 
-  const editor = useEditor({
-    extensions: baseExtensions,
-    content: '',
-    onUpdate: ({ editor }) => {
-      latestHTML.current = editor.getHTML();
-      if (!isComposing) {
-        onUpdate(latestHTML.current);
-      }
-    },
-    editorProps: {
-      // handlePaste를 async 함수로 변경
-      // @ts-ignore - ProseMirror의 handlePaste는 동기 함수로 타입 정의되어 있지만, 실제로는 async 함수도 지원함
-      async handlePaste(view: EditorView, event: ClipboardEvent) {
+  // editorProps를 별도 변수로 분리하여 타입 안전성 확보
+  // ProseMirror는 실제로 async handlePaste를 지원하지만 타입 정의에는 포함되지 않음
+  const editorProps = {
+    // handlePaste를 async 함수로 사용 (타입 확장으로 지원)
+    async handlePaste(view: EditorView, event: ClipboardEvent) {
         if (!view?.editable) return false;
         const items = event.clipboardData?.items;
         if (!items) return false;
@@ -287,7 +279,18 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ content, onUpdate, editable
         log.info("No relevant clipboard content found, letting default handler proceed.");
         return false;
       },
+  } as unknown as Parameters<typeof useEditor>[0]['editorProps'];
+
+  const editor = useEditor({
+    extensions: baseExtensions,
+    content: '',
+    onUpdate: ({ editor }) => {
+      latestHTML.current = editor.getHTML();
+      if (!isComposing) {
+        onUpdate(latestHTML.current);
+      }
     },
+    editorProps,
     editable,
   });
 
