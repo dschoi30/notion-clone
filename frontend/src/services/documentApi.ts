@@ -1,7 +1,7 @@
 // src/services/documentApi.ts
 import api from './api';
 import { createLogger } from '@/lib/logger';
-import type { Document, DocumentProperty, DocumentPropertyValue, PermissionType, TagOption, PaginatedResponse } from '@/types';
+import type { Document, DocumentProperty, DocumentPropertyValue, PropertyValue, PermissionType, TagOption, PaginatedResponse } from '@/types';
 
 const log = createLogger('documentApi');
 
@@ -253,7 +253,7 @@ export async function addOrUpdatePropertyValue(
   workspaceId: number,
   documentId: number,
   propertyId: number,
-  value: string | number | boolean | number[]
+  value: PropertyValue
 ): Promise<DocumentPropertyValue & { updatedAt: string; updatedBy?: number }> {
   const res = await api.post<DocumentPropertyValue & { updatedAt: string; updatedBy?: number }>(
     `/api/workspaces/${workspaceId}/documents/${documentId}/properties/${propertyId}/value`,
