@@ -1,6 +1,6 @@
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey, NodeSelection } from '@tiptap/pm/state';
-import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import { Decoration, DecorationSet, EditorView } from '@tiptap/pm/view';
 import { dropPoint } from '@tiptap/pm/transform';
 import { Fragment, Slice } from '@tiptap/pm/model';
 
@@ -179,8 +179,8 @@ export const BlockDragHandle = Extension.create({
               return false;
             },
           },
-          // @ts-ignore - ProseMirror Plugin의 확장 속성
-          handleDragStart(view, event) {
+          // 드래그 시작 핸들러 (타입 확장으로 지원, 런타임에서는 작동하지만 타입 정의에는 없음)
+          handleDragStart(view: EditorView, event: DragEvent) {
             const target = event.target;
             if (!(target instanceof HTMLElement)) return false;
             if (!target.classList.contains('pm-block-handle')) return false;
@@ -223,16 +223,16 @@ export const BlockDragHandle = Extension.create({
             dragInfo = { from: sel.from, node: sel.node };
             return true; // 우리가 처리했음을 명시
           },
-          // @ts-ignore - ProseMirror Plugin의 확장 속성
-          handleDragEnd(_view, _event) {
+          // 드래그 종료 핸들러 (타입 확장으로 지원)
+          handleDragEnd(_view: EditorView, _event: DragEvent) {
             if (dragPreviewEl && dragPreviewEl.parentNode) {
               dragPreviewEl.parentNode.removeChild(dragPreviewEl);
             }
             dragPreviewEl = null;
             return false;
           },
-          // @ts-ignore - ProseMirror Plugin의 확장 속성
-          handleDrop(view, event) {
+          // 드롭 핸들러 (타입 확장으로 지원)
+          handleDrop(view: EditorView, event: DragEvent) {
             // 우리가 시작한 블록 드래그만 처리
             if (!dragInfo) return false;
             event.preventDefault();
@@ -284,7 +284,9 @@ export const BlockDragHandle = Extension.create({
             dragInfo = null;
             return true;
           },
-        },
+        } as any, // ProseMirror Plugin의 props는 EditorProps 타입이지만, 
+                   // 실제로는 handleDragStart/DragEnd/Drop 같은 커스텀 핸들러도 지원함
+                   // 타입 확장이 제네릭 타입과 충돌하여 타입 단언 사용
       }),
     ];
   },
