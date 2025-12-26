@@ -1,31 +1,45 @@
 import React, { useRef } from 'react';
-import { NodeViewWrapper, NodeViewContent } from '@tiptap/react';
+import { NodeViewWrapper } from '@tiptap/react';
+import { Node as ProseMirrorNode } from '@tiptap/pm/model';
+
+interface ResizableImageProps {
+  node: ProseMirrorNode;
+  updateAttributes: (attrs: Record<string, any>) => void;
+  selected: boolean;
+}
 
 const MIN_SIZE = 50;
 
-const ResizableImage = ({ node, updateAttributes, selected }) => {
-  const imgRef = useRef(null);
+const ResizableImage: React.FC<ResizableImageProps> = ({ node, updateAttributes, selected }) => {
+  const imgRef = useRef<HTMLImageElement>(null);
   const { src, width = 300, height = 'auto', alt = '' } = node.attrs;
 
-  const startResize = (e) => {
+  const startResize = (e: React.MouseEvent) => {
     e.preventDefault();
+    if (!imgRef.current) return;
+    
     const startX = e.clientX;
     const startWidth = imgRef.current.offsetWidth;
-    const onMouseMove = (moveEvent) => {
+    
+    const onMouseMove = (moveEvent: MouseEvent) => {
       const newWidth = Math.max(MIN_SIZE, startWidth + (moveEvent.clientX - startX));
       updateAttributes({ width: newWidth });
     };
+    
     const onMouseUp = () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
+    
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
   };
 
   return (
-    <NodeViewWrapper className={`resizable-image${selected ? ' ProseMirror-selectednode' : ''}`}
-      style={{ display: 'inline-block', position: 'relative' }}>
+    <NodeViewWrapper 
+      className={`resizable-image${selected ? ' ProseMirror-selectednode' : ''}`}
+      style={{ display: 'inline-block', position: 'relative' }}
+    >
       <img
         ref={imgRef}
         src={src}
@@ -51,4 +65,5 @@ const ResizableImage = ({ node, updateAttributes, selected }) => {
   );
 };
 
-export default ResizableImage; 
+export default ResizableImage;
+
