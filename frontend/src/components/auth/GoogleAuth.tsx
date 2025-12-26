@@ -6,21 +6,14 @@ interface GoogleCredentialResponse {
   credential: string;
 }
 
-interface ResizeObserverEntry {
-  contentRect: {
-    width: number;
-  };
-}
-
-interface HTMLElementWithResizeObserver extends HTMLDivElement {
-  _resizeObserver?: ResizeObserver;
-}
+// ResizeObserver 인스턴스를 DOM 요소와 연결하기 위한 WeakMap
+const resizeObservers = new WeakMap<HTMLDivElement, ResizeObserver>();
 
 export default function GoogleAuth() {
   const navigate = useNavigate();
   const { loginWithGoogle } = useAuth();
   const isInitialized = useRef<boolean>(false);
-  const buttonContainerRef = useRef<HTMLElementWithResizeObserver | null>(null);
+  const buttonContainerRef = useRef<HTMLDivElement | null>(null);
   const containerWidthRef = useRef<number | null>(null);
 
   const handleGoogleLogin = useCallback(async (response: GoogleCredentialResponse) => {
@@ -117,7 +110,7 @@ export default function GoogleAuth() {
         return;
       }
 
-      const resizeObserver = new ResizeObserver((entries: ResizeObserverEntry[]) => {
+      const resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
           const newWidth = entry.contentRect.width;
           const currentWidth = containerWidthRef.current;
@@ -148,17 +141,20 @@ export default function GoogleAuth() {
 
       resizeObserver.observe(buttonContainerRef.current);
 
-      // cleanup 함수를 ref에 저장하여 나중에 호출할 수 있도록 함
-      buttonContainerRef.current._resizeObserver = resizeObserver;
+      // WeakMap에 ResizeObserver 저장
+      if (buttonContainerRef.current) {
+        resizeObservers.set(buttonContainerRef.current, resizeObserver);
+      }
     }
 
     return () => {
       // 컴포넌트 언마운트 시 정리
       if (buttonContainerRef.current) {
-        // ResizeObserver 정리
-        if (buttonContainerRef.current._resizeObserver) {
-          buttonContainerRef.current._resizeObserver.disconnect();
-          delete buttonContainerRef.current._resizeObserver;
+        // ResizeObserver 정리 (WeakMap에서 가져와서 disconnect)
+        const resizeObserver = resizeObservers.get(buttonContainerRef.current);
+        if (resizeObserver) {
+          resizeObserver.disconnect();
+          resizeObservers.delete(buttonContainerRef.current);
         }
         buttonContainerRef.current.innerHTML = '';
       }

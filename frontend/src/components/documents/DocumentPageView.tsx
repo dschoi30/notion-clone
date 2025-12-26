@@ -10,7 +10,7 @@ import usePageData from './page/hooks/usePageData';
 import TagPopover from './TagPopover';
 import { Button } from '@/components/ui/button';
 import { buildSystemPropTypeMapForPage } from '@/components/documents/shared/systemPropTypeMap';
-import type { ViewType } from '@/types';
+import type { ViewType, PropertyValue } from '@/types';
 
 interface DocumentPageViewProps {
   content: string;
@@ -38,7 +38,7 @@ const DocumentPageView = forwardRef<DocumentPageViewRef, DocumentPageViewProps>(
   const [isAddOpen, setIsAddOpen] = useState<boolean>(false);
   const addPropBtnRef = useRef<HTMLButtonElement>(null);
   const [editingValueId, setEditingValueId] = useState<number | null>(null);
-  const [editingValue, setEditingValue] = useState<string | number | boolean | number[]>('');
+  const [editingValue, setEditingValue] = useState<PropertyValue>('');
   const [tagPopoverRect, setTagPopoverRect] = useState<{ width: number; height: number; top: number; left: number } | null>(null);
   const propertyListRef = useRef<{ focusFirstProperty: () => void; focusNextProperty: (index: number) => void } | null>(null);
 

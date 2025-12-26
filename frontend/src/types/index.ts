@@ -91,11 +91,14 @@ export interface TagOption {
   sortOrder?: number;
 }
 
+// 속성 값 타입 (TAG는 number[] - 태그 옵션 ID 배열)
+export type PropertyValue = string | number | boolean | number[];
+
 export interface DocumentPropertyValue {
   id: number;
   documentId: number;
   propertyId: number;
-  value: string | number | boolean | number[]; // TAG는 number[] (태그 옵션 ID 배열)
+  value: PropertyValue;
 }
 
 // 알림 관련 타입

@@ -18,7 +18,7 @@ import { createDocumentVersion } from '@/services/documentApi';
 import DocumentHeader from './DocumentHeader';
 import DocumentPageView, { DocumentPageViewRef } from './DocumentPageView';
 import { hasWritePermission } from '@/utils/permissionUtils';
-import type { Document, ViewType } from '@/types';
+import type { Document, ViewType, PropertyValue } from '@/types';
 
 type SaveStatus = 'saved' | 'saving' | 'error' | 'unsaved';
 
@@ -78,7 +78,7 @@ const DocumentEditor = () => {
         getPropertyValuesByDocument(currentWorkspace.id, currentDocument.id),
       ]);
       const propsSlim = (props || []).map(p => ({ id: p.id, name: p.name, type: p.type, sortOrder: p.sortOrder, width: p.width }));
-      const valuesObj: Record<string, string | number | boolean | number[]> = {};
+      const valuesObj: Record<string, PropertyValue> = {};
       (valuesArr || []).forEach(v => { valuesObj[v.propertyId] = v.value; });
 
       const payload = {

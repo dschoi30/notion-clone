@@ -2,11 +2,11 @@ import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import { DndContext, closestCenter, SensorDescriptor, SensorOptions } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import PagePropertyRow from './PagePropertyRow';
-import type { DocumentProperty } from '@/types';
+import type { DocumentProperty, PropertyValue } from '@/types';
 
 interface PagePropertyListProps {
   properties: DocumentProperty[];
-  valuesByPropertyId: Record<number, string | number | boolean | number[]>;
+  valuesByPropertyId: Record<number, PropertyValue>;
   sensors: SensorDescriptor<SensorOptions>[];
   onDragEnd: (event: any) => void;
   editingHeader: { id: number | null; name: string };
@@ -14,9 +14,9 @@ interface PagePropertyListProps {
   onHeaderCommit: () => void;
   editingValueId: number | null;
   setEditingValueId: (id: number | null) => void;
-  editingValue: string | number | boolean | number[];
-  setEditingValue: (value: string | number | boolean | number[]) => void;
-  onValueCommit: (propertyId: number, value: string | number | boolean | number[]) => void;
+  editingValue: PropertyValue;
+  setEditingValue: (value: PropertyValue) => void;
+  onValueCommit: (propertyId: number, value: PropertyValue) => void;
   tagPopoverRect: { top: number; left: number; width: number; height: number } | null;
   setTagPopoverRect: (rect: { top: number; left: number; width: number; height: number } | null) => void;
   isReadOnly?: boolean;
