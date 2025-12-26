@@ -13,7 +13,7 @@ import { Extension } from '@tiptap/core';
 import EditorMenuBar from './EditorMenuBar';
 import './Editor.css';
 import CustomImage from './CustomImage';
-import { fetchImageViaProxy } from '@/services/documentApi';
+import { fetchImageViaProxy, uploadImage } from '@/services/documentApi';
 import { BlockDragHandle } from './extensions/BlockDragHandle';
 import { TabIndent } from './extensions/TabIndent';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
@@ -65,28 +65,6 @@ const BackgroundColor = Extension.create({
     ];
   },
 });
-
-const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-
-async function uploadImageToCloudinary(file: File): Promise<string> {
-  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
-    throw new Error('Cloudinary 설정이 올바르지 않습니다. 환경변수를 확인해주세요.');
-  }
-  const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-  const response = await fetch(url, {
-    method: 'POST',
-    body: formData,
-  });
-  if (!response.ok) {
-    throw new Error('이미지 업로드 실패');
-  }
-  const data = await response.json();
-  return data.secure_url;
-}
 
 interface EditorProps {
   content?: string;
@@ -196,7 +174,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ content, onUpdate, editable
                     blob = await res.blob();
                     if (!blob.type.startsWith('image/')) return resolve({ originalSrc, finalImageUrl: null, error: 'Invalid blob type', width: null });
                     const file = new File([blob], 'clipboard-image', { type: blob.type });
-                    finalImageUrl = await uploadImageToCloudinary(file);
+                    finalImageUrl = await uploadImage(file);
                   } else if (originalSrc.startsWith('http://') || originalSrc.startsWith('https://')) {
                     finalImageUrl = await fetchImageViaProxy(originalSrc);
                   } else {
@@ -270,8 +248,8 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ content, onUpdate, editable
           log.info(`Processing ${imageFiles.length} image file(s)...`);
           try {
             // 이미지 업로드 시작 알림은 Toast로 표시하지 않음 (성공 메시지가 아님)
-            // 모든 파일을 Cloudinary에 업로드
-            const uploadPromises = imageFiles.map(file => uploadImageToCloudinary(file));
+            // 모든 파일을 백엔드를 통해 Cloudinary에 업로드
+            const uploadPromises = imageFiles.map(file => uploadImage(file));
             const uploadedUrls = await Promise.all(uploadPromises);
   
             // 업로드된 이미지를 순차적으로 에디터에 삽입
