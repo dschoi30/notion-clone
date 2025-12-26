@@ -133,6 +133,47 @@ export async function fetchImageViaProxy(imageUrl: string): Promise<string> {
   return data.imageUrl; // 최종 Cloudinary URL 반환
 }
 
+/**
+ * 파일을 백엔드를 통해 Cloudinary에 업로드
+ * @param file 업로드할 이미지 파일
+ * @returns 업로드된 이미지 URL
+ */
+export async function uploadImage(file: File): Promise<string> {
+  // 파일 크기 검증 (10MB)
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error('파일 크기는 10MB를 초과할 수 없습니다.');
+  }
+
+  // 파일 타입 검증
+  if (!file.type.startsWith('image/')) {
+    throw new Error('이미지 파일만 업로드할 수 있습니다.');
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await api.post<{ imageUrl: string }>('/api/image-upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    if (!response.data.imageUrl) {
+      throw new Error('서버에서 이미지 URL을 받지 못했습니다.');
+    }
+    
+    return response.data.imageUrl;
+  } catch (error) {
+    log.error('Image upload failed', error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('이미지 업로드에 실패했습니다.');
+  }
+}
+
 export async function inviteToDocument(workspaceId: number, documentId: number, email: string): Promise<void> {
   await api.post(`/api/workspaces/${workspaceId}/documents/${documentId}/invite`, { email });
 }

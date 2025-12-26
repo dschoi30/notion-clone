@@ -15,16 +15,9 @@ export const TabIndent = Extension.create({
           return false;
         }
         
-        // 현재 라인의 시작 위치 찾기
+        // 현재 위치에 4칸 공백 추가
         const { $from } = selection;
-        const lineStart = $from.start($from.depth);
         const currentPos = $from.pos;
-        
-        // 현재 라인에 이미 있는 공백 개수 계산
-        const lineText = state.doc.textBetween(lineStart, currentPos);
-        const leadingSpaces = lineText.match(/^(\s*)/)?.[1] || '';
-        
-        // 4칸 공백 추가
         const spacesToAdd = '    ';
         const tr = state.tr.insertText(spacesToAdd, currentPos, currentPos);
         dispatch(tr);
@@ -68,3 +61,6 @@ export const TabIndent = Extension.create({
     };
   },
 });
+
+export default TabIndent;
+

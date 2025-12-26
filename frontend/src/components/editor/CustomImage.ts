@@ -36,4 +36,5 @@ const CustomImage = Node.create({
   },
 });
 
-export default CustomImage; 
+export default CustomImage;
+

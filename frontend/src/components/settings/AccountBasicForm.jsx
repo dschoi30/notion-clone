@@ -5,26 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Camera, User } from 'lucide-react';
 import * as userApi from '@/services/userApi';
 import { toast } from '@/hooks/useToast';
-
-// Cloudinary 업로드 함수 (WorkspaceGeneralForm에서 가져옴)
-const CLOUDINARY_CLOUD_NAME = 'dsjybr8fb';
-const CLOUDINARY_UPLOAD_PRESET = 'notion-clone';
-
-async function uploadImageToCloudinary(file) {
-  const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-  const response = await fetch(url, {
-    method: 'POST',
-    body: formData,
-  });
-  if (!response.ok) {
-    throw new Error('이미지 업로드 실패');
-  }
-  const data = await response.json();
-  return data.secure_url;
-}
+import { uploadImage } from '@/services/documentApi';
 
 export default function AccountBasicForm() {
   const { user, updateUser } = useAuth();
@@ -63,7 +44,7 @@ export default function AccountBasicForm() {
     try {
       setUploading(true);
       setError('');
-      const uploadedUrl = await uploadImageToCloudinary(file);
+      const uploadedUrl = await uploadImage(file);
       setProfileImageUrl(uploadedUrl);
     } catch (err) {
       console.error('이미지 업로드 실패:', err);

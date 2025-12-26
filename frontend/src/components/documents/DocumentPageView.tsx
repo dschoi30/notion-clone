@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useImperativeHandle, forwardRef, RefObject, createElement } from 'react';
+import { useState, useEffect, useRef, useMemo, useImperativeHandle, forwardRef, RefObject } from 'react';
 import Editor from '@/components/editor/Editor';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useDocument } from '@/contexts/DocumentContext';
@@ -134,13 +134,12 @@ const DocumentPageView = forwardRef<DocumentPageViewRef, DocumentPageViewProps>(
       )}
 
       {/* 에디터 */}
-      {/* Editor is still JSX, will be converted in Phase 12 */}
-      {createElement(Editor as any, { 
-        content, 
-        onUpdate: handleContentChange,
-        ref: editorRef,
-        editable: !isReadOnly
-      })}
+      <Editor 
+        content={content} 
+        onUpdate={handleContentChange}
+        ref={editorRef}
+        editable={!isReadOnly}
+      />
       {/* 최초 생성 상태에서만 하단 버튼 노출 */}
       {isInitial && !isReadOnly && (
         <div className="flex gap-2 mt-4">

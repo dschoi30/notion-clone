@@ -8,26 +8,7 @@ import WorkspaceIcon from '@/components/workspace/WorkspaceIcon';
 import { Camera, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 import { Z_INDEX } from '@/constants/zIndex';
-
-// Cloudinary 업로드 함수 (Editor.jsx에서 가져옴)
-const CLOUDINARY_CLOUD_NAME = 'dsjybr8fb';
-const CLOUDINARY_UPLOAD_PRESET = 'notion-clone';
-
-async function uploadImageToCloudinary(file) {
-  const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-  const response = await fetch(url, {
-    method: 'POST',
-    body: formData,
-  });
-  if (!response.ok) {
-    throw new Error('이미지 업로드 실패');
-  }
-  const data = await response.json();
-  return data.secure_url;
-}
+import { uploadImage } from '@/services/documentApi';
 
 export default function WorkspaceGeneralForm() {
   const { currentWorkspace, updateWorkspace, deleteWorkspace } = useWorkspace();
@@ -66,7 +47,7 @@ export default function WorkspaceGeneralForm() {
     try {
       setUploading(true);
       setError('');
-      const uploadedUrl = await uploadImageToCloudinary(file);
+      const uploadedUrl = await uploadImage(file);
       setIconUrl(uploadedUrl);
     } catch (err) {
       console.error('이미지 업로드 실패:', err);

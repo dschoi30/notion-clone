@@ -1,5 +1,16 @@
 /// <reference types="vite/client" />
 
+// 환경변수 타입 정의
+interface ImportMetaEnv {
+  readonly VITE_CLOUDINARY_CLOUD_NAME: string;
+  readonly VITE_CLOUDINARY_UPLOAD_PRESET: string;
+  readonly VITE_BACKEND_ORIGIN?: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
 // Window 인터페이스 확장 - Sentry 타입 정의
 interface Window {
   Sentry?: {
