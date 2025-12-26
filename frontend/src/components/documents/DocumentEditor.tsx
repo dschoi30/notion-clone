@@ -1,5 +1,5 @@
-// src/components/documents/DocumentEditor.jsx
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+// src/components/documents/DocumentEditor.tsx
+import { useState, useEffect, useRef, useMemo, useCallback, ChangeEvent, KeyboardEvent } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -16,8 +16,16 @@ import usePageStayTimer from '@/hooks/usePageStayTimer';
 import { createLogger } from '@/lib/logger';
 import { createDocumentVersion } from '@/services/documentApi';
 import DocumentHeader from './DocumentHeader';
-import DocumentPageView from './DocumentPageView';
+import DocumentPageView, { DocumentPageViewRef } from './DocumentPageView';
 import { hasWritePermission } from '@/utils/permissionUtils';
+import type { Document, ViewType } from '@/types';
+
+type SaveStatus = 'saved' | 'saving' | 'error' | 'unsaved';
+
+interface RemoteEditMessage {
+  content?: string;
+  userId?: number;
+}
 
 const DocumentEditor = () => {
   const vlog = createLogger('version');
@@ -28,15 +36,15 @@ const DocumentEditor = () => {
   const location = useLocation();
   // useDocument()에서 currentDocument를 가져와서 단일 진실 공급원(Single Source of Truth) 유지
   const { currentDocument, updateDocument, documentLoading, documents, selectDocument } = useDocument();
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
-  const debounceTimer = useRef(null);
-  const prevDocumentRef = useRef();
-  const titleRef = useRef(title);
-  const contentRef = useRef(content);
-  const editorRef = useRef(null);
-  const pageViewRef = useRef(null);
+  const [title, setTitle] = useState<string>('');
+  const [content, setContent] = useState<string>('');
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+  const prevDocumentRef = useRef<Document | undefined>(undefined);
+  const titleRef = useRef<string>(title);
+  const contentRef = useRef<string>(content);
+  const editorRef = useRef<{ focus: () => void } | null>(null);
+  const pageViewRef = useRef<DocumentPageViewRef | null>(null);
 
   // 공유 팝오버 상태 (zustand store에서 관리)
   const { showShareModal, setShowShareModal } = useUIStore(
@@ -45,7 +53,7 @@ const DocumentEditor = () => {
       setShowShareModal: state.setShowShareModal
     }))
   );
-  const shareButtonRef = useRef(null);
+  const shareButtonRef = useRef<HTMLButtonElement>(null);
   const canWrite = hasWritePermission(currentDocument, user);
   // 잠금 상태 또는 권한이 없으면 읽기 전용
   // useMemo로 감싸서 currentDocument?.isLocked 변경 시 즉시 재계산되도록 보장
@@ -53,11 +61,15 @@ const DocumentEditor = () => {
     return !canWrite || (currentDocument?.isLocked ?? false);
   }, [canWrite, currentDocument?.isLocked]);
   const viewers = useDocumentPresence(currentDocument?.id, user);
-  const { properties, titleWidth } = useDocumentPropertiesStore(state => ({ properties: state.properties, titleWidth: state.titleWidth }));
+  const { titleWidth } = useDocumentPropertiesStore(state => ({ titleWidth: state.titleWidth }));
   const SNAPSHOT_INTERVAL_MS = (import.meta.env && import.meta.env.MODE === 'development') ? 30 * 1000 : 10 * 60 * 1000;
-  const [nextSnapshotMs, setNextSnapshotMs] = useState(SNAPSHOT_INTERVAL_MS);
+  const [nextSnapshotMs, setNextSnapshotMs] = useState<number>(SNAPSHOT_INTERVAL_MS);
+  
+  // currentDocument?.id를 메모이제이션하여 불필요한 재연결 방지
+  // currentDocument 객체가 변경되어도 id가 같으면 같은 값 유지
+  const documentId = useMemo(() => currentDocument?.id, [currentDocument?.id]);
 
-  const handleReachTenMinutes = async (reachedMs) => {
+  const handleReachTenMinutes = async (reachedMs?: number) => {
     try {
       if (!currentDocument || !currentWorkspace) return;
       // 최신 속성/값을 병렬로 로드
@@ -66,7 +78,7 @@ const DocumentEditor = () => {
         getPropertyValuesByDocument(currentWorkspace.id, currentDocument.id),
       ]);
       const propsSlim = (props || []).map(p => ({ id: p.id, name: p.name, type: p.type, sortOrder: p.sortOrder, width: p.width }));
-      const valuesObj = {};
+      const valuesObj: Record<string, string | number | boolean | number[]> = {};
       (valuesArr || []).forEach(v => { valuesObj[v.propertyId] = v.value; });
 
       const payload = {
@@ -94,13 +106,13 @@ const DocumentEditor = () => {
   const isTimerEnabled = Boolean(currentDocument);
   const { elapsedMs } = usePageStayTimer({ enabled: isTimerEnabled, onReachMs: handleReachTenMinutes, targetMs: nextSnapshotMs });
 
-  const { idSlug } = useParams();
+  const { idSlug } = useParams<{ idSlug?: string }>();
   
   // zustand store에서 titleWidth 관리
   const setTitleWidth = useDocumentPropertiesStore(state => state.setTitleWidth);
 
   // idSlug에서 id와 slug 분리
-  let docId = null;
+  let docId: string | null = null;
   if (idSlug) {
     const match = idSlug.match(/^(\d+)-(.+)$/);
     if (match) {
@@ -190,14 +202,14 @@ const DocumentEditor = () => {
         return;
       }
       rlog.info('selectDocument', { id: found ? found.id : Number(docId), src: 'idSlugEffect' });
-      selectDocument(found ? found : { id: Number(docId) }, { source: 'idSlugEffect' }); // 문서 목록에 없더라도(부모 권한으로 접근 가능한 자식 등) 단건 조회로 진입 허용
+      selectDocument(found ? found : { id: Number(docId) } as Document, { source: 'idSlugEffect' }); // 문서 목록에 없더라도(부모 권한으로 접근 가능한 자식 등) 단건 조회로 진입 허용
     }
       
   }, [docId, documents, currentWorkspace, currentDocument, navigate, selectDocument, location.pathname]);
 
   // 경로 계산 유틸: 목록에 없더라도 currentDocument로 최소 1단계 표시
-  function getDocumentPath(documentId, documentList) {
-    const path = [];
+  function getDocumentPath(documentId: number, documentList: Document[]): Document[] {
+    const path: Document[] = [];
     let doc = documentList.find(d => String(d.id) === String(documentId));
     if (!doc && currentDocument && String(currentDocument.id) === String(documentId)) {
       doc = currentDocument;
@@ -205,7 +217,7 @@ const DocumentEditor = () => {
     while (doc) {
       path.unshift(doc);
       if (!doc.parentId) break;
-      const parent = documentList.find(d => String(d.id) === String(doc.parentId));
+      const parent = documentList.find(d => String(d.id) === String(doc!.parentId));
       if (!parent) break; // 부모가 목록에 없으면 여기까지 표시
       doc = parent;
     }
@@ -214,15 +226,14 @@ const DocumentEditor = () => {
 
   const path = currentDocument && documents ? getDocumentPath(currentDocument.id, documents) : [];
 
-  // (removed) PAGE에서 부모 속성 선반영 로직은 Page 훅에서 일괄 처리
 
   useEffect(() => {
     if (currentDocument) {
       setTitle(currentDocument.title);
       setContent(currentDocument.content || '');
       // titleColumnWidth를 store에 동기화
-      if (currentDocument.titleWidth) {
-        setTitleWidth(currentDocument.titleWidth);
+      if (currentDocument.titleColumnWidth) {
+        setTitleWidth(currentDocument.titleColumnWidth);
       }
     }
   }, [currentDocument, setTitleWidth]);
@@ -242,13 +253,13 @@ const DocumentEditor = () => {
     }, 500);
   };
 
-  const handleTitleChange = (e) => {
+  const handleTitleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setTitle(e.target.value);
     setSaveStatus('unsaved');
     triggerAutoSave();
   };
 
-  const handleContentChange = (newContent) => {
+  const handleContentChange = (newContent: string) => {
     setContent(newContent);
     setSaveStatus('unsaved');
     triggerAutoSave();
@@ -257,17 +268,30 @@ const DocumentEditor = () => {
     sendEdit({ content: newContent, userId: user?.id });
   };
 
-  const handleRemoteEdit = (msg) => {
+  // handleRemoteEdit를 useRef로 안정화하여 의존성 변경이 연결 재생성을 유발하지 않도록 함
+  // useDocumentSocket 내부에서 onRemoteEditRef.current를 사용하므로
+  // 함수 참조가 변경되어도 연결이 재생성되지 않지만, 의존성을 최소화하여 불필요한 업데이트 방지
+  const userRef = useRef(user);
+  const documentIdRef = useRef(documentId);
+  
+  useEffect(() => {
+    userRef.current = user;
+    documentIdRef.current = documentId;
+  }, [user, documentId]);
+  
+  const handleRemoteEdit = useCallback((msg: RemoteEditMessage) => {
     // 자신이 보낸 에코 메시지는 무시
-    if (msg?.userId && user?.id && String(msg.userId) === String(user.id)) {
+    if (msg?.userId && userRef.current?.id && String(msg.userId) === String(userRef.current.id)) {
       return;
     }
-    rlog.debug('remoteEdit', { docId: currentDocument?.id, length: msg?.content?.length, path: location.pathname });
-    if (typeof msg?.content === 'string' && msg.content !== content) {
+    // ref를 사용하여 최신 값 참조 (의존성 배열 최소화)
+    rlog.debug('remoteEdit', { docId: documentIdRef.current, length: msg?.content?.length });
+    // contentRef를 사용하여 최신 값을 참조 (의존성 배열에서 content 제거)
+    if (typeof msg?.content === 'string' && msg.content !== contentRef.current) {
       setContent(msg.content);
     }
-  };
-  const { sendEdit } = useDocumentSocket(currentDocument?.id, handleRemoteEdit);
+  }, [rlog]); // rlog는 안정적이므로 의존성에 포함
+  const { sendEdit } = useDocumentSocket(documentId, handleRemoteEdit);
 
   const handleSave = async () => {
     if (!currentDocument) return;
@@ -291,14 +315,15 @@ const DocumentEditor = () => {
         content: contentRef.current,
       });
       setSaveStatus('saved');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('문서 저장 실패:', error);
       setSaveStatus('error');
       // 403 에러인 경우 추가 로깅
-      if (error?.response?.status === 403) {
+      const apiError = error as { response?: { status?: number }; message?: string };
+      if (apiError?.response?.status === 403) {
         rlog.error('문서 저장 실패: 권한 없음 (403)', { 
           documentId: currentDocument.id,
-          error: error.message 
+          error: apiError.message 
         });
       }
     }
@@ -309,6 +334,7 @@ const DocumentEditor = () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
       handleSave();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // currentDocument가 변경될 때 마지막 변경 내용 저장
@@ -321,14 +347,14 @@ const DocumentEditor = () => {
       updateDocument(prevDocumentRef.current.id, { title, content });
     }
     prevDocumentRef.current = currentDocument;
-  }, [currentDocument]);
+  }, [currentDocument, saveStatus, title, content, updateDocument]);
 
   // 문서 전환 시 임계치를 현재 누적+간격으로 재설정
   useEffect(() => {
     setNextSnapshotMs(elapsedMs + SNAPSHOT_INTERVAL_MS);
-  }, [docId]);
+  }, [docId, elapsedMs]);
 
-  const handleTitleKeyDown = (e) => {
+  const handleTitleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (editorRef.current && typeof editorRef.current.focus === 'function') {
@@ -344,7 +370,7 @@ const DocumentEditor = () => {
   };
 
   // viewType 변경 핸들러
-  const handleChangeViewType = async (type) => {
+  const handleChangeViewType = async (type: ViewType) => {
     if (!currentDocument) return;
     // viewType을 바꾸기 전에 현재 title, content를 먼저 저장합니다.
     await handleSave();
@@ -358,7 +384,7 @@ const DocumentEditor = () => {
     currentDocument.viewType === 'PAGE';
 
   // 경로 타이틀 클릭 시 해당 문서로 이동
-  const handlePathClick = async (docId) => {
+  const handlePathClick = async (docId: number) => {
     if (!docId) return;
     try {
       // 문서 목록에서 해당 문서 객체 찾기
@@ -420,7 +446,6 @@ const DocumentEditor = () => {
           shareButtonRef={shareButtonRef}
           currentDocument={currentDocument}
           viewers={viewers}
-          user={user}
           currentWorkspace={currentWorkspace}
           path={path}
           onPathClick={handlePathClick}
@@ -453,3 +478,4 @@ const DocumentEditor = () => {
 };
 
 export default DocumentEditor;
+

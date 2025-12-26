@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useLayoutEffect, useCallback } from 'react';
+import { useEffect, useRef, useState, useLayoutEffect, useCallback, ChangeEvent } from 'react';
 import { Dialog, DialogPortal, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { inviteToDocument, updateDocumentPermission, removeDocumentPermission } from '@/services/documentApi';
@@ -15,9 +15,18 @@ import UserBadge from '@/components/documents/shared/UserBadge';
 import { Z_INDEX } from '@/constants/zIndex';
 import { isDocumentOwner } from '@/utils/permissionUtils';
 import { toast } from '@/hooks/useToast';
+import type { Permission, PermissionType } from '@/types';
 
-function PermissionDropdown({ value, onChange, disabled, loading, menuEnabled = true }) {
-  const options = [
+interface PermissionDropdownProps {
+  value: PermissionType;
+  onChange: (value: PermissionType | 'REMOVE') => void;
+  disabled: boolean;
+  loading: boolean;
+  menuEnabled?: boolean;
+}
+
+function PermissionDropdown({ value, onChange, disabled, loading, menuEnabled = true }: PermissionDropdownProps) {
+  const options: Array<{ value: PermissionType | 'REMOVE'; label: string }> = [
     { value: 'WRITE', label: '전체 허용' },
     { value: 'READ', label: '읽기 허용' },
     { value: 'REMOVE', label: '제거' },
@@ -25,7 +34,7 @@ function PermissionDropdown({ value, onChange, disabled, loading, menuEnabled = 
   const isOwner = value === 'OWNER';
   const selected = options.find(o => o.value === value);
   const displayLabel = isOwner ? '작성자' : (selected?.label || value);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<boolean>(false);
   return (
     <DropdownMenu open={menuEnabled ? open : false} onOpenChange={(next) => { if (menuEnabled) setOpen(next); }}>
       <DropdownMenuTrigger asChild>
@@ -62,19 +71,27 @@ function PermissionDropdown({ value, onChange, disabled, loading, menuEnabled = 
   );
 }
 
-export default function DocumentSharePopover({ open, onClose, workspaceId, documentId, anchorRef }) {
-  const dialogRef = useRef(null);
-  const inviteInputRef = useRef(null);
-  const [popoverWidth, setPopoverWidth] = useState(280);
-  const [dialogPosition, setDialogPosition] = useState({ top: 0, left: 0 });
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteStatus, setInviteStatus] = useState(null);
+interface DocumentSharePopoverProps {
+  open: boolean;
+  onClose: () => void;
+  workspaceId: number;
+  documentId: number;
+  anchorRef: React.RefObject<HTMLElement>;
+}
+
+export default function DocumentSharePopover({ open, onClose, workspaceId, documentId, anchorRef }: DocumentSharePopoverProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const inviteInputRef = useRef<HTMLInputElement>(null);
+  const [popoverWidth, setPopoverWidth] = useState<number>(280);
+  const [dialogPosition, setDialogPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [inviteEmail, setInviteEmail] = useState<string>('');
+  const [inviteStatus, setInviteStatus] = useState<'success' | 'error' | 'already_invited' | null>(null);
   const { currentDocument } = useDocument();
   const permissions = currentDocument?.permissions || [];
-  const [localPermissions, setLocalPermissions] = useState(permissions);
-  const [isDirty, setIsDirty] = useState(false);
+  const [localPermissions, setLocalPermissions] = useState<Permission[]>(permissions);
+  const [isDirty, setIsDirty] = useState<boolean>(false);
   const { user } = useAuth();
-  const [loadingUserId, setLoadingUserId] = useState(null);
+  const [loadingUserId, setLoadingUserId] = useState<number | null>(null);
   const { fetchDocument } = useDocument();
   const isDocOwner = isDocumentOwner(currentDocument, user);
 
@@ -102,7 +119,7 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
         setPopoverWidth(width);
       }
     }
-  }, [open, dialogRef.current]);
+  }, [open, popoverWidth]);
 
   useEffect(() => {
     if (open && inviteInputRef.current) {
@@ -146,7 +163,7 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
   }, [open, updateDialogPosition]);
 
   // 이미 초대된 이메일인지 확인
-  const isEmailAlreadyInvited = useCallback((email) => {
+  const isEmailAlreadyInvited = useCallback((email: string): boolean => {
     if (!email) return false;
     const normalizedEmail = email.trim().toLowerCase();
     return localPermissions.some(p => 
@@ -178,7 +195,7 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
     }
   };
 
-  const handlePermissionChange = async (userId, value) => {
+  const handlePermissionChange = async (userId: number, value: PermissionType | 'REMOVE') => {
     if (!isDocOwner) return;
     setLoadingUserId(userId);
     try {
@@ -253,7 +270,7 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
               value={inviteEmail}
               ref={inviteInputRef}
               autoFocus
-              onChange={e => {
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
                 const newEmail = e.target.value;
                 setInviteEmail(newEmail);
                 // 이메일이 변경되면 상태 초기화
@@ -309,4 +326,5 @@ export default function DocumentSharePopover({ open, onClose, workspaceId, docum
       </DialogPortal>
     </Dialog>
   );
-} 
+}
+

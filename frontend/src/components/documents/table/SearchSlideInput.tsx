@@ -1,11 +1,20 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef, ChangeEvent } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, X } from 'lucide-react';
 
-const SearchSlideInput = ({ isOpen, searchQuery, setSearchQuery, onClose, clearSearch, onToggle }) => {
-  const inputRef = useRef(null);
-  const containerRef = useRef(null);
+interface SearchSlideInputProps {
+  isOpen: boolean;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  onClose: () => void;
+  clearSearch: () => void;
+  onToggle: () => void;
+}
+
+const SearchSlideInput = ({ isOpen, searchQuery, setSearchQuery, onClose, clearSearch, onToggle }: SearchSlideInputProps) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -14,15 +23,15 @@ const SearchSlideInput = ({ isOpen, searchQuery, setSearchQuery, onClose, clearS
   }, [isOpen]);
 
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         // 검색어가 비어있을 때만 닫기
         if (!searchQuery || searchQuery.trim() === '') onClose();
       }
     };
 
-    const handleClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         // 검색어가 비어있을 때만 닫기
         if (!searchQuery || searchQuery.trim() === '') onClose();
       }
@@ -61,7 +70,7 @@ const SearchSlideInput = ({ isOpen, searchQuery, setSearchQuery, onClose, clearS
             ref={inputRef}
             placeholder="검색어를 입력하세요."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
             className="flex-1 px-0 h-8 bg-transparent border-0 shadow-none focus-visible:ring-0"
           />
           {searchQuery && (
@@ -82,3 +91,4 @@ const SearchSlideInput = ({ isOpen, searchQuery, setSearchQuery, onClose, clearS
 };
 
 export default SearchSlideInput;
+

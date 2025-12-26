@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -7,18 +6,24 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Filter } from 'lucide-react';
-import { SYSTEM_PROP_TYPES } from '@/components/documents/shared/constants';
+import type { DocumentProperty } from '@/types';
 
-const FilterDropdown = ({ properties, onFilterAdd, isReadOnly }) => {
+interface FilterDropdownProps {
+  properties: DocumentProperty[];
+  onFilterAdd: (property: DocumentProperty | { id: string; name: string; type: string }) => void;
+  isReadOnly?: boolean;
+}
+
+const FilterDropdown = ({ properties, onFilterAdd, isReadOnly = false }: FilterDropdownProps) => {
   // 시스템 속성과 사용자 정의 속성을 함께 표시
-  const allProperties = [
+  const allProperties: Array<DocumentProperty | { id: string; name: string; type: string }> = [
     { id: 'title', name: '제목', type: 'text' },
     { id: 'createdAt', name: '생성일', type: 'date' },
     { id: 'updatedAt', name: '수정일', type: 'date' },
     ...properties
   ];
 
-  const handlePropertySelect = (property) => {
+  const handlePropertySelect = (property: DocumentProperty | { id: string; name: string; type: string }) => {
     onFilterAdd(property);
   };
 
@@ -63,3 +68,4 @@ const FilterDropdown = ({ properties, onFilterAdd, isReadOnly }) => {
 };
 
 export default FilterDropdown;
+

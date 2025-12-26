@@ -1,11 +1,11 @@
-import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
+import { useState, useRef, useMemo, useEffect, useCallback, KeyboardEvent } from 'react';
 import { useThrottle } from '@/hooks/useThrottle';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import AddPropertyPopover from './AddPropertyPopover';
 import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
-import { DndContext, closestCenter } from '@dnd-kit/core';
+import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { updateChildDocumentOrder, deleteDocument } from '@/services/documentApi';
 import { Trash2 } from 'lucide-react';
@@ -21,25 +21,53 @@ import { useTableFilters } from './table/hooks/useTableFilters';
 import useTableSort from './table/hooks/useTableSort';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 import ErrorMessage from '@/components/error/ErrorMessage';
-import { DEFAULT_PROPERTY_WIDTH, SYSTEM_PROP_TYPES } from '@/components/documents/shared/constants';
+import { DEFAULT_PROPERTY_WIDTH, SYSTEM_PROP_TYPES, type TableRowData } from '@/components/documents/shared/constants';
 import { buildSystemPropTypeMapForTable } from '@/components/documents/shared/systemPropTypeMap';
 import { useAuth } from '@/contexts/AuthContext';
-import { useDocument } from '@/contexts/DocumentContext';
 import { isDocumentOwner } from '@/utils/permissionUtils';
+import type { DocumentProperty } from '@/types';
 
-const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
-  const navigate = useNavigate(); // useNavigate 훅 추가
-  const [editingCell, setEditingCell] = useState(null);
-  const [hoveredCell, setHoveredCell] = useState(null);
-  const [selectedCell, setSelectedCell] = useState(null);
-  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-  const addBtnRef = useRef(null);
-  const tagCellRefs = useRef({}); // {rowId_propertyId: ref}
-  const tableContainerRef = useRef(null);
-  const [tagPopoverRect, setTagPopoverRect] = useState(null);
-  const [showSortClearModal, setShowSortClearModal] = useState(false);
-  const [pendingDragEvent, setPendingDragEvent] = useState(null);
-  const [displayedRows, setDisplayedRows] = useState(50); // 무한 스크롤용 표시 행 수
+interface DocumentTableViewProps {
+  workspaceId: number;
+  documentId: number;
+  isReadOnly?: boolean;
+}
+
+interface EditingCell {
+  rowId: number;
+  propertyId: number | null;
+}
+
+interface HoveredCell {
+  rowId: number;
+  propertyId: number | null;
+}
+
+interface SelectedCell {
+  rowId: number;
+  propertyId: number | null;
+}
+
+interface TagPopoverRect {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
+const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }: DocumentTableViewProps) => {
+  const navigate = useNavigate();
+  const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
+  const [hoveredCell, setHoveredCell] = useState<HoveredCell | null>(null);
+  const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
+  const [isPopoverOpen, setIsPopoverOpen] = useState<boolean>(false);
+  const addBtnRef = useRef<HTMLButtonElement>(null);
+  const tagCellRefs = useRef<Record<string, { current: HTMLDivElement | null }>>({}); // {rowId_propertyId: ref}
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [tagPopoverRect, setTagPopoverRect] = useState<TagPopoverRect | null>(null);
+  const [showSortClearModal, setShowSortClearModal] = useState<boolean>(false);
+  const [pendingDragEvent, setPendingDragEvent] = useState<DragEndEvent | null>(null);
+  const [displayedRows, setDisplayedRows] = useState<number>(50); // 무한 스크롤용 표시 행 수
   
   const systemPropTypeMap = useMemo(() => buildSystemPropTypeMapForTable(), []);
   
@@ -119,7 +147,6 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     activeFilters,
     addFilter,
     removeFilter,
-    clearAllFilters,
     filteredRows: filterFilteredRows,
     hasActiveFilters
   } = useTableFilters(searchFilteredRows);
@@ -157,16 +184,16 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     documentId,
   });
   
-  const [selectedRowIds, setSelectedRowIds] = useState(new Set());
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<number>>(new Set());
   
   // propertiesForRender 메모이제이션
-  const propertiesForRender = useMemo(() => fetchedProperties, [fetchedProperties]);
+  const propertiesForRender = useMemo<DocumentProperty[]>(() => fetchedProperties, [fetchedProperties]);
   
   // 최종 필터링된 데이터 (검색 + 필터 + 정렬 적용)
-  const finalFilteredRows = useMemo(() => sortedRows, [sortedRows]);
+  const finalFilteredRows = useMemo<TableRowData[]>(() => sortedRows, [sortedRows]);
   
   // 무한 스크롤 로직 (Intersection Observer 사용)
-  const loadMoreRef = useRef(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -194,7 +221,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
         observer.unobserve(loadMoreRef.current);
       }
     };
-  }, [finalFilteredRows.length]);
+  }, [finalFilteredRows.length, fetchNextPage]);
 
   // 검색/필터 변경 시 displayedRows 초기화
   useEffect(() => {
@@ -202,9 +229,9 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
   }, [searchQuery, activeFilters, activeSorts]);
 
   // 표시할 행 데이터 (무한 스크롤 적용)
-  const visibleRows = useMemo(() => {
+  const visibleRows = useMemo<TableRowData[]>(() => {
     // 중복 제거: 같은 id를 가진 행이 여러 개 있으면 첫 번째만 유지
-    const uniqueRows = finalFilteredRows.reduce((acc, row) => {
+    const uniqueRows = finalFilteredRows.reduce<TableRowData[]>((acc, row) => {
       if (!acc.find(r => r.id === row.id)) {
         acc.push(row);
       }
@@ -218,7 +245,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     await handleAddRowTop();
   }, [handleAddRowTop]);
 
-  const toggleSelect = useCallback((rowId) => {
+  const toggleSelect = useCallback((rowId: number) => {
     setSelectedRowIds((prev) => {
       const next = new Set(prev);
       if (next.has(rowId)) next.delete(rowId);
@@ -227,7 +254,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     });
   }, []);
 
-  const handleRowDragEnd = useCallback(async (event) => {
+  const handleRowDragEnd = useCallback(async (event: DragEndEvent) => {
     if (isReadOnly) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -243,8 +270,9 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     await executeRowDragEnd(event);
   }, [isReadOnly, hasActiveSorts]);
 
-  const executeRowDragEnd = async (event) => {
+  const executeRowDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
+    if (!over) return;
     const oldIndex = finalFilteredRows.findIndex((r) => r.id === active.id);
     const newIndex = finalFilteredRows.findIndex((r) => r.id === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
@@ -253,13 +281,16 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     const originalNewIndex = rows.findIndex((r) => r.id === over.id);
     const [moved] = newRows.splice(originalOldIndex, 1);
     newRows.splice(originalNewIndex, 0, moved);
-    setRows(newRows);
+    // TableRowData에서 Document 추출
+    const newDocuments = newRows.map((r) => r.document).filter((d): d is NonNullable<typeof d> => d !== undefined);
+    setRows(newDocuments);
     try {
       const ids = newRows.map((r) => r.id);
       await updateChildDocumentOrder(workspaceId, documentId, ids);
     } catch (e) {
       // 실패 시 원복
-      setRows(rows);
+      const originalDocuments = rows.map((r) => r.document).filter((d): d is NonNullable<typeof d> => d !== undefined);
+      setRows(originalDocuments);
       handleError(e, {
         customMessage: '행 순서 변경에 실패했습니다. 다시 시도해주세요.',
         showToast: true
@@ -299,7 +330,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
 
   // 셀 네비게이션 함수
 
-  const scrollToCell = (rowId, propertyId, direction) => {
+  const scrollToCell = (rowId: number, propertyId: number | null, direction: string) => {
     const cellElement = document.querySelector(`[data-cell-id="${rowId}_${propertyId}"]`);
     if (!cellElement) return;
 
@@ -359,12 +390,12 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     }
   };
 
-  const navigateToCell = (currentRowId, currentPropertyId, direction) => {
+  const navigateToCell = (currentRowId: number, currentPropertyId: number | null, direction: string) => {
     const currentRowIndex = finalFilteredRows.findIndex(row => row.id === currentRowId);
     if (currentRowIndex === -1) return;
 
     const currentRow = finalFilteredRows[currentRowIndex];
-    const allCells = [
+    const allCells: Array<{ rowId: number; propertyId: number | null }> = [
       { rowId: currentRow.id, propertyId: null }, // NameCell
       ...fetchedProperties.map(prop => ({ rowId: currentRow.id, propertyId: prop.id }))
     ];
@@ -375,7 +406,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
 
     if (currentCellIndex === -1) return;
 
-    let targetCell = null;
+    let targetCell: { rowId: number; propertyId: number | null } | null = null;
 
     switch (direction) {
       case 'left':
@@ -426,16 +457,16 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
       setSelectedCell(targetCell);
       
       // 행 간 이동 시 스크롤 애니메이션 적용
-      const targetRowIndex = finalFilteredRows.findIndex(row => row.id === targetCell.rowId);
+      const targetRowIndex = finalFilteredRows.findIndex(row => row.id === targetCell!.rowId);
       if (targetRowIndex !== currentRowIndex) {
         setTimeout(() => {
-          scrollToCell(targetCell.rowId, targetCell.propertyId, direction);
+          scrollToCell(targetCell!.rowId, targetCell!.propertyId, direction);
         }, 50);
       }
     }
   };
 
-  const handleCellKeyDown = (e, rowId, propertyId) => {
+  const handleCellKeyDown = (e: KeyboardEvent<HTMLElement>, rowId: number, propertyId: number | null) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       setEditingCell({ rowId, propertyId });
@@ -474,11 +505,16 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
     }
   };
 
-  const handleCellClick = useCallback((rowId, propertyId) => {
+  const handleCellClick = useCallback((rowId: number, propertyId: number | null) => {
     setSelectedCell({ rowId, propertyId });
     // 마우스 클릭 시 바로 편집 모드로 진입 (시스템 속성 제외)
-    if (propertyId === null || !SYSTEM_PROP_TYPES.includes(fetchedProperties.find(p => p.id === propertyId)?.type)) {
+    if (propertyId === null) {
       setEditingCell({ rowId, propertyId });
+    } else {
+      const property = fetchedProperties.find(p => p.id === propertyId);
+      if (property && property.type && !SYSTEM_PROP_TYPES.includes(property.type as typeof SYSTEM_PROP_TYPES[number])) {
+        setEditingCell({ rowId, propertyId });
+      }
     }
   }, [fetchedProperties]);
 
@@ -561,7 +597,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
             </div>
           )}
           {isLoading && <div className="flex justify-center items-center h-10 text-gray-400">로딩 중...</div>}
-          {error && <div className="flex justify-center items-center h-10 text-red-500">데이터 로딩 중 오류 발생: {error.message}</div>}
+          {error && <div className="flex justify-center items-center h-10 text-red-500">데이터 로딩 중 오류 발생: {String(error)}</div>}
           {finalFilteredRows.length === 0 && !isLoading && !error ? (
             <div className="flex items-center h-10 text-gray-400">
               {hasActiveSearch || hasActiveFilters ? '검색 결과 없음' : '빈 행'}
@@ -595,14 +631,7 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
                         setFetchedProperties((prev) =>
                           prev.map((p) => (p.id === property.id ? { ...p, tagOptions: updatedTagOptions } : p))
                         );
-                        setRows((prev) =>
-                          prev.map((rowItem) => {
-                            if (!(property.id in rowItem.values)) {
-                              return { ...rowItem, values: { ...rowItem.values, [property.id]: '' } };
-                            }
-                            return rowItem;
-                          })
-                        );
+                        // 태그 옵션 업데이트는 속성 메타데이터만 변경하므로 rows 업데이트 불필요
                       }
                     }}
                     isSelected={selectedRowIds.has(row.id)}
@@ -678,3 +707,4 @@ const DocumentTableView = ({ workspaceId, documentId, isReadOnly = false }) => {
 } 
 
 export default DocumentTableView;
+

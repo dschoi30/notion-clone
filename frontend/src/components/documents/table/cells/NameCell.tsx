@@ -1,6 +1,39 @@
-import React, { useEffect, useRef, memo } from 'react';
+import React, { useEffect, useRef, memo, Dispatch, SetStateAction, KeyboardEvent } from 'react';
+import type { TableRowData } from '@/components/documents/shared/constants';
 
-const NameCell = memo(function NameCell({
+interface EditingCell {
+  rowId: number;
+  propertyId: number | null;
+}
+
+interface HoveredCell {
+  rowId: number;
+  propertyId: number | null;
+}
+
+interface SelectedCell {
+  rowId: number;
+  propertyId: number | null;
+}
+
+interface NameCellProps {
+  row: TableRowData;
+  rowIdx: number;
+  colWidth: number;
+  editingCell: EditingCell | null;
+  hoveredCell: HoveredCell | null;
+  setEditingCell: Dispatch<SetStateAction<EditingCell | null>>;
+  setHoveredCell: Dispatch<SetStateAction<HoveredCell | null>>;
+  handleCellValueChange: (rowId: number, propertyId: number | null, value: any) => void;
+  onOpenRow: (row: TableRowData) => void;
+  isSelected: boolean;
+  isReadOnly?: boolean;
+  selectedCell: SelectedCell | null;
+  onCellClick: (rowId: number, propertyId: number | null) => void;
+  onCellKeyDown: (e: KeyboardEvent<HTMLElement>, rowId: number, propertyId: number | null) => void;
+}
+
+const NameCell: React.FC<NameCellProps> = memo(function NameCell({
   row,
   rowIdx,
   colWidth,
@@ -22,7 +55,7 @@ const NameCell = memo(function NameCell({
   const isHovered = hoveredCell && hoveredCell.rowId === rowId && hoveredCell.propertyId === propertyId;
   const isCellSelected = selectedCell && selectedCell.rowId === rowId && selectedCell.propertyId === propertyId;
   const value = row.title;
-  const cellRef = useRef(null);
+  const cellRef = useRef<HTMLDivElement>(null);
 
   // 셀이 선택되면 자동으로 포커스 설정
   useEffect(() => {

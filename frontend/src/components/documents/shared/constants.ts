@@ -1,5 +1,7 @@
 // 공통 상수: 테이블/페이지 공용
 
+import type { Document } from '@/types';
+
 // 시스템 속성 타입 목록 (읽기 전용 처리 대상)
 export const SYSTEM_PROP_TYPES = ['CREATED_BY', 'LAST_UPDATED_BY', 'CREATED_AT', 'LAST_UPDATED_AT'] as const;
 
@@ -7,4 +9,13 @@ export type SystemPropType = typeof SYSTEM_PROP_TYPES[number];
 
 // 속성 컬럼 기본 너비(px)
 export const DEFAULT_PROPERTY_WIDTH = 192; // 12rem
+
+// 테이블 행 데이터 타입 (공통)
+export interface TableRowData {
+  id: number;
+  title: string;
+  values: Record<number, string | number | boolean | number[]>;
+  document?: Document;
+  [key: string]: unknown;
+}
 

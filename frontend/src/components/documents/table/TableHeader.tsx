@@ -1,11 +1,35 @@
-import React, { useEffect, useRef, memo } from 'react';
+import React, { useEffect, useRef, memo, Dispatch, SetStateAction } from 'react';
 import { Text } from 'lucide-react';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import SortablePropertyHeader from './SortablePropertyHeader';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Z_INDEX } from '@/constants/zIndex';
+import type { DocumentProperty } from '@/types';
 
-const TableHeader = memo(function TableHeader({
+interface EditingHeader {
+  id: any;
+  name: string;
+}
+
+interface TableHeaderProps {
+  colWidths: any[];
+  properties: DocumentProperty[];
+  handleResizeMouseDown: (e: React.MouseEvent, colIdx: number) => void;
+  editingHeader: EditingHeader;
+  setEditingHeader: Dispatch<SetStateAction<EditingHeader>>;
+  handleDeleteProperty: (propertyId: number) => void;
+  handleHeaderNameChange: (propertyId: number, newName: string) => void;
+  addBtnRef: React.RefObject<HTMLButtonElement>;
+  isPopoverOpen: boolean;
+  setIsPopoverOpen: Dispatch<SetStateAction<boolean>>;
+  AddPropertyPopoverComponent: () => React.ReactNode;
+  isAllSelected: boolean;
+  isSomeSelected: boolean;
+  onToggleAll: () => void;
+  isReadOnly?: boolean;
+}
+
+const TableHeader: React.FC<TableHeaderProps> = memo(function TableHeader({
   colWidths,
   properties,
   handleResizeMouseDown,
@@ -25,16 +49,16 @@ const TableHeader = memo(function TableHeader({
   // properties를 안전하게 필터링
   const safeProperties = properties?.filter(p => p && p.id) || [];
   
-  const popoverRef = useRef(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isPopoverOpen) return;
 
-    const handleDocumentMouseDown = (event) => {
+    const handleDocumentMouseDown = (event: MouseEvent) => {
       const popoverEl = popoverRef.current;
       const buttonEl = addBtnRef?.current;
 
-      const target = event.target;
+      const target = event.target as Node;
       const clickedInsidePopover = popoverEl && popoverEl.contains(target);
       const clickedOnButton = buttonEl && buttonEl.contains(target);
 
@@ -82,7 +106,11 @@ const TableHeader = memo(function TableHeader({
             property={p}
             index={idx}
             onDelete={handleDeleteProperty}
-            onEdit={handleHeaderNameChange}
+            onEdit={() => {
+              if (editingHeader.id !== null) {
+                handleHeaderNameChange(editingHeader.id, editingHeader.name);
+              }
+            }}
             onResize={handleResizeMouseDown}
             editingHeader={editingHeader}
             setEditingHeader={setEditingHeader}

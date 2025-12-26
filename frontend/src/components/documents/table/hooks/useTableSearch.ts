@@ -1,14 +1,15 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { useDebouncedValue } from '@/hooks/useDebounce';
+import type { TableRowData } from '@/components/documents/shared/constants';
 
-export const useTableSearch = (rows) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+export const useTableSearch = (rows: TableRowData[]) => {
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
 
   // 검색어 디바운싱 (300ms 지연)
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 
-  const filteredRows = useMemo(() => {
+  const filteredRows = useMemo<TableRowData[]>(() => {
     if (!debouncedSearchQuery.trim()) return rows;
     
     return rows.filter(row => {
@@ -32,3 +33,4 @@ export const useTableSearch = (rows) => {
     hasActiveSearch: searchQuery.trim().length > 0
   };
 };
+

@@ -1,10 +1,33 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, MouseEvent, KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { X, Plus, ChevronDown, Trash2, Save } from 'lucide-react';
 import { getPropertyIcon } from './utils';
 import { updateChildSortOrderByCurrentSort } from '@/services/documentApi';
 import { useToast } from '@/hooks/useToast';
+import type { DocumentProperty } from '@/types';
+
+interface SortConfig {
+  id: string;
+  propertyId: number;
+  propertyName: string;
+  propertyType: string;
+  order: 'asc' | 'desc';
+}
+
+interface SortManagerProps {
+  activeSorts?: SortConfig[];
+  onSortAdd: (property: DocumentProperty | { id: number; name: string; type: string }, defaultOrder?: 'asc' | 'desc') => void;
+  onSortUpdate: (sortId: string, updates: Partial<SortConfig>) => void;
+  onSortRemove: (sortId: string) => void;
+  properties: DocumentProperty[];
+  isReadOnly?: boolean;
+  isOwner?: boolean;
+  workspaceId?: number;
+  documentId?: number;
+  getSortedDocumentIds?: () => number[];
+  autoAddNameProperty?: boolean; // 문서 테이블용: 기본값 true, 사용자 관리 등에서는 false
+}
 
 const SortManager = ({ 
   activeSorts = [],
@@ -18,17 +41,17 @@ const SortManager = ({
   documentId,
   getSortedDocumentIds,
   autoAddNameProperty = true // 문서 테이블용: 기본값 true, 사용자 관리 등에서는 false
-}) => {
-  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-  const [showAddSortDropdown, setShowAddSortDropdown] = useState(false);
+}: SortManagerProps) => {
+  const [isPopoverOpen, setIsPopoverOpen] = useState<boolean>(false);
+  const [showAddSortDropdown, setShowAddSortDropdown] = useState<boolean>(false);
   const { toast } = useToast();
-  const popoverRef = useRef(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   // 사용 가능한 속성 목록 (이미 정렬에 사용된 속성 제외)
   // autoAddNameProperty가 true이고 properties에 id: 0인 속성이 없으면 "이름" 속성 추가 (문서 테이블용)
   const hasNameProperty = properties.some(p => p.id === 0 || p.id === '0');
-  const allProperties = (autoAddNameProperty && !hasNameProperty)
-    ? [{ id: 0, name: '이름', type: 'TEXT' }, ...properties]
+  const allProperties: Array<DocumentProperty | { id: number; name: string; type: string }> = (autoAddNameProperty && !hasNameProperty)
+    ? [{ id: 0, name: '이름', type: 'TEXT' } as DocumentProperty, ...properties]
     : properties;
 
   const availableProperties = allProperties.filter(
@@ -37,7 +60,7 @@ const SortManager = ({
 
   // ESC 키로 팝오버 닫기
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isPopoverOpen) {
         setIsPopoverOpen(false);
         setShowAddSortDropdown(false);
@@ -45,17 +68,17 @@ const SortManager = ({
     };
 
     if (isPopoverOpen) {
-      document.addEventListener('keydown', handleKeyDown);
+      document.addEventListener('keydown', handleKeyDown as unknown as EventListener);
       return () => {
-        document.removeEventListener('keydown', handleKeyDown);
+        document.removeEventListener('keydown', handleKeyDown as unknown as EventListener);
       };
     }
   }, [isPopoverOpen]);
 
   // 외부 클릭으로 팝오버 닫기 (더 안전한 방식)
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (popoverRef.current && !popoverRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
         // 약간의 지연을 두어 내부 클릭 이벤트가 먼저 처리되도록 함
         setTimeout(() => {
           setIsPopoverOpen(false);
@@ -65,18 +88,18 @@ const SortManager = ({
     };
 
     if (isPopoverOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside as unknown as EventListener);
       return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('mousedown', handleClickOutside as unknown as EventListener);
       };
     }
   }, [isPopoverOpen]);
 
-  const handleOrderChange = (sortId, newOrder) => {
+  const handleOrderChange = (sortId: string, newOrder: 'asc' | 'desc') => {
     onSortUpdate(sortId, { order: newOrder });
   };
 
-  const handlePropertyChange = (sortId, property) => {
+  const handlePropertyChange = (sortId: string, property: DocumentProperty | { id: number; name: string; type: string }) => {
     onSortUpdate(sortId, { 
       propertyId: property.id,
       propertyName: property.name,
@@ -84,11 +107,11 @@ const SortManager = ({
     });
   };
 
-  const handleRemove = (sortId) => {
+  const handleRemove = (sortId: string) => {
     onSortRemove(sortId);
   };
 
-  const handleAddSort = (property) => {
+  const handleAddSort = (property: DocumentProperty | { id: number; name: string; type: string }) => {
     // 생성일시나 수정일시의 경우 기본값을 내림차순으로 설정
     const defaultOrder = (property.type === 'CREATED_AT' || property.type === 'LAST_UPDATED_AT') ? 'desc' : 'asc';
     onSortAdd(property, defaultOrder);
@@ -96,7 +119,7 @@ const SortManager = ({
   };
 
   // 팝오버 내부 클릭 시 이벤트 전파 방지
-  const handlePopoverClick = (e) => {
+  const handlePopoverClick = (e: MouseEvent) => {
     e.stopPropagation();
   };
 
@@ -178,7 +201,7 @@ const SortManager = ({
                 <div className="flex-1">
                   <Select 
                     value={sort.order} 
-                    onValueChange={(newOrder) => {
+                    onValueChange={(newOrder: 'asc' | 'desc') => {
                       if (newOrder) {
                         handleOrderChange(sort.id, newOrder);
                       }
@@ -291,3 +314,4 @@ const SortManager = ({
 };
 
 export default SortManager;
+

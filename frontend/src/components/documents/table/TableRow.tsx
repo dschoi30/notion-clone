@@ -1,12 +1,60 @@
-import React, { memo } from 'react';
+import React, { memo, Dispatch, SetStateAction, KeyboardEvent } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Checkbox } from '@/components/ui/checkbox';
 import { GripVertical } from 'lucide-react';
 import NameCell from './cells/NameCell';
 import PropertyCell from './cells/PropertyCell';
+import type { DocumentProperty } from '@/types';
+import type { TableRowData } from '@/components/documents/shared/constants';
 
-const TableRow = memo(function TableRow({
+interface EditingCell {
+  rowId: number;
+  propertyId: number | null;
+}
+
+interface HoveredCell {
+  rowId: number;
+  propertyId: number | null;
+}
+
+interface SelectedCell {
+  rowId: number;
+  propertyId: number | null;
+}
+
+interface TagPopoverRect {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
+interface TableRowProps {
+  row: TableRowData;
+  rowIdx: number;
+  properties: DocumentProperty[];
+  colWidths: any[];
+  editingCell: EditingCell | null;
+  hoveredCell: HoveredCell | null;
+  setEditingCell: Dispatch<SetStateAction<EditingCell | null>>;
+  setHoveredCell: Dispatch<SetStateAction<HoveredCell | null>>;
+  handleCellValueChange: (rowId: number, propertyId: number | null, value: any) => void;
+  onOpenRow: (row: TableRowData) => void;
+  systemPropTypes: readonly string[];
+  tagCellRefs: React.MutableRefObject<Record<string, { current: HTMLDivElement | null }>>;
+  tagPopoverRect: TagPopoverRect | null;
+  setTagPopoverRect: Dispatch<SetStateAction<TagPopoverRect | null>>;
+  onTagOptionsUpdate: (property: DocumentProperty, updatedTagOptions: any[]) => void;
+  isSelected: boolean;
+  onToggleSelect: (rowId: number) => void;
+  isReadOnly?: boolean;
+  selectedCell: SelectedCell | null;
+  onCellClick: (rowId: number, propertyId: number | null) => void;
+  onCellKeyDown: (e: KeyboardEvent<HTMLElement>, rowId: number, propertyId: number | null) => void;
+}
+
+const TableRow: React.FC<TableRowProps> = memo(function TableRow({
   row,
   rowIdx,
   properties,
@@ -22,11 +70,9 @@ const TableRow = memo(function TableRow({
   tagPopoverRect,
   setTagPopoverRect,
   onTagOptionsUpdate,
-  // selection
   isSelected,
   onToggleSelect,
   isReadOnly = false,
-  // cell navigation
   selectedCell,
   onCellClick,
   onCellKeyDown,

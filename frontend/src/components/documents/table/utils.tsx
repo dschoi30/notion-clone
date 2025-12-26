@@ -1,7 +1,7 @@
-import React from 'react';
 import { Text, Hash, Calendar, Tag as TagIcon, User, Clock, Edit3, Shield } from 'lucide-react';
+import type { PropertyType } from '@/types';
 
-export function getPropertyIcon(type) {
+export function getPropertyIcon(type: PropertyType | string) {
   switch (type) {
     case 'TEXT':
       return <Text className="inline mr-1" size={16} />;
@@ -26,7 +26,7 @@ export function getPropertyIcon(type) {
   }
 }
 
-export function slugify(text) {
+export function slugify(text: string | null | undefined): string {
   if (!text) return '';
   return String(text)
     .toLowerCase()
@@ -34,3 +34,4 @@ export function slugify(text) {
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
 }
+
