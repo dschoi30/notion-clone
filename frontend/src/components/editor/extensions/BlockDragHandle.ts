@@ -1,8 +1,13 @@
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey, NodeSelection } from '@tiptap/pm/state';
-import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import { Decoration, DecorationSet, EditorView } from '@tiptap/pm/view';
 import { dropPoint } from '@tiptap/pm/transform';
 import { Fragment, Slice } from '@tiptap/pm/model';
+
+interface DragInfo {
+  from: number;
+  node: any;
+}
 
 /**
  * BlockDragHandle
@@ -14,10 +19,10 @@ export const BlockDragHandle = Extension.create({
 
   addProseMirrorPlugins() {
     const key = new PluginKey('blockDragHandle');
-    let dragInfo = null; // { from: number, node }
-    let hoverHandlePos = null; // 현재 호버 중인 블록 시작 pos
-    let dragPreviewEl = null; // 커스텀 드래그 프리뷰 엘리먼트
-    let lastDroppedEl = null; // 마지막 드랍된 블록 DOM 참조(지속 하이라이트)
+    let dragInfo: DragInfo | null = null; // { from: number, node }
+    let hoverHandlePos: number | null = null; // 현재 호버 중인 블록 시작 pos
+    let dragPreviewEl: HTMLElement | null = null; // 커스텀 드래그 프리뷰 엘리먼트
+    let lastDroppedEl: HTMLElement | null = null; // 마지막 드랍된 블록 DOM 참조(지속 하이라이트)
 
     return [
       new Plugin({
@@ -30,7 +35,7 @@ export const BlockDragHandle = Extension.create({
             // 문서가 변경되었거나, 선택이 바뀌었을 때만 데코레이션 재계산
             if (!tr.docChanged && !tr.selectionSet) return old;
 
-            const decorations = [];
+            const decorations: Decoration[] = [];
             tr.doc.descendants((node, pos) => {
               if (!node.isBlock) return;
               const $pos = tr.doc.resolve(pos);
@@ -83,7 +88,9 @@ export const BlockDragHandle = Extension.create({
                     break;
                   }
                 }
-              } catch (_e) {}
+              } catch (_e) {
+                // 에러 무시
+              }
 
               const tr = view.state.tr.setSelection(NodeSelection.create(view.state.doc, pos));
               view.dispatch(tr);
@@ -97,8 +104,8 @@ export const BlockDragHandle = Extension.create({
               const found = view.posAtCoords({ left: x, top: y });
 
               // 1) DOM 기반으로 Y와 가장 가까운 핸들을 우선 탐색 (체크박스 레일 등 좌표 치우침 상황 대응)
-              let targetEl = null;
-              let targetPos = null;
+              let targetEl: HTMLElement | null = null;
+              let targetPos: number | null = null;
               const handleEls = view.dom.querySelectorAll?.('.pm-block-handle') || [];
               let bestDy = Infinity;
               for (const el of handleEls) {
@@ -107,7 +114,7 @@ export const BlockDragHandle = Extension.create({
                 const dy = Math.abs(cy - y);
                 if (dy < bestDy) {
                   bestDy = dy;
-                  targetEl = el;
+                  targetEl = el as HTMLElement;
                 }
               }
               if (targetEl) {
@@ -118,8 +125,8 @@ export const BlockDragHandle = Extension.create({
               // 2) 보정 실패 시 좌표→문서 매핑으로 대체
               if (targetPos == null && found && found.pos != null) {
                 const { doc } = view.state;
-                let candidatePos = null;
-                let candidateNode = null;
+                let candidatePos: number | null = null;
+                let candidateNode: any = null;
                 doc.nodesBetween(found.pos, found.pos, (node, pos) => {
                   if (node.isBlock) {
                     candidateNode = node;
@@ -135,7 +142,9 @@ export const BlockDragHandle = Extension.create({
                       if (parentNode && (parentNode.type.name === 'taskItem' || parentNode.type.name === 'listItem')) {
                         targetPos = $start.before($start.depth - 1);
                       }
-                    } catch (_e) {}
+                    } catch (_e) {
+                      // 에러 무시
+                    }
                   }
                 }
               }
@@ -162,7 +171,7 @@ export const BlockDragHandle = Extension.create({
               }
               return false;
             },
-            dragover(view, event) {
+            dragover(_view, event) {
               // 드롭 가능 상태 유지 (일부 브라우저에서 필수)
               event.preventDefault();
               if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
@@ -170,7 +179,8 @@ export const BlockDragHandle = Extension.create({
               return false;
             },
           },
-          handleDragStart(view, event) {
+          // 드래그 시작 핸들러 (타입 확장으로 지원, 런타임에서는 작동하지만 타입 정의에는 없음)
+          handleDragStart(view: EditorView, event: DragEvent) {
             const target = event.target;
             if (!(target instanceof HTMLElement)) return false;
             if (!target.classList.contains('pm-block-handle')) return false;
@@ -213,14 +223,16 @@ export const BlockDragHandle = Extension.create({
             dragInfo = { from: sel.from, node: sel.node };
             return true; // 우리가 처리했음을 명시
           },
-          handleDragEnd(_view, _event) {
+          // 드래그 종료 핸들러 (타입 확장으로 지원)
+          handleDragEnd(_view: EditorView, _event: DragEvent) {
             if (dragPreviewEl && dragPreviewEl.parentNode) {
               dragPreviewEl.parentNode.removeChild(dragPreviewEl);
             }
             dragPreviewEl = null;
             return false;
           },
-          handleDrop(view, event) {
+          // 드롭 핸들러 (타입 확장으로 지원)
+          handleDrop(view: EditorView, event: DragEvent) {
             // 우리가 시작한 블록 드래그만 처리
             if (!dragInfo) return false;
             event.preventDefault();
@@ -257,7 +269,7 @@ export const BlockDragHandle = Extension.create({
 
             // 드롭 완료 블록에 지속 하이라이트 적용(이전 하이라이트 해제 후 적용)
             // *TODO: 현재 하이라이트 미반영 중 - 차후 수정 필요
-            setTimeout(() => {console.log('lastDroppedEl',lastDroppedEl);
+            setTimeout(() => {
               if (lastDroppedEl && lastDroppedEl.classList) {
                 lastDroppedEl.classList.remove('pm-block-dropped');
               }
@@ -272,12 +284,13 @@ export const BlockDragHandle = Extension.create({
             dragInfo = null;
             return true;
           },
-        },
+        } as any, // ProseMirror Plugin의 props는 EditorProps 타입이지만, 
+                   // 실제로는 handleDragStart/DragEnd/Drop 같은 커스텀 핸들러도 지원함
+                   // 타입 확장이 제네릭 타입과 충돌하여 타입 단언 사용
       }),
     ];
   },
 });
 
 export default BlockDragHandle;
-
 
