@@ -30,6 +30,7 @@ import java.util.Arrays;
 public class SecurityConfig {
 
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
+  private final RateLimitingFilter rateLimitingFilter;
 
   // WebSocket 전용 SecurityFilterChain (가장 우선 적용)
   @Bean
@@ -81,7 +82,8 @@ public class SecurityConfig {
             )
             .permitAll()
             .anyRequest().authenticated())
-        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+        .addFilterAfter(rateLimitingFilter, JwtAuthenticationFilter.class);
 
     return http.build();
   }
@@ -121,7 +123,8 @@ public class SecurityConfig {
             )
             .permitAll()
             .anyRequest().authenticated())
-        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+        .addFilterAfter(rateLimitingFilter, JwtAuthenticationFilter.class);
 
     return http.build();
   }
