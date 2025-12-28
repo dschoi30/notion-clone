@@ -154,6 +154,35 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ content, onUpdate, editable
           try {
             // 모든 <img> 태그 src 추출
             const imgSrcMatches = [...htmlString.matchAll(/<img[^>]+src=["']([^"'>]+)["']/gi)];
+            // 이미지 로딩 헬퍼 함수 (타임아웃 포함)
+            const loadImageWithTimeout = (src: string, timeout = 5000): Promise<{ width: number; height: number } | null> => {
+              return Promise.race([
+                new Promise<{ width: number; height: number } | null>((resolve) => {
+                  const img = new window.Image();
+                  img.onload = () => {
+                    resolve({ width: img.width, height: img.height });
+                    // 메모리 정리: 이미지 객체 참조 제거
+                    img.onload = null;
+                    img.onerror = null;
+                    img.src = '';
+                  };
+                  img.onerror = () => {
+                    resolve(null);
+                    // 메모리 정리
+                    img.onload = null;
+                    img.onerror = null;
+                    img.src = '';
+                  };
+                  img.src = src;
+                }),
+                new Promise<null>((resolve) => 
+                  setTimeout(() => {
+                    resolve(null);
+                  }, timeout)
+                )
+              ]);
+            };
+
             const imageProcessingPromises = imgSrcMatches.map(match => {
               const originalSrc = match[1];
               // 각 이미지 src 처리 (data:, http://, https://) 후 최종 URL과 width 반환
@@ -173,15 +202,19 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ content, onUpdate, editable
                     return resolve({ originalSrc, finalImageUrl: null, error: 'Unsupported src type', width: null });
                   }
   
-                  // 최종 URL로 이미지 크기 계산
-                  const img = new window.Image();
-                  img.src = finalImageUrl;
-                  img.onload = () => {
-                    let width = img.width;
+                  // 최종 URL로 이미지 크기 계산 (타임아웃 포함)
+                  if (!finalImageUrl) {
+                    return resolve({ originalSrc, finalImageUrl: null, error: 'Failed to get image URL', width: null });
+                  }
+
+                  const imageDimensions = await loadImageWithTimeout(finalImageUrl, 5000);
+                  if (imageDimensions) {
+                    let width = imageDimensions.width;
                     if (width > 1280) width = 1280;
-                    resolve({ originalSrc, finalImageUrl, width }); // 성공 시 정보 반환
-                  };
-                  img.onerror = () => resolve({ originalSrc, finalImageUrl, width: null, error: 'Image load error' }); // 로드 실패해도 resolve
+                    resolve({ originalSrc, finalImageUrl, width });
+                  } else {
+                    resolve({ originalSrc, finalImageUrl, width: null, error: 'Image load timeout or error' });
+                  }
                 } catch (e) {
                   console.error(`Error processing image ${originalSrc}:`, e);
                   const error = e instanceof Error ? e : new Error(String(e));
