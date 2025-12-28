@@ -59,7 +59,6 @@ interface MenuItem {
 
 interface EditorMenuBarProps {
   editor: Editor | null;
-  setLink?: (url: string) => void;
 }
 
 const EditorMenuBar: React.FC<EditorMenuBarProps> = ({ editor }) => {
