@@ -19,6 +19,7 @@ import { TabIndent } from './extensions/TabIndent';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 import { createLogger } from '@/lib/logger';
 import { EditorView } from '@tiptap/pm/view';
+import { useToast } from '@/hooks/useToast';
 
 const lowlight = createLowlight(common);
 
@@ -80,6 +81,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ content, onUpdate, editable
   const [isComposing, setIsComposing] = useState(false);
   const latestHTML = useRef('');
   const { handleError } = useErrorHandler();
+  const { toast } = useToast();
   const log = createLogger('Editor');
 
   const baseExtensions = [
@@ -216,7 +218,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ content, onUpdate, editable
                     resolve({ originalSrc, finalImageUrl, width: null, error: 'Image load timeout or error' });
                   }
                 } catch (e) {
-                  console.error(`Error processing image ${originalSrc}:`, e);
+                  log.error(`Error processing image ${originalSrc}`, e);
                   const error = e instanceof Error ? e : new Error(String(e));
                   resolve({ originalSrc, finalImageUrl: null, error: error.message, width: null }); // 에러 발생 시 정보 포함 resolve
                 }
@@ -234,7 +236,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ content, onUpdate, editable
               } else {
                 // 처리 실패한 이미지 로그 (선택적)
                 const failedSrc = result.status === 'rejected' ? 'unknown' : (result.value?.originalSrc || 'unknown');
-                console.warn(`Failed to process image from HTML: ${failedSrc}`);
+                log.warn(`Failed to process image from HTML: ${failedSrc}`);
               }
             });
   
@@ -255,13 +257,13 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ content, onUpdate, editable
             }).run();
   
             if (!success) {
-              console.error("Failed to insert HTML content via Tiptap command.");
+              log.error('Failed to insert HTML content via Tiptap command');
             }
   
             return true; // HTML 처리 완료
   
           } catch (e) {
-            console.error("Error processing HTML clipboard content:", e);
+            log.error('Error processing HTML clipboard content', e);
             const error = e instanceof Error ? e : new Error(String(e));
             handleError(error, {
               customMessage: 'HTML 붙여넣기 처리 중 오류가 발생했습니다.',
@@ -274,34 +276,122 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ content, onUpdate, editable
         else if (imageFiles.length > 0) {
           log.info(`Processing ${imageFiles.length} image file(s)...`);
           try {
-            // 이미지 업로드 시작 알림은 Toast로 표시하지 않음 (성공 메시지가 아님)
-            // 모든 파일을 백엔드를 통해 Cloudinary에 업로드
-            const uploadPromises = imageFiles.map(file => uploadImage(file));
-            const uploadedUrls = await Promise.all(uploadPromises);
-  
-            // 업로드된 이미지를 순차적으로 에디터에 삽입
-            for (const url of uploadedUrls) {
-              await new Promise<void>((resolve, reject) => { // 각 삽입을 Promise로 처리
-                const img = new window.Image();
-                img.src = url;
-                img.onload = () => {
-                  let width = img.width;
-                  if (width > 1280) width = 1280;
-                  try {
-                    view.dispatch(
-                      view.state.tr.replaceSelectionWith(
-                        view.state.schema.nodes.image.create({ src: url, width })
-                      )
-                    );
-                    resolve();
-                  } catch(e) { reject(e); }
-                };
-                img.onerror = reject;
+            const totalFiles = imageFiles.length;
+            
+            // 업로드 진행 상황 Toast 표시
+            const progressToast = toast({
+              title: '이미지 업로드 중',
+              description: `0/${totalFiles}개 업로드 완료`,
+              variant: 'default',
+              duration: undefined, // 수동으로 닫기
+            });
+
+            // 먼저 모든 플레이스홀더를 삽입
+            for (let i = 0; i < imageFiles.length; i++) {
+              const currentState = view.state;
+              const placeholderNode = currentState.schema.nodes.image.create({
+                src: '',
+                width: 300,
+                uploading: true,
+              });
+              const tr = currentState.tr.replaceSelectionWith(placeholderNode);
+              view.dispatch(tr);
+            }
+
+            // 각 이미지를 개별적으로 업로드하고 진행 상황 업데이트
+            let completedCount = 0;
+            const uploadPromises = imageFiles.map(async (file, index) => {
+              try {
+                const url = await uploadImage(file);
+                completedCount++;
+                
+                // Toast 업데이트
+                progressToast.update({
+                  title: '이미지 업로드 중',
+                  description: `${completedCount}/${totalFiles}개 업로드 완료`,
+                });
+
+                // 플레이스홀더를 실제 이미지로 교체
+                // 현재 문서 상태에서 해당 위치의 노드를 찾아 교체
+                await new Promise<void>((resolve, reject) => {
+                  const img = new window.Image();
+                  img.src = url;
+                  img.onload = () => {
+                    let width = img.width;
+                    if (width > 1280) width = 1280;
+                    try {
+                      // 현재 문서에서 uploading 상태인 이미지 노드를 찾아 교체
+                      const currentState = view.state;
+                      let found = false;
+                      currentState.doc.descendants((node, pos) => {
+                        if (!found && node.type.name === 'image' && node.attrs.uploading === true) {
+                          const tr = currentState.tr.setNodeMarkup(pos, undefined, {
+                            src: url,
+                            width,
+                            uploading: false,
+                          });
+                          view.dispatch(tr);
+                          found = true;
+                        }
+                      });
+                      if (!found) {
+                        log.warn(`Could not find placeholder for image ${index}`);
+                      }
+                      resolve();
+                    } catch(e) { 
+                      reject(e); 
+                    }
+                  };
+                  img.onerror = reject;
+                });
+                return url;
+              } catch (error) {
+                completedCount++;
+                // 실패한 이미지의 플레이스홀더 제거
+                try {
+                  const currentState = view.state;
+                  let removed = false;
+                  currentState.doc.descendants((node, pos) => {
+                    if (!removed && node.type.name === 'image' && node.attrs.uploading === true) {
+                      const tr = currentState.tr.delete(pos, pos + node.nodeSize);
+                      view.dispatch(tr);
+                      removed = true;
+                    }
+                  });
+                  if (!removed) {
+                    log.warn(`Could not remove failed image placeholder for index ${index}`);
+                  }
+                } catch (e) {
+                  log.error('Failed to remove failed image placeholder', e);
+                }
+                throw error;
+              }
+            });
+
+            // 모든 업로드 완료 대기
+            await Promise.allSettled(uploadPromises);
+
+            // Toast 업데이트 및 닫기
+            const successCount = completedCount;
+            if (successCount === totalFiles) {
+              progressToast.update({
+                title: '업로드 완료',
+                description: `${successCount}개 이미지가 업로드되었습니다.`,
+                variant: 'success',
+                duration: 3000,
+              });
+            } else {
+              progressToast.update({
+                title: '업로드 완료',
+                description: `${successCount}/${totalFiles}개 이미지가 업로드되었습니다.`,
+                variant: 'default',
+                duration: 3000,
               });
             }
+
             return true; // 이미지 파일 처리 완료
           } catch (e) {
-            console.error("Error processing direct image files:", e);
+            log.error('Error processing direct image files', e);
             const error = e instanceof Error ? e : new Error(String(e));
             handleError(error, {
               customMessage: '이미지 파일 처리 중 오류가 발생했습니다.',
