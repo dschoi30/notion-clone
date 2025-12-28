@@ -16,6 +16,7 @@ const CustomImage = Node.create({
       title: { default: null },
       width: { default: 300 },
       height: { default: 'auto' },
+      uploading: { default: false },
     };
   },
 
