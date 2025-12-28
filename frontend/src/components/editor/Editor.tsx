@@ -218,7 +218,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ content, onUpdate, editable
                     resolve({ originalSrc, finalImageUrl, width: null, error: 'Image load timeout or error' });
                   }
                 } catch (e) {
-                  console.error(`Error processing image ${originalSrc}:`, e);
+                  log.error(`Error processing image ${originalSrc}`, e);
                   const error = e instanceof Error ? e : new Error(String(e));
                   resolve({ originalSrc, finalImageUrl: null, error: error.message, width: null }); // 에러 발생 시 정보 포함 resolve
                 }
@@ -236,7 +236,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ content, onUpdate, editable
               } else {
                 // 처리 실패한 이미지 로그 (선택적)
                 const failedSrc = result.status === 'rejected' ? 'unknown' : (result.value?.originalSrc || 'unknown');
-                console.warn(`Failed to process image from HTML: ${failedSrc}`);
+                log.warn(`Failed to process image from HTML: ${failedSrc}`);
               }
             });
   
@@ -257,13 +257,13 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ content, onUpdate, editable
             }).run();
   
             if (!success) {
-              console.error("Failed to insert HTML content via Tiptap command.");
+              log.error('Failed to insert HTML content via Tiptap command');
             }
   
             return true; // HTML 처리 완료
   
           } catch (e) {
-            console.error("Error processing HTML clipboard content:", e);
+            log.error('Error processing HTML clipboard content', e);
             const error = e instanceof Error ? e : new Error(String(e));
             handleError(error, {
               customMessage: 'HTML 붙여넣기 처리 중 오류가 발생했습니다.',
@@ -391,7 +391,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(({ content, onUpdate, editable
 
             return true; // 이미지 파일 처리 완료
           } catch (e) {
-            console.error("Error processing direct image files:", e);
+            log.error('Error processing direct image files', e);
             const error = e instanceof Error ? e : new Error(String(e));
             handleError(error, {
               customMessage: '이미지 파일 처리 중 오류가 발생했습니다.',
