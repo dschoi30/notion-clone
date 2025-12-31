@@ -86,6 +86,7 @@ export default function WorkspaceList() {
       <div 
         className="flex justify-between items-center px-4 py-2 cursor-pointer hover:bg-gray-50 min-h-[48px]"
         onClick={toggleDropdown}
+        data-testid="workspace-header"
       >
         <div className="flex flex-1 items-center space-x-2 min-w-0">
           <div className="transition-transform duration-200 ease-in-out transform">
@@ -169,6 +170,7 @@ export default function WorkspaceList() {
           <div 
             className="flex items-center p-3 pl-8 space-x-2 text-red-600 border-t border-gray-200 transition-colors cursor-pointer hover:bg-gray-100"
             onClick={handleLogout}
+            data-testid="logout-button"
           >
             <LogOut className="w-4 h-4" />
             <span className="text-sm font-medium">로그아웃</span>
