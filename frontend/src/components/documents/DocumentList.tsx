@@ -513,6 +513,12 @@ const DocumentList = memo(() => {
     return path;
   }, [currentDocument, documents]);
 
+  // 문서 클릭 시 라우팅
+  const handleSelectDocument = useCallback((document: Document) => {
+    navigate(`/${document.id}-${slugify(document.title || 'untitled')}`);
+    selectDocument(document);
+  }, [navigate, selectDocument]);
+
   // 새 문서 생성
   const handleCreateDocument = useCallback(async () => {
     try {
@@ -527,7 +533,7 @@ const DocumentList = memo(() => {
     } catch (err) {
       console.error('문서 생성 실패:', err);
     }
-  }, [createDocument]);
+  }, [createDocument, handleSelectDocument]);
 
   const handleDeleteDocument = useCallback(async (id: number) => {
     try {
@@ -536,12 +542,6 @@ const DocumentList = memo(() => {
       console.error('문서 삭제 실패:', err);
     }
   }, [deleteDocument]);
-
-  // 문서 클릭 시 라우팅
-  const handleSelectDocument = useCallback((document: Document) => {
-    navigate(`/${document.id}-${slugify(document.title || 'untitled')}`);
-    selectDocument(document);
-  }, [navigate, selectDocument]);
 
   // 전체 높이 계산 - 통합 스크롤용
   const totalHeight = useMemo(() => {
@@ -623,7 +623,7 @@ const DocumentList = memo(() => {
           idPath={idPath}
           sensors={sensors}
           onDragEnd={handleDragEnd}
-          showCreateButton={currentWorkspace.userId === user.id}
+          showCreateButton={currentWorkspace?.ownerId === user?.id}
           onCreateDocument={handleCreateDocument}
         />
       </div>
