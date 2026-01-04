@@ -18,8 +18,10 @@ export async function loginUser(
   
   // 로그인 성공 후 메인 페이지로 리다이렉트 대기
   // 문서가 있으면 /{id}-{slug} 형태, 없으면 루트(/)로 이동
-  // 두 경우 모두 허용하도록 정규식 수정
-  await page.waitForURL(/localhost:5173\/$|localhost:5173\/(\d+)-/, { timeout: 10000 });
+  // 동적으로 base URL을 가져와서 포트나 프로토콜 변경에 대응
+  const baseUrl = new URL(page.url()).origin;
+  const urlPattern = new RegExp(`${baseUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(/|/(\\d+)-)`);
+  await page.waitForURL(urlPattern, { timeout: 5000 });
   
   // 사이드바가 표시되는지 확인하여 로그인 성공 확인
   await page.waitForSelector('aside', { timeout: 5000 });
@@ -45,7 +47,7 @@ export async function registerUser(
   await page.click('button[type="submit"]');
   
   // 회원가입 성공 후 로그인 페이지로 리다이렉트 대기
-  await page.waitForURL('/login', { timeout: 10000 });
+  await page.waitForURL('/login', { timeout: 5000 });
 }
 
 /**
@@ -85,15 +87,29 @@ export async function createDocument(page: Page, title: string) {
  */
 export async function createFolder(page: Page, name: string) {
   // 폴더 추가 버튼 클릭 (사이드바에서)
-  await page.click('[aria-label="폴더 추가"], button:has-text("폴더")');
+  // 우선순위: data-testid > aria-label > 텍스트 기반 셀렉터
+  const addFolderButton = page.getByTestId('add-folder-button')
+    .or(page.locator('[aria-label="폴더 추가"]'))
+    .or(page.locator('button:has-text("폴더")'))
+    .first();
+  await addFolderButton.click();
   
   // 폴더 이름 입력 필드 대기 및 입력
-  const nameInput = page.locator('input[placeholder*="폴더"], input[placeholder*="이름"]');
+  // 우선순위: data-testid > placeholder 기반 셀렉터
+  const nameInput = page.getByTestId('folder-name-input')
+    .or(page.locator('input[placeholder*="폴더"]'))
+    .or(page.locator('input[placeholder*="이름"]'))
+    .first();
   await nameInput.waitFor({ state: 'visible', timeout: 5000 });
   await nameInput.fill(name);
   
   // 생성 버튼 클릭
-  await page.click('button:has-text("생성"), button[type="submit"]');
+  // 우선순위: data-testid > 텍스트 기반 셀렉터
+  const createButton = page.getByTestId('create-folder-button')
+    .or(page.locator('button:has-text("생성")'))
+    .or(page.locator('button[type="submit"]'))
+    .first();
+  await createButton.click();
   
   return { name };
 }
@@ -112,22 +128,40 @@ export async function shareDocument(
   permission: 'READ' | 'WRITE'
 ) {
   // 공유 버튼 클릭
-  await page.click('[aria-label="공유"], button:has-text("공유")');
+  // 우선순위: data-testid > aria-label > 텍스트 기반 셀렉터
+  const shareButton = page.getByTestId('share-document-button')
+    .or(page.locator('[aria-label="공유"]'))
+    .or(page.locator('button:has-text("공유")'))
+    .first();
+  await shareButton.click();
   
   // 공유 다이얼로그가 나타날 때까지 대기
-  await page.waitForSelector('input[placeholder*="이메일"], input[type="email"]', { timeout: 5000 });
+  // 우선순위: data-testid > placeholder/type 기반 셀렉터
+  const emailInput = page.getByTestId('share-email-input')
+    .or(page.locator('input[placeholder*="이메일"]'))
+    .or(page.locator('input[type="email"]'))
+    .first();
+  await emailInput.waitFor({ state: 'visible', timeout: 5000 });
   
   // 이메일 입력
-  await page.fill('input[placeholder*="이메일"], input[type="email"]', email);
+  await emailInput.fill(email);
   
   // 권한 선택
-  const permissionSelect = page.locator('select[name="permission"], select');
+  // 우선순위: data-testid > name 속성 기반 셀렉터
+  const permissionSelect = page.getByTestId('share-permission-select')
+    .or(page.locator('select[name="permission"]'))
+    .or(page.locator('select').first());
   if (await permissionSelect.count() > 0) {
     await permissionSelect.selectOption(permission);
   }
   
   // 공유 버튼 클릭
-  await page.click('button:has-text("공유"), button[type="submit"]');
+  // 우선순위: data-testid > 텍스트 기반 셀렉터
+  const confirmButton = page.getByTestId('confirm-share-button')
+    .or(page.locator('button:has-text("공유")'))
+    .or(page.locator('button[type="submit"]'))
+    .first();
+  await confirmButton.click();
   
   // 공유 성공 메시지 대기
   await page.waitForSelector('text=/공유되었습니다|공유 완료/', { timeout: 5000 });
