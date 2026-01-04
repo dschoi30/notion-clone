@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom/vitest';
 import WorkspaceList from './WorkspaceList';
 
 // Mock modules
@@ -17,9 +16,9 @@ vi.mock('../../contexts/AuthContext', () => ({
 
 // Context mocking
 globalThis.IntersectionObserver = class {
-  constructor() {}
-  observe() {}
-  disconnect() {}
+  constructor() { }
+  observe() { }
+  disconnect() { }
 };
 
 const mockWorkspaces = [
@@ -130,11 +129,11 @@ describe('WorkspaceList', () => {
     });
 
     render(<WorkspaceList />);
-    
+
     // 드롭다운 열기 - 헤더 영역 클릭 (첫 번째 워크스페이스 이름 요소 사용)
     const workspaceNames = screen.getAllByText('워크스페이스1');
     fireEvent.click(workspaceNames[0]);
-    
+
     // 목록에 워크스페이스들이 표시되는지 확인 (드롭다운이 열렸으므로 여러 개 있어야 함)
     expect(screen.getAllByText('워크스페이스1').length).toBeGreaterThan(0);
     expect(screen.getByText('워크스페이스2')).toBeInTheDocument();
@@ -169,15 +168,15 @@ describe('WorkspaceList', () => {
     });
 
     render(<WorkspaceList />);
-    
+
     // 드롭다운 열기 - 헤더 클릭
     const workspaceNames = screen.getAllByText('워크스페이스1');
     fireEvent.click(workspaceNames[0]);
-    
+
     // 워크스페이스2 선택 (드롭다운 목록에서)
     const workspace2 = screen.getByText('워크스페이스2');
     fireEvent.click(workspace2);
-    
+
     expect(mockSelectWorkspace).toHaveBeenCalledWith(mockWorkspaces[1]);
   });
 
@@ -210,15 +209,15 @@ describe('WorkspaceList', () => {
     });
 
     render(<WorkspaceList />);
-    
+
     // 드롭다운 열기 - 헤더 클릭
     const workspaceNames = screen.getAllByText('워크스페이스1');
     fireEvent.click(workspaceNames[0]);
-    
+
     // 추가 버튼 클릭
     const addButton = screen.getByText('워크스페이스 추가');
     fireEvent.click(addButton);
-    
+
     // 모달이 열렸는지 확인 (WorkspaceSettingsModal이 렌더링되는지)
     // 실제 컴포넌트 구조에 따라 조정 필요
     expect(addButton).toBeInTheDocument();
@@ -253,13 +252,13 @@ describe('WorkspaceList', () => {
     });
 
     render(<WorkspaceList />);
-    
+
     // 설정 버튼 찾기 (Settings 아이콘을 가진 버튼)
     const settingsButtons = screen.getAllByRole('button');
-    const settingsButton = settingsButtons.find(button => 
+    const settingsButton = settingsButtons.find(button =>
       button.querySelector('svg')
     );
-    
+
     if (settingsButton) {
       fireEvent.click(settingsButton);
       expect(mockSetIsSettingsPanelOpen).toHaveBeenCalledWith(true);
@@ -295,15 +294,15 @@ describe('WorkspaceList', () => {
     });
 
     render(<WorkspaceList />);
-    
+
     // 드롭다운 열기 - 헤더 클릭
     const workspaceNames = screen.getAllByText('워크스페이스1');
     fireEvent.click(workspaceNames[0]);
-    
+
     // 로그아웃 버튼 클릭
     const logoutButton = screen.getByText('로그아웃');
     fireEvent.click(logoutButton);
-    
+
     expect(mockLogout).toHaveBeenCalled();
   });
 });
