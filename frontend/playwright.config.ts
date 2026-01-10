@@ -9,7 +9,7 @@ import { defineConfig, devices } from '@playwright/test';
  * - pnpm exec playwright test auth-flow.spec.ts - 특정 파일만 실행
  */
 export default defineConfig({
-  testDir: './playwright',
+  testDir: './tests',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
