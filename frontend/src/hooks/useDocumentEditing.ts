@@ -11,14 +11,10 @@ import useDocumentSocket from '@/hooks/useDocumentSocket';
 import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
 import { createLogger } from '@/lib/logger';
 import type { Document } from '@/types';
+import type { RemoteEditMessage } from '@/types/document';
 import type { SaveStatus } from './useDocumentAutoSave';
 
 const rlog = createLogger('editing');
-
-interface RemoteEditMessage {
-    content?: string;
-    userId?: number;
-}
 
 interface UseDocumentEditingOptions {
     /** 자동 저장 트리거 함수 */
@@ -124,7 +120,7 @@ export function useDocumentEditing(
         titleRef.current = newTitle;
         setSaveStatus('unsaved');
         triggerAutoSave();
-    }, [titleRef, setSaveStatus, triggerAutoSave]);
+    }, [setSaveStatus, triggerAutoSave]);
 
     // 내용 변경 핸들러
     const handleContentChange = useCallback((newContent: string) => {
@@ -140,16 +136,16 @@ export function useDocumentEditing(
             path: location.pathname,
         });
         sendEdit({ content: newContent, userId: user?.id });
-    }, [contentRef, setSaveStatus, triggerAutoSave, currentDocument?.id, location.pathname, sendEdit, user?.id]);
+    }, [setSaveStatus, triggerAutoSave, currentDocument?.id, location.pathname, sendEdit, user?.id]);
 
     // title, content가 변경될 때 ref 동기화 (외부에서 직접 set한 경우 대비)
     useEffect(() => {
         titleRef.current = title;
-    }, [title, titleRef]);
+    }, [title]);
 
     useEffect(() => {
         contentRef.current = content;
-    }, [content, contentRef]);
+    }, [content]);
 
     return {
         title,

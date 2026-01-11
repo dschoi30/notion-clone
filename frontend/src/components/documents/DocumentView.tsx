@@ -8,13 +8,14 @@
  * @see https://github.com/dschoi30/notion-clone/issues/112
  * @see https://github.com/dschoi30/notion-clone/issues/113
  */
-import { useRef, useMemo, KeyboardEvent } from 'react';
+import { useRef, useMemo, KeyboardEvent, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useDocument } from '@/contexts/DocumentContext';
 import { useUIStore } from '@/stores/uiStore';
 import { useShallow } from 'zustand/react/shallow';
 import useDocumentPresence from '@/hooks/useDocumentPresence';
+import { useToast } from '@/hooks/useToast';
 
 // Phase 1: 분리된 커스텀 훅들
 import { useDocumentRouting } from '@/hooks/useDocumentRouting';
@@ -31,6 +32,7 @@ import type { ViewType } from '@/types';
 const DocumentView = () => {
     const { currentWorkspace } = useWorkspace();
     const { user } = useAuth();
+    const { toast } = useToast();
 
     // DocumentContext에서 상태 가져오기
     const { currentDocument, updateDocument, documentLoading } = useDocument();
@@ -57,6 +59,15 @@ const DocumentView = () => {
     // 실시간 접속자
     const viewers = useDocumentPresence(currentDocument?.id, user);
 
+    // 저장 에러 콜백
+    const handleSaveError = useCallback((message: string) => {
+        toast({
+            title: '저장 오류',
+            description: message,
+            variant: 'destructive',
+        });
+    }, [toast]);
+
     // ========================================
     // Phase 1: 커스텀 훅 사용
     // ========================================
@@ -64,17 +75,26 @@ const DocumentView = () => {
     // 1. 라우팅 훅
     const { path, handlePathClick } = useDocumentRouting();
 
-    // 2. 자동 저장 훅
+    // 3. 편집 훅 (먼저 호출하여 title, content 획득)
+    // Note: useDocumentEditing은 triggerAutoSave와 setSaveStatus를 필요로 하므로
+    // 두 훅간의 의존성을 해결하기 위해 순서 조정
+
+    // 임시 ref 생성 (useDocumentAutoSave와 useDocumentEditing 간 연결)
+    const titleRef = useRef<string>('');
+    const contentRef = useRef<string>('');
+
+    // 2. 자동 저장 훅 (실제 title/content 전달)
     const {
         saveStatus,
         setSaveStatus,
         triggerAutoSave,
         handleSave,
-        titleRef,
-        contentRef,
-    } = useDocumentAutoSave(currentDocument, '', '', {
+        isSaving,
+        cancelPendingSave,
+    } = useDocumentAutoSave(currentDocument, titleRef.current, contentRef.current, {
         canWrite,
         isReadOnly,
+        onSaveError: handleSaveError,
     });
 
     // 3. 편집 훅 (자동 저장과 연동)
@@ -136,6 +156,11 @@ const DocumentView = () => {
             });
         } catch (error) {
             console.error('잠금 상태 변경 실패:', error);
+            toast({
+                title: '잠금 상태 변경 실패',
+                description: '문서 잠금 상태를 변경할 수 없습니다.',
+                variant: 'destructive',
+            });
         }
     };
 
@@ -144,19 +169,45 @@ const DocumentView = () => {
     // ========================================
 
     if (!currentDocument) {
-        return <div className="p-4 text-sm">선택된 문서가 없습니다.</div>;
+        return (
+            <div role="status" aria-live="polite" className="p-4 text-sm text-gray-500">
+                선택된 문서가 없습니다.
+            </div>
+        );
     }
 
     if (!currentWorkspace) {
-        return <div className="p-4 text-sm">워크스페이스를 불러오는 중...</div>;
+        return (
+            <div role="status" aria-live="polite" className="p-4 text-sm text-gray-500">
+                <span className="animate-pulse">워크스페이스를 불러오는 중...</span>
+            </div>
+        );
     }
 
     if (documentLoading) {
-        return <div className="p-4 text-sm">문서 불러오는 중...</div>;
+        return (
+            <div role="status" aria-live="polite" aria-busy="true" className="p-4 text-sm text-gray-500">
+                <span className="animate-pulse">문서 불러오는 중...</span>
+            </div>
+        );
     }
 
     return (
-        <main className="overflow-x-visible relative bg-white">
+        <main
+            className="overflow-x-visible relative bg-white"
+            aria-label={`문서: ${title || '제목 없음'}`}
+        >
+            {/* 저장 중 오버레이 (네비게이션 가드) */}
+            {isSaving && (
+                <div
+                    className="absolute inset-0 bg-white/50 z-50 flex items-center justify-center"
+                    role="alert"
+                    aria-live="assertive"
+                >
+                    <span className="text-sm text-gray-600 animate-pulse">저장 중...</span>
+                </div>
+            )}
+
             <div className="px-4 pt-4 pb-40 space-y-4 min-w-0">
                 {/* 상단 타이틀/공유/저장 상태/권한자 이니셜 */}
                 <DocumentHeader
@@ -194,7 +245,12 @@ const DocumentView = () => {
                     />
                 )}
                 {currentDocument.viewType === 'GALLERY' && (
-                    <div className="p-4">갤러리 뷰는 아직 구현되지 않았습니다.</div>
+                    <div
+                        className="p-4 text-gray-500"
+                        role="status"
+                    >
+                        갤러리 뷰는 아직 구현되지 않았습니다.
+                    </div>
                 )}
             </div>
         </main>

@@ -5,6 +5,7 @@
  * - SaveStatus 타입 정의
  * - 디바운스 자동 저장 로직
  * - 권한 체크 로직
+ * - beforeunload 이벤트
  * 
  * @see https://github.com/dschoi30/notion-clone/issues/112
  */
@@ -70,6 +71,18 @@ describe('useDocumentAutoSave', () => {
             // ref는 useEffect를 통해 title/content와 동기화됨
             expect(result.current.titleRef.current).toBe('문서 제목');
             expect(result.current.contentRef.current).toBe('문서 내용');
+        });
+
+        it('isSaving이 false로 초기화된다', () => {
+            const document = createMockDocument();
+            const { result } = renderHook(() =>
+                useDocumentAutoSave(document, '', '', {
+                    canWrite: true,
+                    isReadOnly: false,
+                })
+            );
+
+            expect(result.current.isSaving).toBe(false);
         });
     });
 
@@ -173,6 +186,54 @@ describe('useDocumentAutoSave', () => {
             });
 
             expect(result.current.saveStatus).toBe('saved');
+        });
+    });
+
+    describe('cancelPendingSave', () => {
+        it('cancelPendingSave로 대기 중인 저장을 취소할 수 있다', () => {
+            const document = createMockDocument();
+            const { result } = renderHook(() =>
+                useDocumentAutoSave(document, '', '', {
+                    canWrite: true,
+                    isReadOnly: false,
+                })
+            );
+
+            act(() => {
+                result.current.triggerAutoSave();
+            });
+
+            // 취소
+            act(() => {
+                result.current.cancelPendingSave();
+            });
+
+            // 디바운스 시간 경과해도 저장되지 않음
+            act(() => {
+                vi.advanceTimersByTime(1000);
+            });
+
+            expect(result.current.saveStatus).toBe('saved');
+        });
+    });
+
+    describe('onSaveError 콜백', () => {
+        it('권한 없을 때 onSaveError가 호출된다', async () => {
+            const onSaveError = vi.fn();
+            const document = createMockDocument();
+            const { result } = renderHook(() =>
+                useDocumentAutoSave(document, '', '', {
+                    canWrite: false,
+                    isReadOnly: false,
+                    onSaveError,
+                })
+            );
+
+            await act(async () => {
+                await result.current.handleSave();
+            });
+
+            expect(onSaveError).toHaveBeenCalledWith('문서 저장 권한이 없습니다.');
         });
     });
 });

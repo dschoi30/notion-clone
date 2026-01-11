@@ -22,13 +22,24 @@ const rlog = createLogger('router');
 export function parseDocIdFromSlug(idSlug?: string): string | null {
     if (!idSlug) return null;
 
+    let idStr: string | null = null;
+
     const match = idSlug.match(/^(\d+)-(.+)$/);
     if (match) {
-        return match[1];
+        idStr = match[1];
     } else if (/^\d+$/.test(idSlug)) {
-        return idSlug;
+        idStr = idSlug;
     }
-    return null;
+
+    // ID 유효성 검증: 숫자 범위 체크
+    if (idStr) {
+        const id = parseInt(idStr, 10);
+        if (isNaN(id) || id < 1 || id > Number.MAX_SAFE_INTEGER) {
+            return null;
+        }
+    }
+
+    return idStr;
 }
 
 /**
