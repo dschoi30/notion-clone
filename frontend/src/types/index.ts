@@ -55,7 +55,7 @@ export interface Workspace {
   id: number;
   name: string;
   iconUrl?: string;
-  userId: number;
+  ownerId: number; // 백엔드 DTO에서 ownerId로 전달됨
   parentId?: number;
   isTrashed: boolean;
   createdAt: string;
