@@ -441,11 +441,11 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   const selectDocument = useCallback(async (document: Document, options: SelectDocumentOptions = {}) => {
     if (!currentWorkspace || !document) return;
     if (documentLoading && currentDocument?.id === document.id) {
-      rlog.info('selectDocument skip (in-flight same id)', { id: document.id, src: options.source });
+      rlog.debug('selectDocument skip (in-flight same id)', { id: document.id, src: options.source });
       return;
     }
     if (currentDocument?.id === document.id) {
-      rlog.info('selectDocument skip (already current)', { id: document.id, src: options.source });
+      rlog.debug('selectDocument skip (already current)', { id: document.id, src: options.source });
       return;
     }
     // 중복 호출 스로틀 (2s)
@@ -520,8 +520,11 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
       // 사용자별 마지막 문서 ID 저장 (lastDocumentId:${userId}:${workspaceId})
       if (user?.id && currentWorkspace?.id) {
         const storageKey = `lastDocumentId:${user.id}:${currentWorkspace.id}`;
-        localStorage.setItem(storageKey, String(document.id));
-        rlog.info('마지막 문서 저장', { userId: user.id, workspaceId: currentWorkspace.id, documentId: document.id });
+        const prevValue = localStorage.getItem(storageKey);
+        if (prevValue !== String(document.id)) {
+          localStorage.setItem(storageKey, String(document.id));
+          rlog.debug('마지막 문서 저장', { userId: user.id, workspaceId: currentWorkspace.id, documentId: document.id });
+        }
       }
     } catch (err) {
       rlog.error('문서 선택 실패', err, { documentId: document.id });

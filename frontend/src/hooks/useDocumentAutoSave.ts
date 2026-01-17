@@ -248,7 +248,7 @@ export function useDocumentAutoSave(
         };
 
         // 짧은 간격으로 동기화 (ref 변경 감지)
-        const intervalId = setInterval(updatePrevData, 100);
+        const intervalId = setInterval(updatePrevData, 1000);
         return () => clearInterval(intervalId);
     }, [currentDocument, titleRef, contentRef]);
 

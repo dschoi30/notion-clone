@@ -181,7 +181,12 @@ export function useDocumentRouting(
 
         const needsSelect = !currentDocument || String(currentDocument.id) !== String(docId);
         const reason = needsSelect ? (found ? 'found' : 'byId') : 'noop';
-        rlog.info('idSlug select check', { docId, currentId: currentDocument?.id, reason });
+        // noop은 debug, 실제 선택 시에만 info
+        if (reason === 'noop') {
+            rlog.debug('idSlug select check', { docId, currentId: currentDocument?.id, reason });
+        } else {
+            rlog.info('idSlug select check', { docId, reason });
+        }
 
         if (needsSelect) {
             rlog.info('selectDocument', { id: found ? found.id : Number(docId), src: 'idSlugEffect' });
