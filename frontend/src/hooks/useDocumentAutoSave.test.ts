@@ -13,6 +13,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useDocumentAutoSave } from './useDocumentAutoSave';
 import type { Document } from '@/types';
+import React from 'react';
 
 // Mock dependencies
 vi.mock('@/contexts/DocumentContext', () => ({
@@ -37,8 +38,14 @@ const createMockDocument = (overrides: Partial<Document> = {}): Document => ({
 });
 
 describe('useDocumentAutoSave', () => {
+    // 공유 ref 생성
+    const titleRef = { current: '' };
+    const contentRef = { current: '' };
+
     beforeEach(() => {
         vi.useFakeTimers();
+        titleRef.current = '';
+        contentRef.current = '';
     });
 
     afterEach(() => {
@@ -50,36 +57,32 @@ describe('useDocumentAutoSave', () => {
         it('초기 saveStatus는 "saved"이다', () => {
             const document = createMockDocument();
             const { result } = renderHook(() =>
-                useDocumentAutoSave(document, '', '', {
-                    canWrite: true,
-                    isReadOnly: false,
-                })
+                useDocumentAutoSave(
+                    document,
+                    titleRef as React.MutableRefObject<string>,
+                    contentRef as React.MutableRefObject<string>,
+                    {
+                        canWrite: true,
+                        isReadOnly: false,
+                    }
+                )
             );
 
             expect(result.current.saveStatus).toBe('saved');
         });
 
-        it('titleRef와 contentRef가 문서 내용으로 동기화된다', () => {
-            const document = createMockDocument({ title: '문서 제목', content: '문서 내용' });
-            const { result } = renderHook(() =>
-                useDocumentAutoSave(document, '문서 제목', '문서 내용', {
-                    canWrite: true,
-                    isReadOnly: false,
-                })
-            );
-
-            // ref는 useEffect를 통해 title/content와 동기화됨
-            expect(result.current.titleRef.current).toBe('문서 제목');
-            expect(result.current.contentRef.current).toBe('문서 내용');
-        });
-
         it('isSaving이 false로 초기화된다', () => {
             const document = createMockDocument();
             const { result } = renderHook(() =>
-                useDocumentAutoSave(document, '', '', {
-                    canWrite: true,
-                    isReadOnly: false,
-                })
+                useDocumentAutoSave(
+                    document,
+                    titleRef as React.MutableRefObject<string>,
+                    contentRef as React.MutableRefObject<string>,
+                    {
+                        canWrite: true,
+                        isReadOnly: false,
+                    }
+                )
             );
 
             expect(result.current.isSaving).toBe(false);
@@ -90,10 +93,15 @@ describe('useDocumentAutoSave', () => {
         it('canWrite가 false이면 triggerAutoSave를 호출해도 저장하지 않는다', async () => {
             const document = createMockDocument();
             const { result } = renderHook(() =>
-                useDocumentAutoSave(document, '', '', {
-                    canWrite: false,
-                    isReadOnly: false,
-                })
+                useDocumentAutoSave(
+                    document,
+                    titleRef as React.MutableRefObject<string>,
+                    contentRef as React.MutableRefObject<string>,
+                    {
+                        canWrite: false,
+                        isReadOnly: false,
+                    }
+                )
             );
 
             act(() => {
@@ -112,10 +120,15 @@ describe('useDocumentAutoSave', () => {
         it('isReadOnly가 true이면 triggerAutoSave를 호출해도 저장하지 않는다', async () => {
             const document = createMockDocument();
             const { result } = renderHook(() =>
-                useDocumentAutoSave(document, '', '', {
-                    canWrite: true,
-                    isReadOnly: true,
-                })
+                useDocumentAutoSave(
+                    document,
+                    titleRef as React.MutableRefObject<string>,
+                    contentRef as React.MutableRefObject<string>,
+                    {
+                        canWrite: true,
+                        isReadOnly: true,
+                    }
+                )
             );
 
             act(() => {
@@ -134,10 +147,15 @@ describe('useDocumentAutoSave', () => {
         it('setSaveStatus로 저장 상태를 변경할 수 있다', () => {
             const document = createMockDocument();
             const { result } = renderHook(() =>
-                useDocumentAutoSave(document, '', '', {
-                    canWrite: true,
-                    isReadOnly: false,
-                })
+                useDocumentAutoSave(
+                    document,
+                    titleRef as React.MutableRefObject<string>,
+                    contentRef as React.MutableRefObject<string>,
+                    {
+                        canWrite: true,
+                        isReadOnly: false,
+                    }
+                )
             );
 
             act(() => {
@@ -150,10 +168,15 @@ describe('useDocumentAutoSave', () => {
         it('모든 SaveStatus 타입으로 변경 가능하다', () => {
             const document = createMockDocument();
             const { result } = renderHook(() =>
-                useDocumentAutoSave(document, '', '', {
-                    canWrite: true,
-                    isReadOnly: false,
-                })
+                useDocumentAutoSave(
+                    document,
+                    titleRef as React.MutableRefObject<string>,
+                    contentRef as React.MutableRefObject<string>,
+                    {
+                        canWrite: true,
+                        isReadOnly: false,
+                    }
+                )
             );
 
             const statuses: Array<'saved' | 'saving' | 'error' | 'unsaved'> = [
@@ -175,10 +198,15 @@ describe('useDocumentAutoSave', () => {
     describe('문서 없음 처리', () => {
         it('currentDocument가 null이면 handleSave를 호출해도 아무 일도 일어나지 않는다', async () => {
             const { result } = renderHook(() =>
-                useDocumentAutoSave(null, '', '', {
-                    canWrite: true,
-                    isReadOnly: false,
-                })
+                useDocumentAutoSave(
+                    null,
+                    titleRef as React.MutableRefObject<string>,
+                    contentRef as React.MutableRefObject<string>,
+                    {
+                        canWrite: true,
+                        isReadOnly: false,
+                    }
+                )
             );
 
             await act(async () => {
@@ -193,10 +221,15 @@ describe('useDocumentAutoSave', () => {
         it('cancelPendingSave로 대기 중인 저장을 취소할 수 있다', () => {
             const document = createMockDocument();
             const { result } = renderHook(() =>
-                useDocumentAutoSave(document, '', '', {
-                    canWrite: true,
-                    isReadOnly: false,
-                })
+                useDocumentAutoSave(
+                    document,
+                    titleRef as React.MutableRefObject<string>,
+                    contentRef as React.MutableRefObject<string>,
+                    {
+                        canWrite: true,
+                        isReadOnly: false,
+                    }
+                )
             );
 
             act(() => {
@@ -222,11 +255,16 @@ describe('useDocumentAutoSave', () => {
             const onSaveError = vi.fn();
             const document = createMockDocument();
             const { result } = renderHook(() =>
-                useDocumentAutoSave(document, '', '', {
-                    canWrite: false,
-                    isReadOnly: false,
-                    onSaveError,
-                })
+                useDocumentAutoSave(
+                    document,
+                    titleRef as React.MutableRefObject<string>,
+                    contentRef as React.MutableRefObject<string>,
+                    {
+                        canWrite: false,
+                        isReadOnly: false,
+                        onSaveError,
+                    }
+                )
             );
 
             await act(async () => {

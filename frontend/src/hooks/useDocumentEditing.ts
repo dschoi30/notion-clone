@@ -7,7 +7,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo, ChangeEvent } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import useDocumentSocket from '@/hooks/useDocumentSocket';
+import useDocumentSocket, { ConnectionStatus } from '@/hooks/useDocumentSocket';
 import { useDocumentPropertiesStore } from '@/hooks/useDocumentPropertiesStore';
 import { createLogger } from '@/lib/logger';
 import type { Document } from '@/types';
@@ -25,6 +25,8 @@ interface UseDocumentEditingOptions {
     titleRef: React.MutableRefObject<string>;
     /** 내용 ref (최신 값 참조용) */
     contentRef: React.MutableRefObject<string>;
+    /** WebSocket 에러 콜백 */
+    onConnectionError?: (message: string) => void;
 }
 
 interface UseDocumentEditingReturn {
@@ -44,6 +46,12 @@ interface UseDocumentEditingReturn {
     sendEdit: (editData: RemoteEditMessage) => void;
     /** 메모이제이션된 문서 ID */
     documentId: number | undefined;
+    /** WebSocket 연결 상태 */
+    connectionStatus: ConnectionStatus;
+    /** WebSocket 에러 메시지 */
+    connectionError: string | null;
+    /** WebSocket 재연결 함수 */
+    reconnect: () => void;
 }
 
 /**
@@ -51,12 +59,13 @@ interface UseDocumentEditingReturn {
  * - 제목/내용 로컬 상태 관리
  * - WebSocket을 통한 실시간 협업
  * - 원격 편집 수신 및 로컬 상태 동기화
+ * - 연결 상태 노출로 오프라인 감지
  */
 export function useDocumentEditing(
     currentDocument: Document | null,
     options: UseDocumentEditingOptions
 ): UseDocumentEditingReturn {
-    const { triggerAutoSave, setSaveStatus, titleRef, contentRef } = options;
+    const { triggerAutoSave, setSaveStatus, titleRef, contentRef, onConnectionError } = options;
 
     const { user } = useAuth();
     const location = useLocation();
@@ -110,8 +119,15 @@ export function useDocumentEditing(
         }
     }, [contentRef]);
 
-    // WebSocket 연결
-    const { sendEdit } = useDocumentSocket(documentId, handleRemoteEdit);
+    // WebSocket 연결 (연결 상태, 에러, 재연결 함수 포함)
+    const { sendEdit, connectionStatus, error: connectionError, reconnect } = useDocumentSocket(documentId, handleRemoteEdit);
+
+    // 연결 에러 발생 시 콜백 호출
+    useEffect(() => {
+        if (connectionError && onConnectionError) {
+            onConnectionError(connectionError);
+        }
+    }, [connectionError, onConnectionError]);
 
     // 제목 변경 핸들러
     const handleTitleChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
@@ -120,7 +136,7 @@ export function useDocumentEditing(
         titleRef.current = newTitle;
         setSaveStatus('unsaved');
         triggerAutoSave();
-    }, [setSaveStatus, triggerAutoSave]);
+    }, [setSaveStatus, triggerAutoSave, titleRef]);
 
     // 내용 변경 핸들러
     const handleContentChange = useCallback((newContent: string) => {
@@ -136,16 +152,16 @@ export function useDocumentEditing(
             path: location.pathname,
         });
         sendEdit({ content: newContent, userId: user?.id });
-    }, [setSaveStatus, triggerAutoSave, currentDocument?.id, location.pathname, sendEdit, user?.id]);
+    }, [setSaveStatus, triggerAutoSave, currentDocument?.id, location.pathname, sendEdit, user?.id, contentRef]);
 
     // title, content가 변경될 때 ref 동기화 (외부에서 직접 set한 경우 대비)
     useEffect(() => {
         titleRef.current = title;
-    }, [title]);
+    }, [title, titleRef]);
 
     useEffect(() => {
         contentRef.current = content;
-    }, [content]);
+    }, [content, contentRef]);
 
     return {
         title,
@@ -156,6 +172,9 @@ export function useDocumentEditing(
         handleContentChange,
         sendEdit,
         documentId,
+        connectionStatus,
+        connectionError,
+        reconnect,
     };
 }
 

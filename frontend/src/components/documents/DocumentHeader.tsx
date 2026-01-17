@@ -11,6 +11,7 @@ import { Lock, Unlock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasWritePermission } from '@/utils/permissionUtils';
 import type { Document, Workspace } from '@/types';
+import type { ConnectionStatus } from '@/hooks/useDocumentSocket';
 
 type SaveStatus = 'saved' | 'saving' | 'error' | 'unsaved';
 
@@ -29,6 +30,8 @@ interface DocumentHeaderProps {
   path: Document[];
   onPathClick: (id: number) => void;
   onLockToggle: () => void;
+  /** WebSocket 연결 상태 (선택) */
+  connectionStatus?: ConnectionStatus;
 }
 
 export default function DocumentHeader({
@@ -45,7 +48,8 @@ export default function DocumentHeader({
   currentWorkspace,
   path,
   onPathClick,
-  onLockToggle
+  onLockToggle,
+  connectionStatus
 }: DocumentHeaderProps) {
   // 버전 기록 패널 상태 (zustand store에서 관리)
   const { showVersionHistory, setShowVersionHistory } = useUIStore(
@@ -60,10 +64,10 @@ export default function DocumentHeader({
   const paddingClasses = isTableView
     ? 'px-20'
     : 'px-6 sm:px-8 md:px-[10vw] lg:px-[14vw] xl:px-[18vw]';
-  
+
   // 잠금 버튼 권한 체크
   const canLockDocument = currentDocument && user ? hasWritePermission(currentDocument, user) : false;
-  
+
   return (
     <div className="flex flex-col w-full">
       <div className={`flex relative justify-between items-center pt-12 pb-6 ${paddingClasses}`}>
@@ -77,7 +81,7 @@ export default function DocumentHeader({
           disabled={isReadOnly}
         />
         {/* 문서 경로/공유/저장 상태/권한자 이니셜 영역을 fixed로 분리 */}
-        <div 
+        <div
           className="flex fixed top-0 left-64 right-0 items-center justify-between px-4 py-2 bg-white"
           style={{ zIndex: Z_INDEX.FIXED }}
         >
@@ -97,7 +101,7 @@ export default function DocumentHeader({
             )}
             {/* 잠금 버튼 */}
             {currentDocument && onLockToggle && (
-              <Tooltip 
+              <Tooltip
                 content={!canLockDocument ? "문서를 잠금/해제할 권한이 없습니다" : null}
                 side="bottom"
               >
@@ -141,14 +145,18 @@ export default function DocumentHeader({
             <span
               style={{ whiteSpace: 'nowrap', margin: '0 8px' }}
               className={
-                (saveStatus === 'saving' ? 'text-blue-500' :
-                saveStatus === 'error' ? 'text-red-500' :
-                'text-gray-700') + ' text-sm'
+                (connectionStatus === 'error' || connectionStatus === 'disconnected' ? 'text-red-500' :
+                  connectionStatus === 'connecting' ? 'text-orange-500' :
+                    saveStatus === 'saving' ? 'text-blue-500' :
+                      saveStatus === 'error' ? 'text-red-500' :
+                        'text-gray-700') + ' text-sm'
               }
             >
-              {saveStatus === 'saving' ? '저장 중...' :
-              saveStatus === 'error' ? '저장 실패' :
-              saveStatus === 'unsaved' ? '저장 대기' : '저장됨'}
+              {connectionStatus === 'error' || connectionStatus === 'disconnected' ? '연결 끊김' :
+                connectionStatus === 'connecting' ? '재연결 중...' :
+                  saveStatus === 'saving' ? '저장 중...' :
+                    saveStatus === 'error' ? '저장 실패' :
+                      saveStatus === 'unsaved' ? '저장 대기' : '저장됨'}
             </span>
             {/* 읽기 전용이 아닐 때만 공유 버튼 노출 */}
             {!isReadOnly && (

@@ -68,13 +68,13 @@ const mergeDocumentUpdate = (
 ): Document => {
   // Base: 현재 문서
   const base = currentDocument || ({} as Document);
-  
+
   // 1단계: 서버 응답 적용
   const withServerData = { ...base, ...serverResponse };
-  
+
   // 2단계: 클라이언트 업데이트 적용 (isLocked 등 우선순위 높음)
   const withClientData = { ...withServerData, ...clientUpdate };
-  
+
   // 3단계: permissions는 서버 데이터 우선 (서버 데이터가 있으면 사용, 없으면 기존 데이터 유지)
   return {
     ...withClientData,
@@ -144,21 +144,21 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     queryKey: ['documents', currentWorkspace?.id],
     queryFn: async () => {
       if (!currentWorkspace) return null as unknown as DocumentsData;
-  
+
       // 전체 목록 조회 (페이지네이션 없음)
       const data = await documentApi.getDocumentList(currentWorkspace.id);
-      
+
       // 백엔드 응답이 배열인지 Page 객체인지 확인
       // 페이지네이션 파라미터가 없으면 배열을 반환하고, 있으면 Page 객체를 반환
       const documents = Array.isArray(data) ? data : (data.content || []);
-      
+
       // 백엔드에서 다른 워크스페이스 문서가 섞여서 올 경우를 대비한 필터링
       const currentWorkspaceId = String(currentWorkspace.id);
       const filteredData = documents.filter(doc => {
         const docWorkspaceId = doc.workspaceId || (doc as any).workspace?.id;
         return !docWorkspaceId || String(docWorkspaceId) === currentWorkspaceId;
       });
-      
+
       return {
         documents: filteredData,
         pagination: {
@@ -200,11 +200,11 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   const prevWorkspaceIdRef = useRef<number | null>(null);
   const autoSelectRef = useRef<boolean>(false);
   const selectDocumentRef = useRef<((document: Document, options?: SelectDocumentOptions) => Promise<void>) | null>(null);
-  
+
   useEffect(() => {
     const currentWorkspaceId = currentWorkspace?.id;
     const prevWorkspaceId = prevWorkspaceIdRef.current;
-    
+
     // 워크스페이스가 변경된 경우
     if (currentWorkspaceId && prevWorkspaceId !== currentWorkspaceId) {
       // 즉시 모든 상태 초기화 (이전 워크스페이스 데이터 제거)
@@ -226,24 +226,24 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
       }
       return;
     }
-    
+
     // selectDocument가 아직 정의되지 않았으면 스킵
     if (!selectDocumentRef.current) return;
-    
+
     // 이미 자동 선택이 진행 중이면 스킵
     if (autoSelectRef.current) return;
-    
+
     autoSelectRef.current = true;
-    
+
     // 로컬 스토리지에서 해당 사용자 및 워크스페이스의 최근 문서 ID 조회
     const storageKey = user?.id ? `lastDocumentId:${user.id}:${currentWorkspace.id}` : null;
     const lastDocumentId = storageKey ? localStorage.getItem(storageKey) : null;
     if (!lastDocumentId) {
       // 최근 문서가 없으면 첫 번째 문서 선택
       if (documents[0]) {
-        rlog.info('워크스페이스 변경: 첫 번째 문서 자동 선택', { 
-          workspaceId: currentWorkspace.id, 
-          documentId: documents[0].id 
+        rlog.info('워크스페이스 변경: 첫 번째 문서 자동 선택', {
+          workspaceId: currentWorkspace.id,
+          documentId: documents[0].id
         });
         selectDocumentRef.current(documents[0], { source: 'workspaceChange' }).catch(() => {
           autoSelectRef.current = false; // 실패 시 리셋
@@ -251,13 +251,13 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
       }
       return;
     }
-    
+
     // 최근 문서 찾기
     const lastDoc = documents.find(doc => String(doc.id) === String(lastDocumentId));
     if (lastDoc) {
-      rlog.info('워크스페이스 변경: 최근 문서 자동 선택', { 
-        workspaceId: currentWorkspace.id, 
-        documentId: lastDoc.id 
+      rlog.info('워크스페이스 변경: 최근 문서 자동 선택', {
+        workspaceId: currentWorkspace.id,
+        documentId: lastDoc.id
       });
       selectDocumentRef.current(lastDoc, { source: 'workspaceChange' }).catch(() => {
         autoSelectRef.current = false; // 실패 시 리셋
@@ -265,9 +265,9 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     } else {
       // 최근 문서가 목록에 없으면 첫 번째 문서 선택
       if (documents[0]) {
-        rlog.info('워크스페이스 변경: 최근 문서 없음, 첫 번째 문서 선택', { 
-          workspaceId: currentWorkspace.id, 
-          documentId: documents[0].id 
+        rlog.info('워크스페이스 변경: 최근 문서 없음, 첫 번째 문서 선택', {
+          workspaceId: currentWorkspace.id,
+          documentId: documents[0].id
         });
         selectDocumentRef.current(documents[0], { source: 'workspaceChange' }).catch(() => {
           autoSelectRef.current = false; // 실패 시 리셋
@@ -283,24 +283,24 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   // fetchDocuments 함수는 기존 API와 호환성을 위해 유지 (refetch로 동작)
   const fetchDocuments = useCallback(async (page: number | null = null, size: number | null = null) => {
     if (!currentWorkspace) return;
-    
+
     // 페이지네이션 파라미터가 있으면 별도 처리 (추후 개선 가능)
     if (page !== null && size !== null) {
-    try {
+      try {
         const response = await documentApi.getDocumentList(currentWorkspace.id, page, size);
-        
+
         // 페이지네이션 파라미터가 있으면 항상 PaginatedResponse를 반환해야 함
         if (Array.isArray(response)) {
           throw new Error('페이지네이션 파라미터가 있는데 배열이 반환되었습니다.');
         }
-        
+
         // 백엔드에서 다른 워크스페이스 문서가 섞여서 올 경우를 대비한 필터링
         const currentWorkspaceId = String(currentWorkspace.id);
         const filteredData = response.content.filter(doc => {
           const docWorkspaceId = doc.workspaceId || (doc as any).workspace?.id;
           return !docWorkspaceId || String(docWorkspaceId) === currentWorkspaceId;
         });
-        
+
         // React Query 캐시 업데이트
         queryClient.setQueryData<DocumentsData>(['documents', currentWorkspace.id], {
           documents: filteredData,
@@ -331,7 +331,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
 
     try {
       const newDocument = await documentApi.createDocument(currentWorkspace.id, documentData);
-      
+
       // React Query 캐시에 새 문서 추가
       queryClient.setQueryData<DocumentsData>(['documents', currentWorkspace.id], (oldData) => {
         if (!oldData) return oldData;
@@ -345,7 +345,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
           },
         };
       });
-      
+
       return newDocument;
     } catch (err) {
       rlog.error('문서 생성 실패', err);
@@ -362,13 +362,13 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
 
     try {
       const updated = await documentApi.updateDocument(currentWorkspace.id, id, documentData);
-      
+
       // 명확한 우선순위로 문서 데이터 병합
       // 우선순위: documentData (클라이언트) > updated (서버) > currentDocument (기존)
       const mergedUpdated = currentDocument?.id === id
         ? mergeDocumentUpdate(currentDocument, updated, documentData)
         : { ...updated, ...documentData } as Document;
-      
+
       // React Query 캐시 업데이트
       queryClient.setQueryData<DocumentsData>(['documents', currentWorkspace.id], (oldData) => {
         if (!oldData) return oldData;
@@ -377,23 +377,23 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
           documents: oldData.documents.map(doc => (doc.id === id ? { ...doc, ...mergedUpdated } : doc)),
         };
       });
-      
+
       // 현재 문서가 업데이트된 경우 zustand store도 업데이트
       if (currentDocument?.id === id) {
         updateCurrentDocument(mergedUpdated);
       }
-      
+
       return mergedUpdated;
     } catch (err) {
       rlog.error('문서 수정 실패', err);
-      
+
       // 403 에러인 경우 더 구체적인 메시지 제공
       let customMessage = '문서 수정에 실패했습니다.';
       const apiError = err as { response?: { status?: number } };
       if (apiError.response?.status === 403) {
         customMessage = '이 문서를 수정할 권한이 없습니다.';
       }
-      
+
       handleError(err, {
         customMessage,
         showToast: true
@@ -407,7 +407,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
 
     try {
       await documentApi.deleteDocument(currentWorkspace.id, id);
-      
+
       // React Query 캐시에서 문서 제거
       queryClient.setQueryData<DocumentsData>(['documents', currentWorkspace.id], (oldData) => {
         if (!oldData) return oldData;
@@ -422,7 +422,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
           },
         };
       });
-      
+
       // 현재 문서가 삭제된 경우 다른 문서로 전환
       if (currentDocument?.id === id) {
         const remainingDocs = documents.filter(d => d.id !== id);
@@ -454,15 +454,19 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
       rlog.warn('selectDocument throttled', { id: document.id, src: options.source });
       return;
     }
-    // URL id와 불일치 시 방어 (외부 호출로 다른 문서로 이동되는 현상 차단)
-    try {
-      const urlDocId = window.location.pathname.match(/^\/(\d+)(?:-.+)?$/)?.[1];
-      if (urlDocId && String(urlDocId) !== String(document.id)) {
-        rlog.warn('selectDocument blocked by URL guard', { target: document.id, urlDocId, src: options.source });
-        return;
-      }
-    } catch {}
-    
+    // URL id와 불일치 시 방어 (자동 호출에서만 적용)
+    // 사용자 액션(sidebar, path 클릭 등)에서는 URL 업데이트가 뒤따르므로 차단하지 않음
+    const isAutoSource = options.source === 'idSlugEffect' || options.source === 'workspaceChange';
+    if (isAutoSource) {
+      try {
+        const urlDocId = window.location.pathname.match(/^\/(\d+)(?:-.+)?$/)?.[1];
+        if (urlDocId && String(urlDocId) !== String(document.id)) {
+          rlog.debug('selectDocument blocked by URL guard (auto)', { target: document.id, urlDocId, src: options.source });
+          return;
+        }
+      } catch { }
+    }
+
     // 문서 객체에 워크스페이스 ID가 있으면 미리 검증
     if (document.workspaceId && String(document.workspaceId) !== String(currentWorkspace.id)) {
       rlog.warn('selectDocument blocked: 문서가 다른 워크스페이스에 속함', {
@@ -474,7 +478,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
       // 조용히 실패 (에러를 던지지 않음)
       return;
     }
-    
+
     // 문서 객체에 workspaceId가 없으면 문서 목록에서 확인
     if (!document.workspaceId) {
       const foundInList = documents.find(doc => String(doc.id) === String(document.id));
@@ -492,12 +496,12 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
       }
       // 문서 목록에 없으면 API 호출 후 검증 (자식 문서 등 접근 가능한 경우)
     }
-    
+
     try {
       setDocumentLoading(true);
       rlog.info('selectDocument', { id: document.id, ws: currentWorkspace?.id, src: options.source });
       const fullDocument = await documentApi.getDocument(currentWorkspace.id, document.id);
-      
+
       // 조회된 문서가 현재 워크스페이스에 속하는지 검증
       if (fullDocument.workspaceId && String(fullDocument.workspaceId) !== String(currentWorkspace.id)) {
         rlog.warn('문서가 다른 워크스페이스에 속함 (API 조회 후 확인)', {
@@ -509,10 +513,10 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
         // 조용히 실패 (에러를 던지지 않음) - DocumentEditor에서 이미 처리함
         return;
       }
-      
+
       setCurrentDocument(fullDocument);
       lastSelectRef.current = { id: document.id, at: Date.now() };
-      
+
       // 사용자별 마지막 문서 ID 저장 (lastDocumentId:${userId}:${workspaceId})
       if (user?.id && currentWorkspace?.id) {
         const storageKey = `lastDocumentId:${user.id}:${currentWorkspace.id}`;
@@ -547,18 +551,18 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     if (!currentWorkspace) return;
     try {
       await documentApi.updateDocumentOrder(currentWorkspace.id, documentIds);
-      
+
       // React Query 캐시 업데이트 - sortOrder 업데이트
       queryClient.setQueryData<DocumentsData>(['documents', currentWorkspace.id], (oldData) => {
         if (!oldData) return oldData;
         return {
           ...oldData,
           documents: oldData.documents.map(doc => {
-          const newIndex = documentIds.indexOf(doc.id);
-          if (newIndex !== -1) {
-            return { ...doc, sortOrder: newIndex };
-          }
-          return doc;
+            const newIndex = documentIds.indexOf(doc.id);
+            if (newIndex !== -1) {
+              return { ...doc, sortOrder: newIndex };
+            }
+            return doc;
           }),
         };
       });
@@ -604,7 +608,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
         rlog.warn('403 Forbidden - API 인터셉터에서 처리됨', { parentId });
         return []; // 에러 상태 설정하지 않고 조용히 종료
       }
-      
+
       rlog.error('fetchChildDocuments 에러', err, { parentId });
       return [];
     }

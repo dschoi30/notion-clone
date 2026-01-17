@@ -50,6 +50,10 @@ const DocumentView = () => {
     const editorRef = useRef<{ focus: () => void } | null>(null);
     const pageViewRef = useRef<DocumentPageViewRef | null>(null);
 
+    // 제목/내용 ref (useDocumentEditing에서 관리, useDocumentAutoSave에 전달)
+    const titleRef = useRef<string>('');
+    const contentRef = useRef<string>('');
+
     // 권한 계산
     const canWrite = hasWritePermission(currentDocument, user);
     const isReadOnly = useMemo(() => {
@@ -59,10 +63,18 @@ const DocumentView = () => {
     // 실시간 접속자
     const viewers = useDocumentPresence(currentDocument?.id, user);
 
-    // 저장 에러 콜백
+    // 에러 콜백
     const handleSaveError = useCallback((message: string) => {
         toast({
             title: '저장 오류',
+            description: message,
+            variant: 'destructive',
+        });
+    }, [toast]);
+
+    const handleConnectionError = useCallback((message: string) => {
+        toast({
+            title: '연결 오류',
             description: message,
             variant: 'destructive',
         });
@@ -75,43 +87,38 @@ const DocumentView = () => {
     // 1. 라우팅 훅
     const { path, handlePathClick } = useDocumentRouting();
 
-    // 3. 편집 훅 (먼저 호출하여 title, content 획득)
-    // Note: useDocumentEditing은 triggerAutoSave와 setSaveStatus를 필요로 하므로
-    // 두 훅간의 의존성을 해결하기 위해 순서 조정
-
-    // 임시 ref 생성 (useDocumentAutoSave와 useDocumentEditing 간 연결)
-    const titleRef = useRef<string>('');
-    const contentRef = useRef<string>('');
-
-    // 2. 자동 저장 훅 (실제 title/content 전달)
+    // 2. 자동 저장 훅 (ref만 전달 - 순환 의존성 해결)
     const {
         saveStatus,
         setSaveStatus,
         triggerAutoSave,
         handleSave,
         isSaving,
-        cancelPendingSave,
-    } = useDocumentAutoSave(currentDocument, titleRef.current, contentRef.current, {
+    } = useDocumentAutoSave(currentDocument, titleRef, contentRef, {
         canWrite,
         isReadOnly,
         onSaveError: handleSaveError,
     });
 
-    // 3. 편집 훅 (자동 저장과 연동)
+    // 3. 편집 훅 (자동 저장과 연동, 같은 ref 공유)
     const {
         title,
         content,
         handleTitleChange,
         handleContentChange,
+        connectionStatus,
     } = useDocumentEditing(currentDocument, {
         triggerAutoSave,
         setSaveStatus,
         titleRef,
         contentRef,
+        onConnectionError: handleConnectionError,
     });
 
     // 4. 버전 스냅샷 훅
-    useDocumentVersioning(currentDocument, currentWorkspace, titleRef, contentRef);
+    useDocumentVersioning(currentDocument, currentWorkspace, titleRef, contentRef, {
+        onError: handleSaveError,
+    });
 
     // ========================================
     // 핸들러
@@ -197,7 +204,7 @@ const DocumentView = () => {
             className="overflow-x-visible relative bg-white"
             aria-label={`문서: ${title || '제목 없음'}`}
         >
-            {/* 저장 중 오버레이 (네비게이션 가드) */}
+            {/* 저장 중 오버레이 */}
             {isSaving && (
                 <div
                     className="absolute inset-0 bg-white/50 z-50 flex items-center justify-center"
@@ -225,6 +232,7 @@ const DocumentView = () => {
                     path={path}
                     onPathClick={handlePathClick}
                     onLockToggle={handleLockToggle}
+                    connectionStatus={connectionStatus}
                 />
                 {currentDocument.viewType === 'PAGE' && (
                     <DocumentPageView
