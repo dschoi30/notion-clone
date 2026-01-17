@@ -227,6 +227,15 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
       return;
     }
 
+    // URL에 이미 문서 ID가 있으면 useDocumentRouting이 처리하므로 스킵
+    try {
+      const urlDocId = window.location.pathname.match(/^\/(\d+)(?:-.+)?$/)?.[1];
+      if (urlDocId) {
+        rlog.debug('워크스페이스 자동 선택 스킵: URL에 문서 ID 있음', { urlDocId });
+        return;
+      }
+    } catch { }
+
     // selectDocument가 아직 정의되지 않았으면 스킵
     if (!selectDocumentRef.current) return;
 

@@ -4,7 +4,7 @@
  * 
  * @see https://github.com/dschoi30/notion-clone/issues/112
  */
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useDocument } from '@/contexts/DocumentContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -105,6 +105,18 @@ export function useDocumentRouting(
     const { currentWorkspace } = useWorkspace();
     const { currentDocument, documents, selectDocument } = useDocument();
 
+    // selectDocument를 ref로 저장하여 함수 참조 변경으로 인한 effect 재실행 방지
+    const selectDocumentRef = useRef(selectDocument);
+    useEffect(() => {
+        selectDocumentRef.current = selectDocument;
+    }, [selectDocument]);
+
+    // currentDocument를 ref로 저장하여 effect 재실행 방지 (needsSelect 체크용)
+    const currentDocumentRef = useRef(currentDocument);
+    useEffect(() => {
+        currentDocumentRef.current = currentDocument;
+    }, [currentDocument]);
+
     // idSlug에서 문서 ID 파싱
     const docId = useMemo(() => parseDocIdFromSlug(idSlug), [idSlug]);
 
@@ -114,7 +126,8 @@ export function useDocumentRouting(
         return getDocumentPath(currentDocument.id, documents, currentDocument);
     }, [currentDocument, documents]);
 
-    // currentDocument가 변경될 때 URL 동기화
+    // currentDocument가 변경될 때 URL slug 동기화
+    // 주의: 문서 ID가 다른 경우에는 navigate하지 않음 (idSlug effect가 문서 선택을 처리함)
     useEffect(() => {
         if (!enableUrlSync) return;
         if (!currentDocument || !currentWorkspace) return;
@@ -126,22 +139,24 @@ export function useDocumentRouting(
         const currentUrlDocId = currentPath.match(/^\/(\d+)(-.*)?$/)?.[1];
         const isSameDocId = String(currentUrlDocId) === String(currentDocument.id);
 
+        // 같은 문서인데 slug만 다른 경우: slug 동기화
         if (isSameDocId && currentPath !== expectedPath) {
             rlog.debug('slug sync', { from: currentPath, to: expectedPath });
             navigate(expectedPath, { replace: true });
-        } else if (!isSameDocId) {
-            rlog.info('doc change navigate', { from: currentPath, to: expectedPath });
-            navigate(expectedPath, { replace: true });
         }
+        // 다른 문서인 경우: idSlug effect가 selectDocument를 호출할 것이므로 여기서는 아무것도 하지 않음
     }, [currentDocument, currentWorkspace, enableUrlSync, navigate, location.pathname]);
 
     // idSlug가 바뀔 때마다 해당 id의 문서를 선택
     useEffect(() => {
         if (!docId || !currentWorkspace) return;
 
+        // ref에서 현재 문서 가져오기 (의존성 배열에서 제외하기 위함)
+        const currDoc = currentDocumentRef.current;
+
         // 워크스페이스 변경 시 현재 문서의 워크스페이스 ID 확인
-        if (currentDocument?.workspaceId) {
-            const docWorkspaceId = String(currentDocument.workspaceId);
+        if (currDoc?.workspaceId) {
+            const docWorkspaceId = String(currDoc.workspaceId);
             const currentWorkspaceId = String(currentWorkspace.id);
             if (docWorkspaceId !== currentWorkspaceId) {
                 rlog.warn('idSlug select blocked: 문서가 다른 워크스페이스에 속함', {
@@ -179,23 +194,23 @@ export function useDocumentRouting(
             });
         }
 
-        const needsSelect = !currentDocument || String(currentDocument.id) !== String(docId);
+        const needsSelect = !currDoc || String(currDoc.id) !== String(docId);
         const reason = needsSelect ? (found ? 'found' : 'byId') : 'noop';
         // noop은 debug, 실제 선택 시에만 info
         if (reason === 'noop') {
-            rlog.debug('idSlug select check', { docId, currentId: currentDocument?.id, reason });
+            rlog.debug('idSlug select check', { docId, currentId: currDoc?.id, reason });
         } else {
             rlog.info('idSlug select check', { docId, reason });
         }
 
         if (needsSelect) {
             rlog.info('selectDocument', { id: found ? found.id : Number(docId), src: 'idSlugEffect' });
-            selectDocument(
+            selectDocumentRef.current(
                 found ? found : { id: Number(docId) } as Document,
                 { source: 'idSlugEffect' }
             );
         }
-    }, [docId, documents, currentWorkspace, currentDocument, navigate, selectDocument, location.pathname]);
+    }, [docId, documents, currentWorkspace, navigate, location.pathname]);
 
     // 경로 클릭 핸들러
     const handlePathClick = (targetDocId: number) => {

@@ -140,6 +140,11 @@ export function useDocumentEditing(
 
     // 내용 변경 핸들러
     const handleContentChange = useCallback((newContent: string) => {
+        // 실제로 값이 변경되었을 때만 처리 (에디터가 문서 전환 시 동일 값으로 onUpdate 발생 가능)
+        if (newContent === contentRef.current) {
+            return;
+        }
+
         setContent(newContent);
         contentRef.current = newContent;
         setSaveStatus('unsaved');

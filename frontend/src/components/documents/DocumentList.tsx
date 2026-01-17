@@ -50,16 +50,16 @@ interface DocumentItemProps {
 }
 
 // 문서 아이템 컴포넌트
-const DocumentItem = memo<DocumentItemProps>(({ 
+const DocumentItem = memo<DocumentItemProps>(({
   document,
-  currentDocument, 
-  onSelect, 
-  onDelete, 
-  openedIds, 
-  setOpenedIds, 
-  childrenMap, 
-  setChildrenMap, 
-  fetchChildDocuments, 
+  currentDocument,
+  onSelect,
+  onDelete,
+  openedIds,
+  setOpenedIds,
+  childrenMap,
+  setChildrenMap,
+  fetchChildDocuments,
   idPath,
   sensors,
   onDragEnd,
@@ -74,7 +74,7 @@ const DocumentItem = memo<DocumentItemProps>(({
     transform,
     transition,
     isDragging,
-  } = useSortable({ 
+  } = useSortable({
     id: document.id,
     animateLayoutChanges: () => true,
   });
@@ -114,7 +114,7 @@ const DocumentItem = memo<DocumentItemProps>(({
   }, [onDelete, document.id]);
 
   const Icon = document.viewType === 'TABLE' ? Table : FileText;
-  
+
   // 자식 문서인 경우 간단한 렌더링
   if (document.isChild) {
     const isSelected = currentDocument?.id === document.id;
@@ -125,7 +125,7 @@ const DocumentItem = memo<DocumentItemProps>(({
           ...itemStyle,
           background: isSelected && hovered
             ? '#E8E8E6'  // 선택 + 호버: 더 진한 색상
-            : isSelected 
+            : isSelected
               ? '#F0F0EF'  // 선택만: 기본 색상
               : hovered
                 ? '#F0F0EF'  // 호버만: 기본 색상
@@ -138,11 +138,10 @@ const DocumentItem = memo<DocumentItemProps>(({
           <Icon className="w-4 h-4 text-gray-400" />
         </span>
         <span
-          className={`flex-1 items-center px-1 h-8 truncate whitespace-nowrap rounded cursor-pointer ${
-            isSelected ? 'font-medium text-gray-900' : 'text-gray-900'
-          }`}
-          style={{ 
-            lineHeight: '2rem', 
+          className={`flex-1 items-center px-1 h-8 truncate whitespace-nowrap rounded cursor-pointer ${isSelected ? 'font-medium text-gray-900' : 'text-gray-900'
+            }`}
+          style={{
+            lineHeight: '2rem',
             display: 'flex',
             alignItems: 'center',
             minWidth: 0,
@@ -158,7 +157,7 @@ const DocumentItem = memo<DocumentItemProps>(({
 
   // 선택 상태 확인
   const isSelected = currentDocument?.id === document.id;
-  
+
   return (
     <div
       ref={setNodeRef}
@@ -167,7 +166,7 @@ const DocumentItem = memo<DocumentItemProps>(({
         ...itemStyle,
         background: isSelected && hovered
           ? '#E8E8E6'  // 선택 + 호버: 더 진한 색상
-          : isSelected 
+          : isSelected
             ? '#F0F0EF'  // 선택만: 기본 색상
             : hovered
               ? '#F0F0EF'  // 호버만: 기본 색상
@@ -192,13 +191,13 @@ const DocumentItem = memo<DocumentItemProps>(({
       >
         <GripVertical className="w-4 h-4 text-gray-400" />
       </div>
-      
+
       {document.hasChildren ? (
         hovered ? (
           <button
             onClick={handleToggle}
             className="flex justify-center items-center p-0 mr-1 w-8 h-8 rounded"
-            style={{ 
+            style={{
               minWidth: 32,
               background: isSelected && hovered
                 ? '#E8E8E6'  // 선택 + 호버: 더 진한 색상
@@ -222,11 +221,10 @@ const DocumentItem = memo<DocumentItemProps>(({
         </span>
       )}
       <span
-        className={`flex-1 items-center px-1 h-8 truncate whitespace-nowrap rounded cursor-pointer ${
-          isSelected ? 'font-medium text-gray-900' : 'text-gray-900'
-        }`}
-        style={{ 
-          lineHeight: '2rem', 
+        className={`flex-1 items-center px-1 h-8 truncate whitespace-nowrap rounded cursor-pointer ${isSelected ? 'font-medium text-gray-900' : 'text-gray-900'
+          }`}
+        style={{
+          lineHeight: '2rem',
           display: 'flex',
           alignItems: 'center',
           minWidth: 0,
@@ -240,10 +238,9 @@ const DocumentItem = memo<DocumentItemProps>(({
         variant="ghost"
         size="sm"
         onClick={handleDelete}
-        className={`hidden justify-center items-center p-0 w-8 h-8 rounded ${
-          hovered ? 'flex' : 'group-hover:flex'
-        }`}
-        style={{ 
+        className={`hidden justify-center items-center p-0 w-8 h-8 rounded ${hovered ? 'flex' : 'group-hover:flex'
+          }`}
+        style={{
           minWidth: 32,
           background: isSelected && hovered
             ? '#E8E8E6'  // 선택 + 호버: 더 진한 색상
@@ -279,17 +276,17 @@ interface DocumentSectionProps {
 }
 
 // 문서 섹션 컴포넌트
-const DocumentSection = memo<DocumentSectionProps>(({ 
-  title, 
-  documents, 
-  currentDocument, 
-  onSelect, 
-  onDelete, 
-  openedIds, 
-  setOpenedIds, 
-  childrenMap, 
-  setChildrenMap, 
-  fetchChildDocuments, 
+const DocumentSection = memo<DocumentSectionProps>(({
+  title,
+  documents,
+  currentDocument,
+  onSelect,
+  onDelete,
+  openedIds,
+  setOpenedIds,
+  childrenMap,
+  setChildrenMap,
+  fetchChildDocuments,
   idPath,
   sensors,
   onDragEnd,
@@ -358,7 +355,7 @@ const DocumentSection = memo<DocumentSectionProps>(({
                     idPath={idPath}
                     sensors={sensors}
                     onDragEnd={onDragEnd}
-                    style={{ 
+                    style={{
                       height: 32,
                       paddingLeft: document.isChild ? 20 : 0
                     }}
@@ -383,7 +380,6 @@ const DocumentList = memo(() => {
     fetchChildDocuments,
     createDocument,
     deleteDocument,
-    selectDocument,
     updateDocumentOrder,
     documentsLoading,
     currentDocument,
@@ -394,8 +390,8 @@ const DocumentList = memo(() => {
   const navigate = useNavigate();
   const dlog = createLogger('DocumentList');
   const { handleError } = useErrorHandler();
-  
-  
+
+
   // dnd-kit 센서 설정
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -407,19 +403,19 @@ const DocumentList = memo(() => {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-  
+
   // 공유/개인 문서 분류
   const { sharedDocuments, personalDocuments } = useMemo(() => {
     if (documents.length === 0) {
       return { sharedDocuments: [], personalDocuments: [] };
     }
-    
+
     const accessibleIds = new Set(documents.map(d => d.id));
     const isRootCandidate = (doc: Document) => (doc.parentId == null) || !accessibleIds.has(doc.parentId);
 
     const shared: DocumentWithExtras[] = [];
     const personal: DocumentWithExtras[] = [];
-    
+
     documents.forEach(doc => {
       if (isRootCandidate(doc)) {
         const docWithExtras = doc as DocumentWithExtras;
@@ -432,51 +428,51 @@ const DocumentList = memo(() => {
         }
       }
     });
-    
+
     const sortByOrder = (a: Document, b: Document) => {
       const sortOrderA = a.sortOrder ?? Number.MAX_SAFE_INTEGER;
       const sortOrderB = b.sortOrder ?? Number.MAX_SAFE_INTEGER;
       return sortOrderA - sortOrderB;
     };
-    
+
     shared.sort(sortByOrder);
     personal.sort(sortByOrder);
-    
+
     return { sharedDocuments: shared, personalDocuments: personal };
   }, [documents, user.id]);
 
   // 드래그 앤 드롭 핸들러
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
-    
+
     if (!over || active.id !== over.id) {
       try {
         const draggedDoc = documents.find(doc => doc.id === active.id);
         const targetDoc = documents.find(doc => doc.id === over.id);
-        
+
         if (!draggedDoc || !targetDoc) return;
-        
+
         // 개인 문서와 공유 문서를 구분
-        const isPersonalDrag = draggedDoc.userId === user.id && 
+        const isPersonalDrag = draggedDoc.userId === user.id &&
           (!draggedDoc.permissions || !draggedDoc.permissions.some(p => p.userId !== user.id));
-        const isPersonalTarget = targetDoc.userId === user.id && 
+        const isPersonalTarget = targetDoc.userId === user.id &&
           (!targetDoc.permissions || !targetDoc.permissions.some(p => p.userId !== user.id));
-        
+
         // 같은 카테고리 내에서만 이동 가능
         if (isPersonalDrag !== isPersonalTarget) {
           dlog.error('개인 문서와 공유 문서 간 이동은 불가능합니다.');
           return;
         }
-        
+
         // 해당 카테고리의 문서들만 가져오기
         const categoryDocuments = isPersonalDrag ? personalDocuments : sharedDocuments;
         const oldIndex = categoryDocuments.findIndex(doc => doc.id === active.id);
         const newIndex = categoryDocuments.findIndex(doc => doc.id === over.id);
-        
+
         if (oldIndex !== -1 && newIndex !== -1) {
           const newOrder = arrayMove(categoryDocuments, oldIndex, newIndex);
           const documentIds = newOrder.map(doc => doc.id);
-          
+
           await updateDocumentOrder(documentIds);
         }
       } catch (err) {
@@ -513,11 +509,10 @@ const DocumentList = memo(() => {
     return path;
   }, [currentDocument, documents]);
 
-  // 문서 클릭 시 라우팅
+  // 문서 클릭 시 라우팅 (selectDocument는 useDocumentRouting이 URL 변경 감지 후 자동 호출)
   const handleSelectDocument = useCallback((document: Document) => {
     navigate(`/${document.id}-${slugify(document.title || 'untitled')}`);
-    selectDocument(document);
-  }, [navigate, selectDocument]);
+  }, [navigate]);
 
   // 새 문서 생성
   const handleCreateDocument = useCallback(async () => {
@@ -528,7 +523,7 @@ const DocumentList = memo(() => {
         parentId: null,
         viewType: 'PAGE',
       }, { silent: true });
-      
+
       handleSelectDocument(newDocument);
     } catch (err) {
       console.error('문서 생성 실패:', err);
@@ -548,21 +543,21 @@ const DocumentList = memo(() => {
     const sectionHeight = 60; // 섹션 헤더 높이
     const padding = 32; // 전체 패딩
     const itemHeight = 32; // 문서 아이템 높이
-    
+
     // 공유 문서 섹션 높이
-    const sharedSectionHeight = sharedDocuments.length > 0 ? 
+    const sharedSectionHeight = sharedDocuments.length > 0 ?
       sectionHeight + (sharedDocuments.length * itemHeight) : 0;
-    
+
     // 개인 문서 섹션 높이  
     const personalSectionHeight = personalDocuments.length > 0 ?
       sectionHeight + (personalDocuments.length * itemHeight) : 0;
-    
+
     // 전체 높이 계산
     const calculatedHeight = sharedSectionHeight + personalSectionHeight + padding;
-    
+
     // 최대 높이 제한 (화면 높이의 80% 정도)
     const maxHeight = Math.min(window.innerHeight * 0.8, 600);
-    
+
     return Math.min(calculatedHeight, maxHeight);
   }, [sharedDocuments.length, personalDocuments.length]);
 
@@ -583,9 +578,9 @@ const DocumentList = memo(() => {
   }
 
   return (
-    <div 
+    <div
       className="flex-1"
-      style={{ 
+      style={{
         height: `${totalHeight}px`,
         overflowY: 'auto' // 통합 스크롤 활성화
       }}
@@ -607,7 +602,7 @@ const DocumentList = memo(() => {
           sensors={sensors}
           onDragEnd={handleDragEnd}
         />
-        
+
         {/* 개인 문서 섹션 */}
         <DocumentSection
           title="개인 문서"
