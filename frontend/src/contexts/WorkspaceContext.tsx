@@ -103,14 +103,19 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
   // workspaces 목록이 로드되면 자동으로 currentWorkspace 설정
   useEffect(() => {
     const savedId = localStorage.getItem('selectedWorkspace');
-    wlog.info(`WorkspaceContext - savedId: ${savedId}, workspaces.length: ${workspaces.length}`);
-    wlog.info(`현재 workspaces:`, workspaces.map(ws => `${ws.id}(${ws.name})`).join(', '));
-    
+    // 초기 상태(length: 0)는 debug, 로드 완료 시에만 info
+    if (workspaces.length === 0) {
+      wlog.debug(`WorkspaceContext - savedId: ${savedId}, workspaces.length: 0`);
+    } else {
+      wlog.info(`WorkspaceContext - savedId: ${savedId}, workspaces.length: ${workspaces.length}`);
+      wlog.debug(`현재 workspaces:`, workspaces.map(ws => `${ws.id}(${ws.name})`).join(', '));
+    }
+
     if (workspaces.length > 0 && !currentWorkspace) {
       if (savedId) {
         const found = workspaces.find(ws => String(ws.id) === String(savedId));
         wlog.info(`savedId ${savedId}로 찾은 워크스페이스:`, found ? `${found.id}(${found.name})` : 'null');
-        
+
         if (found) {
           wlog.info(`워크스페이스 설정: ${found.id}(${found.name})`);
           selectWorkspaceStore(found);
@@ -133,13 +138,13 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
   const createWorkspace = useCallback(async (workspaceData: CreateWorkspaceRequest) => {
     try {
       const newWorkspace = await workspaceApi.createWorkspace(workspaceData);
-      
+
       // React Query 캐시에 새 워크스페이스 추가
       queryClient.setQueryData<Workspace[]>(['workspaces'], (oldData) => {
         if (!oldData) return [newWorkspace];
         return [...oldData, newWorkspace];
       });
-      
+
       return newWorkspace;
     } catch (err) {
       wlog.error('워크스페이스 생성 실패', err);
@@ -154,15 +159,15 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
   const updateWorkspace = useCallback(async (id: number, workspaceData: Partial<Workspace>) => {
     try {
       const updatedWorkspace = await workspaceApi.updateWorkspace(id, workspaceData);
-      
+
       // React Query 캐시 업데이트
       queryClient.setQueryData<Workspace[]>(['workspaces'], (oldData) => {
         if (!oldData) return oldData;
-        return oldData.map(workspace => 
+        return oldData.map(workspace =>
           workspace.id === id ? updatedWorkspace : workspace
         );
       });
-      
+
       // 현재 워크스페이스가 업데이트된 경우 zustand store도 업데이트
       if (currentWorkspace?.id === id) {
         updateCurrentWorkspace(updatedWorkspace);
@@ -180,13 +185,13 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
   const deleteWorkspace = useCallback(async (id: number) => {
     try {
       await workspaceApi.softDeleteWorkspace(id);
-      
+
       // React Query 캐시에서 워크스페이스 제거
       queryClient.setQueryData<Workspace[]>(['workspaces'], (oldData) => {
         if (!oldData) return oldData;
         return oldData.filter(workspace => workspace.id !== id);
       });
-      
+
       // 현재 워크스페이스가 삭제된 경우 다른 워크스페이스로 변경
       if (currentWorkspace?.id === id) {
         const remaining = workspaces.filter(w => w.id !== id);

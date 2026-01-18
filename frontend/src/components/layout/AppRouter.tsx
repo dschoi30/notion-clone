@@ -6,7 +6,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { createLogger } from '@/lib/logger';
 import { slugify } from '@/lib/utils';
-import DocumentEditor from '@/components/documents/DocumentEditor';
+import DocumentView from '@/components/documents/DocumentView';
 
 const rlog = createLogger('AppRouter');
 
@@ -37,15 +37,15 @@ const AppRouter = () => {
     if (workspaceLoading || documentsLoading || !currentWorkspace || documents.length === 0) {
       return null;
     }
-    
+
     // 사용자별 마지막 문서 ID 조회
     const storageKey = user?.id ? `lastDocumentId:${user.id}:${currentWorkspace.id}` : null;
     const lastId = storageKey ? localStorage.getItem(storageKey) : null;
     let doc = null;
-    
+
     if (lastId) doc = documents.find(d => String(d.id) === String(lastId));
     if (!doc) doc = documents[0];
-    
+
     if (!doc) return null;
     return `/${doc.id}-${slugify(doc.title)}`;
   };
@@ -55,7 +55,7 @@ const AppRouter = () => {
     if (workspaceLoading || documentsLoading || !currentWorkspace || documents.length === 0) return;
 
     const currentUrlDocId = getCurrentDocIdFromUrl();
-    
+
     if (currentUrlDocId) {
       const foundDoc = documents.find(d => String(d.id) === String(currentUrlDocId));
       if (!foundDoc) {
@@ -63,25 +63,25 @@ const AppRouter = () => {
           rlog.info('url doc allowed though not in list (currentDocument loaded)', { currentUrlDocId });
           return;
         }
-        
+
         rlog.warn('url doc not in workspace, redirecting', { currentUrlDocId, workspaceId: currentWorkspace.id });
-        
+
         // 사용자별 마지막 문서 ID 조회
         const storageKey = user?.id ? `lastDocumentId:${user.id}:${currentWorkspace.id}` : null;
         const lastId = storageKey ? localStorage.getItem(storageKey) : null;
         let targetDoc = null;
-        
+
         if (lastId) {
           targetDoc = documents.find(d => String(d.id) === String(lastId));
           if (!targetDoc && storageKey) {
             localStorage.removeItem(storageKey);
           }
         }
-        
+
         if (!targetDoc) {
           targetDoc = documents[0];
         }
-        
+
         if (targetDoc) {
           navigateToCorrectDocument(targetDoc);
         }
@@ -91,18 +91,18 @@ const AppRouter = () => {
       const storageKey = user?.id ? `lastDocumentId:${user.id}:${currentWorkspace.id}` : null;
       const lastId = storageKey ? localStorage.getItem(storageKey) : null;
       let targetDoc = null;
-      
+
       if (lastId) {
         targetDoc = documents.find(d => String(d.id) === String(lastId));
         if (!targetDoc && storageKey) {
           localStorage.removeItem(storageKey);
         }
       }
-      
+
       if (!targetDoc) {
         targetDoc = documents[0];
       }
-      
+
       if (targetDoc) {
         navigateToCorrectDocument(targetDoc);
       }
@@ -113,8 +113,8 @@ const AppRouter = () => {
 
   return (
     <Routes>
-      <Route 
-        path="/" 
+      <Route
+        path="/"
         element={
           workspaceLoading || documentsLoading ? (
             <div className="p-4 text-sm">로딩 중...</div>
@@ -123,9 +123,9 @@ const AppRouter = () => {
           ) : (
             <div className="p-4 text-sm">문서가 없습니다.</div>
           )
-        } 
+        }
       />
-      <Route path="/:idSlug" element={<DocumentEditor />} />
+      <Route path="/:idSlug" element={<DocumentView />} />
     </Routes>
   );
 };

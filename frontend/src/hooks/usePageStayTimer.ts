@@ -8,10 +8,10 @@ interface UsePageStayTimerOptions {
 }
 
 // 누적 체류 시간을 ms로 계산. 문서가 보일 때만 카운트
-export default function usePageStayTimer({ 
-  enabled = true, 
-  onReachMs = () => {}, 
-  targetMs = 10 * 60 * 1000 
+export default function usePageStayTimer({
+  enabled = true,
+  onReachMs = () => { },
+  targetMs = 10 * 60 * 1000
 }: UsePageStayTimerOptions = {}) {
   const [elapsedMs, setElapsedMs] = useState(0);
   const lastTickRef = useRef<number | null>(null);
@@ -37,7 +37,6 @@ export default function usePageStayTimer({
           timerRef.current = null;
         }
         lastTickRef.current = null;
-        log.debug('paused (hidden)');
       } else {
         // start
         lastTickRef.current = performance.now();
@@ -49,7 +48,6 @@ export default function usePageStayTimer({
             lastTickRef.current = now;
             setElapsedMs((prev) => {
               const next = prev + delta;
-              log.debug(`+${Math.round(delta)}ms -> ${Math.round(next)} / target ${targetMs}`);
               if (prev < targetMs && next >= targetMs) {
                 log.debug('target reached');
                 try { callbackRef.current(next); } catch (err) { log.error('[stayTimer] onReachMs error', err); }
@@ -57,13 +55,11 @@ export default function usePageStayTimer({
               return next;
             });
           }, 1000);
-          log.debug('interval started');
         }
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibility);
-    log.debug('start, targetMs=', targetMs);
     handleVisibility();
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
@@ -71,7 +67,6 @@ export default function usePageStayTimer({
         window.clearInterval(timerRef.current);
         timerRef.current = null;
       }
-      log.debug('cleanup');
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, targetMs]);
