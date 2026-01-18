@@ -150,14 +150,25 @@ export function useDocumentEditing(
         setSaveStatus('unsaved');
         triggerAutoSave();
 
-        // 실시간 편집 메시지 전송
+        // 사용자 인증 확인 후 실시간 편집 메시지 전송
+        if (!user?.id) {
+            rlog.warn('Cannot send edit: user not authenticated');
+            return;
+        }
+
         rlog.debug('sendEdit', {
             docId: currentDocument?.id,
             length: newContent?.length,
             path: location.pathname,
         });
-        sendEdit({ content: newContent, userId: user?.id });
-    }, [setSaveStatus, triggerAutoSave, currentDocument?.id, location.pathname, sendEdit, user?.id, contentRef]);
+
+        try {
+            sendEdit({ content: newContent, userId: user.id });
+        } catch (err) {
+            rlog.error('Failed to send edit', err);
+            onConnectionError?.('실시간 편집 전송에 실패했습니다.');
+        }
+    }, [setSaveStatus, triggerAutoSave, currentDocument?.id, location.pathname, sendEdit, user?.id, contentRef, onConnectionError]);
 
     // title, content가 변경될 때 ref 동기화 (외부에서 직접 set한 경우 대비)
     useEffect(() => {

@@ -10,9 +10,28 @@ import { useDocument } from '@/contexts/DocumentContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { slugify } from '@/lib/utils';
 import { createLogger } from '@/lib/logger';
-import type { Document } from '@/types';
+import type { Document, Workspace } from '@/types';
 
 const rlog = createLogger('router');
+
+/** 최소한의 문서 정보 (ID만 필요한 경우) */
+type MinimalDocument = Pick<Document, 'id'>;
+
+/**
+ * 문서가 현재 워크스페이스에 속하는지 검증하는 유틸리티 함수
+ * @param doc - 검증할 문서 (null 가능)
+ * @param currentWorkspace - 현재 워크스페이스
+ * @returns 문서가 없거나, workspaceId가 없거나, 현재 워크스페이스에 속하면 true
+ */
+function validateDocumentWorkspace(
+    doc: Document | MinimalDocument | null | undefined,
+    currentWorkspace: Workspace
+): boolean {
+    if (!doc) return true;
+    // MinimalDocument는 workspaceId가 없으므로 type guard 필요
+    if (!('workspaceId' in doc) || !doc.workspaceId) return true;
+    return String(doc.workspaceId) === String(currentWorkspace.id);
+}
 
 /**
  * idSlug에서 문서 ID를 추출하는 유틸리티 함수
@@ -155,35 +174,27 @@ export function useDocumentRouting(
         const currDoc = currentDocumentRef.current;
 
         // 워크스페이스 변경 시 현재 문서의 워크스페이스 ID 확인
-        if (currDoc?.workspaceId) {
-            const docWorkspaceId = String(currDoc.workspaceId);
-            const currentWorkspaceId = String(currentWorkspace.id);
-            if (docWorkspaceId !== currentWorkspaceId) {
-                rlog.warn('idSlug select blocked: 문서가 다른 워크스페이스에 속함', {
-                    docId,
-                    docWorkspaceId,
-                    currentWorkspaceId,
-                });
-                navigate('/', { replace: true });
-                return;
-            }
+        if (!validateDocumentWorkspace(currDoc, currentWorkspace)) {
+            rlog.warn('idSlug select blocked: 문서가 다른 워크스페이스에 속함', {
+                docId,
+                docWorkspaceId: (currDoc as Document)?.workspaceId,
+                currentWorkspaceId: currentWorkspace.id,
+            });
+            navigate('/', { replace: true });
+            return;
         }
 
         const found = documents.find(doc => String(doc.id) === String(docId));
 
         // 문서 목록에 있는 경우, 해당 문서의 워크스페이스 ID 확인
-        if (found?.workspaceId) {
-            const docWorkspaceId = String(found.workspaceId);
-            const currentWorkspaceId = String(currentWorkspace.id);
-            if (docWorkspaceId !== currentWorkspaceId) {
-                rlog.warn('idSlug select blocked: 문서가 다른 워크스페이스에 속함', {
-                    docId,
-                    docWorkspaceId,
-                    currentWorkspaceId,
-                });
-                navigate('/', { replace: true });
-                return;
-            }
+        if (!validateDocumentWorkspace(found, currentWorkspace)) {
+            rlog.warn('idSlug select blocked: 문서가 다른 워크스페이스에 속함', {
+                docId,
+                docWorkspaceId: found?.workspaceId,
+                currentWorkspaceId: currentWorkspace.id,
+            });
+            navigate('/', { replace: true });
+            return;
         }
 
         // 문서 목록에 없는 경우 로그
@@ -205,8 +216,10 @@ export function useDocumentRouting(
 
         if (needsSelect) {
             rlog.info('selectDocument', { id: found ? found.id : Number(docId), src: 'idSlugEffect' });
+            // MinimalDocument 타입을 사용하여 안전한 타입 캐스팅
+            const targetDoc: Document | MinimalDocument = found ?? { id: Number(docId) };
             selectDocumentRef.current(
-                found ? found : { id: Number(docId) } as Document,
+                targetDoc as Document, // selectDocument는 내부적으로 id만 사용
                 { source: 'idSlugEffect' }
             );
         }

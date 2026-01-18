@@ -72,6 +72,9 @@ export function useDocumentAutoSave(
     const [isSaving, setIsSaving] = useState(false);
     const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
+    // 동시 저장 방지를 위한 lock
+    const savingRef = useRef(false);
+
     // 이전 문서 데이터 저장 (문서 전환 시 정확한 데이터 저장을 위해)
     const prevDocumentDataRef = useRef<PrevDocumentData | null>(null);
 
@@ -95,6 +98,12 @@ export function useDocumentAutoSave(
     const handleSave = useCallback(async () => {
         if (!currentDocument) return;
 
+        // 동시 저장 방지
+        if (savingRef.current) {
+            log.debug('저장 스킵: 이미 저장 중');
+            return;
+        }
+
         // 권한 체크
         if (!canWrite || isReadOnly) {
             log.warn('문서 저장 실패: 권한 없음', {
@@ -107,6 +116,7 @@ export function useDocumentAutoSave(
             return;
         }
 
+        savingRef.current = true;
         try {
             setIsSaving(true);
             setSaveStatus('saving');
@@ -132,6 +142,7 @@ export function useDocumentAutoSave(
                 onSaveError?.('문서 저장에 실패했습니다. 잠시 후 다시 시도해주세요.');
             }
         } finally {
+            savingRef.current = false;
             setIsSaving(false);
         }
     }, [currentDocument, canWrite, isReadOnly, updateDocument, onSaveError, titleRef, contentRef]);
@@ -177,9 +188,16 @@ export function useDocumentAutoSave(
                             title: data.title,
                             content: data.content,
                         });
-                        // Note: sendBeacon은 POST만 지원하므로 별도 엔드포인트 필요 시 구현
-                        // 현재는 표준 메시지로 경고만 표시
-                        log.warn('beforeunload: unsaved changes', { payload: payload.substring(0, 100) });
+                        // TODO: sendBeacon 사용 시 구현이 필요한 사항:
+                        // 1. sendBeacon은 POST 요청만 지원
+                        // 2. 백엔드에 별도 엔드포인트 필요 (예: POST /api/documents/:id/beacon-save)
+                        // 3. 해당 엔드포인트는 Content-Type: application/json을 지원해야 함
+                        // 현재는 백엔드 엔드포인트가 없으므로 경고 메시지만 표시
+                        // 향후 구현 시: navigator.sendBeacon(`/api/documents/${data.id}/beacon-save`, payload);
+                        log.warn('beforeunload: unsaved changes detected, sendBeacon not implemented', {
+                            documentId: data.id,
+                            payloadPreview: payload.substring(0, 100),
+                        });
                     } catch (err) {
                         log.error('beforeunload save failed', err);
                     }
@@ -236,21 +254,6 @@ export function useDocumentAutoSave(
             prevDocumentDataRef.current = null;
         }
     }, [currentDocument, saveStatus, updateDocument, onSaveError, titleRef, contentRef]);
-
-    // title/content ref 변경 시 prevDocumentDataRef 업데이트
-    // Note: ref의 current 값 변경을 감지하기 위해 별도 effect 필요
-    useEffect(() => {
-        const updatePrevData = () => {
-            if (prevDocumentDataRef.current && currentDocument) {
-                prevDocumentDataRef.current.title = titleRef.current;
-                prevDocumentDataRef.current.content = contentRef.current;
-            }
-        };
-
-        // 짧은 간격으로 동기화 (ref 변경 감지)
-        const intervalId = setInterval(updatePrevData, 1000);
-        return () => clearInterval(intervalId);
-    }, [currentDocument, titleRef, contentRef]);
 
     return {
         saveStatus,

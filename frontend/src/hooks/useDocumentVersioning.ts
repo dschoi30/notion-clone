@@ -67,7 +67,20 @@ export function useDocumentVersioning(
 
     // 스냅샷 생성 핸들러
     const handleReachSnapshot = useCallback(async (reachedMs?: number) => {
-        const executeSnapshot = async (): Promise<boolean> => {
+        /** 재시도 가능한 에러인지 확인 (네트워크 에러 또는 5xx 서버 에러) */
+        const isRetryableError = (error: unknown): boolean => {
+            const apiError = error as { response?: { status?: number } };
+            const status = apiError?.response?.status;
+            // 상태 코드가 없으면 네트워크 에러로 간주하여 재시도
+            if (!status) return true;
+            // 4xx 클라이언트 에러는 재시도하지 않음
+            if (status >= 400 && status < 500) return false;
+            // 5xx 서버 에러는 재시도
+            return true;
+        };
+
+        /** 스냅샷 실행 - 성공 시 true, 재시도 가능한 실패 시 false, 재시도 불가 시 null 반환 */
+        const executeSnapshot = async (): Promise<boolean | null> => {
             try {
                 if (!currentDocument || !currentWorkspace) return false;
 
@@ -106,21 +119,45 @@ export function useDocumentVersioning(
                 return true;
             } catch (e) {
                 vlog.error('create failed', e);
-                return false;
+                // 재시도 가능한 에러인지 확인
+                if (!isRetryableError(e)) {
+                    vlog.error('client error (4xx), not retrying', e);
+                    return null; // 재시도 불가
+                }
+                return false; // 재시도 가능
             }
         };
 
         // 실행 및 재시도 로직
-        let success = await executeSnapshot();
+        let result = await executeSnapshot();
 
-        while (!success && retryCountRef.current < MAX_RETRY_COUNT) {
+        // null이면 재시도 불가 (4xx 에러)
+        if (result === null) {
+            onError?.('버전 스냅샷 저장에 실패했습니다. 요청을 확인해주세요.');
+            retryCountRef.current = 0;
+            // 다음 임계치 설정 후 종료
+            const base = typeof reachedMs === 'number' ? reachedMs : 0;
+            setNextSnapshotMs(base + SNAPSHOT_INTERVAL_MS);
+            return;
+        }
+
+        while (!result && retryCountRef.current < MAX_RETRY_COUNT) {
             retryCountRef.current++;
             vlog.warn(`retry snapshot (${retryCountRef.current}/${MAX_RETRY_COUNT})`);
             await new Promise(resolve => setTimeout(resolve, 1000 * retryCountRef.current)); // 점진적 대기
-            success = await executeSnapshot();
+            result = await executeSnapshot();
+
+            // 재시도 중 4xx 에러 발생 시 중단
+            if (result === null) {
+                onError?.('버전 스냅샷 저장에 실패했습니다. 요청을 확인해주세요.');
+                retryCountRef.current = 0;
+                const base = typeof reachedMs === 'number' ? reachedMs : 0;
+                setNextSnapshotMs(base + SNAPSHOT_INTERVAL_MS);
+                return;
+            }
         }
 
-        if (!success && retryCountRef.current >= MAX_RETRY_COUNT) {
+        if (!result && retryCountRef.current >= MAX_RETRY_COUNT) {
             vlog.error('max retry reached, giving up');
             onError?.('버전 스냅샷 저장에 실패했습니다. 네트워크 연결을 확인해주세요.');
             retryCountRef.current = 0; // 리셋
